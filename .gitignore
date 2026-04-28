@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────
+# .gitignore — Profiler de Dados
+# Protege dados brutos e outputs que podem conter informações
+# sensíveis (PII, dados corporativos) de serem commitados.
+# ─────────────────────────────────────────────────────────────
+
+# Arquivos de dados brutos (inputs)
+*.csv
+*.xlsx
+*.xls
+*.parquet
+
+# Outputs gerados (podem conter dados sensíveis)
+*.json
+*.txt
+analise_*
+
+# Ambiente virtual Python
+.venv/
+venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs de execução (gerados pelo on_bad_lines="warn")
+*.log
