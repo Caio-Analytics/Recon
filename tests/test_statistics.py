@@ -60,3 +60,15 @@ def test_mistura_de_tipos_detectada():
     resultado = analisar_estatisticas(serie, total_linhas=30)
 
     assert resultado["flags"]["mistura_tipos"]["tem_mistura"] is True
+
+
+def test_coef_variacao_overflow_guard():
+    # Regression test: ensure coef_variacao doesn't return inf when std/mean ratio overflows
+    # Using values where the ratio could overflow: 1e300 / 1e-300 = inf
+    serie = pd.Series([1e300, 1e300, 1e300, -1e-300], name="overflow_test")
+
+    resultado = analisar_estatisticas(serie, total_linhas=4)
+
+    coef_var = resultado["estatisticas_adicionais"]["coef_variacao"]
+    # coef_variacao must be either None or a finite float, never inf/nan
+    assert coef_var is None or math.isfinite(coef_var)

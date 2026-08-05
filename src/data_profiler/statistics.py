@@ -115,7 +115,7 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
                 "media": round(media_val, 6),
                 "mediana": round(float(numericos.median()), 6),
                 "desvio_padrao": _valor_ou_none(std_val),
-                "coef_variacao": round(std_val / media_val, 4) if media_val != 0 and math.isfinite(std_val) else None,
+                "coef_variacao": _valor_ou_none(std_val / media_val) if media_val != 0 else None,
                 "assimetria": _valor_ou_none(numericos.skew()),
                 "curtose": _valor_ou_none(numericos.kurt()),
                 "qtd_negativos": int((numericos < 0).sum()),
