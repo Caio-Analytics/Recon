@@ -49,7 +49,7 @@ def carregar_arquivo(
                     return df, nome_base
             except Exception:
                 continue
-        df = pd.read_csv(caminho, encoding=encoding, sep=None, engine="python", low_memory=False)
+        df = pd.read_csv(caminho, encoding=encoding, sep=None, engine="python")
         logger.info(f"CSV carregado via engine automático | Shape: {df.shape}")
         return df, nome_base
 
