@@ -28,6 +28,14 @@ def test_extensao_nao_suportada_levanta_file_format_error(tmp_path):
         carregar_arquivo(str(caminho))
 
 
+def test_csv_vazio_levanta_file_format_error_nao_csv_error(tmp_path):
+    caminho = tmp_path / "vazio.csv"
+    caminho.write_bytes(b"")
+
+    with pytest.raises(FileFormatError):
+        carregar_arquivo(str(caminho))
+
+
 def test_carregar_xlsx(tmp_path):
     caminho = tmp_path / "planilha.xlsx"
     pd.DataFrame({"a": [1, 2], "b": [3, 4]}).to_excel(caminho, index=False)
