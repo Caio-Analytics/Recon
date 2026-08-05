@@ -127,6 +127,8 @@ def testar_normalidade_shapiro(numericos: pd.Series) -> Dict[str, Any]:
     n = len(numericos)
     if n < config.SHAPIRO_MIN_N:
         return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.SHAPIRO_MIN_N})"}
+    if float(numericos.std()) == 0.0:
+        return {"aplicavel": False, "motivo": "Série constante (variância zero) — teste de normalidade não aplicável"}
     amostra = (
         numericos.sample(n=config.SHAPIRO_MAX_N, random_state=42)
         if n > config.SHAPIRO_MAX_N else numericos
@@ -186,6 +188,8 @@ def detectar_distribuicao_provavel(numericos: pd.Series) -> Dict[str, Any]:
     n = len(numericos)
     if n < config.DIST_DETECTION_MIN_N:
         return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.DIST_DETECTION_MIN_N})"}
+    if float(numericos.std()) == 0.0:
+        return {"aplicavel": False, "motivo": "Série constante (variância zero) — nenhuma distribuição é aplicável"}
 
     valores = numericos.to_numpy()
     candidatos = {"normal": scipy_stats.norm}

@@ -115,6 +115,12 @@ def test_shapiro_amostra_insuficiente_retorna_nao_aplicavel():
     assert resultado["aplicavel"] is False
 
 
+def test_shapiro_serie_constante_nao_aplicavel_sem_warning(recwarn):
+    resultado = testar_normalidade_shapiro(pd.Series([7.0] * 30))
+    assert resultado["aplicavel"] is False
+    assert len(recwarn) == 0
+
+
 def test_shapiro_normal_provavel_para_amostra_normal():
     rng = np.random.default_rng(42)
     serie = pd.Series(rng.normal(loc=0, scale=1, size=500))
@@ -147,6 +153,12 @@ def test_ic_media_amostra_minima():
 def test_distribuicao_provavel_amostra_insuficiente():
     resultado = detectar_distribuicao_provavel(pd.Series([1.0, 2.0, 3.0]))
     assert resultado["aplicavel"] is False
+
+
+def test_distribuicao_provavel_serie_constante_nao_aplicavel_sem_warning(recwarn):
+    resultado = detectar_distribuicao_provavel(pd.Series([7.0] * 30))
+    assert resultado["aplicavel"] is False
+    assert len(recwarn) == 0
 
 
 def test_distribuicao_provavel_detecta_normal():
