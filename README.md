@@ -20,11 +20,36 @@
 
 ## 🚀 Instalação
 
+### Com venv (recomendado, máquina pessoal)
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 ```
+
+### Sem venv (máquina corporativa restrita — sem admin, sem venv)
+
+Se sua política de TI bloqueia `venv` mas permite `pip`, instale tudo **só no seu usuário** (`--user`), sem tocar no Python global e sem precisar de admin:
+
+```bash
+pip install --user --upgrade pip
+pip install --user -e ".[dev]"
+```
+
+O comando `datascope` vai parar em `~/.local/bin` — se o terminal não reconhecer o comando depois de instalar, adicione essa pasta ao PATH:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+```
+
+Se o `pip` recusar instalar com um erro tipo `externally-managed-environment` (comum em Python de sistema em distros mais novas), isso **não é permissão de admin** — é só uma trava de segurança do próprio `pip`. Contorna com:
+
+```bash
+pip install --user --break-system-packages -e ".[dev]"
+```
+
+**⚠️ Sem isolamento:** instalar `--user` (em vez de venv) coloca as dependências do DataScope no mesmo lugar que as de qualquer outro projeto Python que você rodar nessa máquina com `--user`. Se dois projetos precisarem de versões diferentes da mesma biblioteca, um vai sobrescrever o outro. Veja a seção de limpeza abaixo pra remover as dependências do DataScope quando for usar outro projeto.
 
 Requer Python ≥ 3.11.
 
@@ -100,9 +125,44 @@ pytest -v
 
 ## 🔄 Reinstalação do zero
 
+**Com venv:**
+
 ```bash
 rm -rf .venv && python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip && pip install -e ".[dev]"
 ```
+
+**Sem venv (`--user`):**
+
+```bash
+pip uninstall -y datascope pandas numpy pyarrow openpyxl xlrd pyxlsb charset-normalizer rapidfuzz unidecode scipy statsmodels loguru typer tqdm pytest pytest-cov pandas-stubs && pip install --user -e ".[dev]"
+```
+
+### 🧹 Limpar tudo (liberar a máquina pra outro projeto)
+
+No modo sem venv, as dependências ficam instaladas globalmente pro seu usuário. Pra remover tudo que o DataScope instalou e não deixar resíduo interferindo em outro projeto:
+
+```bash
+pip uninstall -y datascope pandas numpy pyarrow openpyxl xlrd pyxlsb charset-normalizer rapidfuzz unidecode scipy statsmodels loguru typer tqdm pytest pytest-cov pandas-stubs
+```
+
+Isso remove as dependências diretas (as mesmas do `pyproject.toml`). Algumas dependências transitivas pequenas e muito comuns (`six`, `packaging`, `python-dateutil` etc.) podem continuar instaladas — são inofensivas e geralmente usadas por outras bibliotecas Python também, então não vale a pena arriscar removê-las às cegas.
+
+---
+
+## 🧩 Extensões do VS Code
+
+| Extensão | ID | Por quê |
+|---|---|---|
+| **Python** | `ms-python.python` | Suporte base a Python — execução, debug, ambientes |
+| **Pylance** | `ms-python.vscode-pylance` | Já vem com a Python, é o motor de análise de tipos |
+| **Ruff** | `charliermarsh.ruff` | Lint + formatação rápidos; substitui flake8/black com uma extensão só |
+| **Even Better TOML** | `tamasfe.even-better-toml` | Syntax highlight/validação pro `pyproject.toml` |
+| **Data Wrangler** | `ms-toolsai.datawrangler` | Visualiza e explora DataFrames pandas direto no VS Code — útil pra inspecionar o `.json`/`.parquet` que o DataScope gera |
+| **Rainbow CSV** | `mechatroner.rainbow-csv` | Colore colunas de CSV, essencial pra olhar os arquivos de entrada rapidamente |
+| **Excel Viewer** | `GrapeCity.gc-excelviewer` | Abre `.xlsx`/`.xls` direto no editor, sem precisar do Excel |
+| **Jupyter** | `ms-toolsai.jupyter` | Pra explorar interativamente os módulos (`import datascope`) num notebook antes de rodar via CLI |
+
+**Sobre os erros do Pylance:** os dois problemas reais que você reportou já foram corrigidos no código (tipo `Literal` errado em `ingestion.py`) e adicionamos `pandas-stubs` como dependência de dev — os stubs de tipo que vêm junto do próprio pandas são incompletos e costumam gerar bastante ruído falso-positivo no Pylance; o `pandas-stubs` é a definição de tipos oficial da comunidade, bem mais precisa. Depois de rodar `pip install -e ".[dev]"` de novo (ou `--user`, se for o seu caso) e reiniciar o VS Code (`Ctrl+Shift+P` → "Developer: Reload Window"), a maioria dos falsos positivos deve sumir. Se ainda aparecer bastante coisa, me manda a lista completa dos 9 problemas que eu olho os que sobraram.
 
 ---
 
