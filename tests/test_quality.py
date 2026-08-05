@@ -34,6 +34,19 @@ def test_coluna_quase_chave_nao_vira_determinante_trivial():
     assert "id_quase_unico" not in determinantes
 
 
+def test_coluna_constante_nao_vira_dependente_trivial():
+    df = pd.DataFrame({
+        "cod_depto": ["D1"] * 5 + ["D2"] * 5,
+        "flag_sempre_true": [True] * 10,
+    })
+    colunas_meta = [_meta("cod_depto", 2, 0.2), _meta("flag_sempre_true", 1, 0.1)]
+
+    fds = detectar_dependencias_funcionais(df, colunas_meta)
+
+    dependentes = {f["dependente"] for f in fds}
+    assert "flag_sempre_true" not in dependentes
+
+
 def test_fd_considera_nulos_no_agrupador():
     df = pd.DataFrame({
         "cod_depto": ["D1", "D1", None, None],

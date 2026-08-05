@@ -140,6 +140,11 @@ def test_ljungbox_amostra_insuficiente():
     assert resultado["aplicavel"] is False
 
 
+def test_ljungbox_serie_constante_nao_aplicavel():
+    resultado = testar_autocorrelacao_ljungbox(pd.Series([5.0] * 40))
+    assert resultado["aplicavel"] is False
+
+
 def test_valores_lgpd_sensiveis_sao_mascarados_na_amostra_e_no_top5():
     cpfs_originais = [f"{100 + i:03d}.456.789-{i:02d}" for i in range(30)]
     serie = pd.Series(cpfs_originais, name="cpf_colaborador")
