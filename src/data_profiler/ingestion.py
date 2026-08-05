@@ -49,7 +49,12 @@ def carregar_arquivo(
                     return df, nome_base
             except Exception:
                 continue
-        df = pd.read_csv(caminho, encoding=encoding, sep=None, engine="python")
+        try:
+            df = pd.read_csv(caminho, encoding=encoding, sep=None, engine="python")
+        except Exception as e:
+            raise FileFormatError(
+                f"Falha ao determinar o formato do CSV '{caminho}': {e}"
+            ) from e
         logger.info(f"CSV carregado via engine automático | Shape: {df.shape}")
         return df, nome_base
 

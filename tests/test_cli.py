@@ -34,3 +34,19 @@ def test_lote_processa_varios_arquivos_mesmo_com_um_falhando(tmp_path, monkeypat
     resultado = runner.invoke(app, ["lote", str(tmp_path / "bom.csv"), str(tmp_path / "vazio.csv"), "--saida-base", "lote_saida"])
 
     assert (tmp_path / "lote_saida_bom.json").exists()
+
+
+def test_lote_continua_apos_falha_mesmo_com_arquivo_ruim_primeiro(tmp_path, monkeypatch):
+    """Garante que 'lote' processa os arquivos subsequentes mesmo quando o
+    arquivo que falha (CSV vazio, sem delimitador detectável) vem PRIMEIRO na
+    lista. Isso prova que a exceção do arquivo ruim (FileFormatError, após a
+    correção de ingestion.py) é capturada e não aborta o restante do lote,
+    independentemente da ordem dos arquivos."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "vazio.csv").write_text("", encoding="utf-8")
+    pd.DataFrame({"a": range(10)}).to_csv(tmp_path / "bom.csv", index=False)
+
+    resultado = runner.invoke(app, ["lote", str(tmp_path / "vazio.csv"), str(tmp_path / "bom.csv"), "--saida-base", "lote_saida2"])
+
+    assert (tmp_path / "lote_saida2_bom.json").exists()
+    assert not (tmp_path / "lote_saida2_vazio.json").exists()
