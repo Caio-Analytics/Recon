@@ -7,11 +7,15 @@ from charset_normalizer import from_path
 from loguru import logger
 
 
-class FileFormatError(Exception):
+class IngestionError(Exception):
+    """Base para todas as falhas tipadas de ingestão."""
+
+
+class FileFormatError(IngestionError):
     """Extensão de arquivo não suportada pelo profiler."""
 
 
-class EncodingDetectionError(Exception):
+class EncodingDetectionError(IngestionError):
     """Falha ao detectar o encoding de um arquivo CSV."""
 
 
@@ -79,17 +83,23 @@ def carregar_arquivo(
 
 
 def carregar_todas_abas_excel(caminho: str) -> List[Tuple[pd.DataFrame, str]]:
+    if not os.path.exists(caminho):
+        raise FileNotFoundError(f"Arquivo não encontrado: '{caminho}'")
+
     extensao = os.path.splitext(caminho)[1].lower()
     engines = {".xlsx": "openpyxl", ".xls": "xlrd", ".xlsb": "pyxlsb"}
     engine = engines.get(extensao, "openpyxl")
 
-    xl = pd.ExcelFile(caminho, engine=engine)
     nome_base = os.path.splitext(os.path.basename(caminho))[0]
-    resultado = []
-    for aba in xl.sheet_names:
-        df_aba = pd.read_excel(caminho, sheet_name=aba, engine=engine)
-        df_aba = df_aba if isinstance(df_aba, pd.DataFrame) else pd.DataFrame()
-        nome_tabela = f"{nome_base}__{aba}"
-        logger.info(f"Aba '{aba}' carregada | Shape: {df_aba.shape}")
-        resultado.append((df_aba, nome_tabela))
-    return resultado
+    try:
+        xl = pd.ExcelFile(caminho, engine=engine)
+        resultado = []
+        for aba in xl.sheet_names:
+            df_aba = pd.read_excel(caminho, sheet_name=aba, engine=engine)
+            df_aba = df_aba if isinstance(df_aba, pd.DataFrame) else pd.DataFrame()
+            nome_tabela = f"{nome_base}__{aba}"
+            logger.info(f"Aba '{aba}' carregada | Shape: {df_aba.shape}")
+            resultado.append((df_aba, nome_tabela))
+        return resultado
+    except Exception as e:
+        raise FileFormatError(f"Falha ao ler '{caminho}' ({extensao}): {e}") from e

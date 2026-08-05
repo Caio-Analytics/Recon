@@ -1,11 +1,10 @@
 """CLI do data-profiler: `perfilar` (um arquivo) e `lote` (vários arquivos)."""
-import sys
 from typing import List, Optional
 
 import typer
 from loguru import logger
 
-from .ingestion import FileFormatError
+from .ingestion import IngestionError
 from .pipeline import DataProfiler
 
 app = typer.Typer(help="Profiler exploratório de dados CSV/XLSX/XLS/XLSB.")
@@ -34,7 +33,7 @@ def perfilar(
             caminho, aba_excel=aba_valor, processar_todas_abas=todas_abas,
             saida_base=saida_base, tambem_parquet=tambem_parquet,
         )
-    except (FileNotFoundError, FileFormatError, ValueError) as e:
+    except (FileNotFoundError, IngestionError, ValueError) as e:
         typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
@@ -51,7 +50,7 @@ def lote(
     for caminho in caminhos:
         try:
             profiler.processar_arquivo(caminho, saida_base=saida_base, tambem_parquet=tambem_parquet)
-        except (FileNotFoundError, FileFormatError, ValueError) as e:
+        except (FileNotFoundError, IngestionError, ValueError) as e:
             falhas += 1
             typer.secho(f"Erro ao processar '{caminho}': {e}", fg=typer.colors.RED, err=True)
     if falhas == len(caminhos) and caminhos:

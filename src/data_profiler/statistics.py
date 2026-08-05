@@ -1,8 +1,8 @@
 """Análise estatística descritiva por coluna: tipagem, outliers, mistura de
-tipos, padrões estruturados e testes de hipótese (Task 6)."""
+tipos, padrões estruturados e testes de hipótese."""
 import math
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -16,6 +16,45 @@ from .semantics import tokenizar
 
 def _valor_ou_none(x: float) -> Optional[float]:
     return round(float(x), 6) if math.isfinite(float(x)) else None
+
+
+def mascarar_valor_sensivel(valor: str, padrao_estruturado: str) -> str:
+    """Mascara um valor de coluna sinalizada como sensível LGPD
+    (CPF/CNPJ/CEP/E-mail/Telefone/UUID), preservando o formato o suficiente
+    para o leitor reconhecer o padrão sem expor o dado real."""
+    if padrao_estruturado == "E-mail":
+        m = re.match(r"^([\w.+\-]+)@([\w\-]+\.[\w\-]+)$", valor)
+        if not m:
+            return "***MASCARADO***"
+        local, dominio = m.groups()
+        visivel = local[0] if local else ""
+        return f"{visivel}{'*' * max(len(local) - 1, 3)}@{dominio}"
+
+    if padrao_estruturado == "UUID":
+        partes = valor.split("-")
+        if len(partes) != 5:
+            return "***MASCARADO***"
+        return "-".join([partes[0]] + ["*" * len(p) for p in partes[1:]])
+
+    if padrao_estruturado not in config.PADROES_ESTRUTURADOS:
+        return "***MASCARADO***"
+
+    # CPF/CNPJ/CEP/Telefone: mantém os N primeiros caracteres alfanuméricos
+    # visíveis e mascara o restante, preservando pontuação/espaços — dá pra
+    # reconhecer o formato sem reconstruir o valor original.
+    qtd_visivel = 3 if padrao_estruturado == "CPF" else 2
+    resultado = []
+    vistos = 0
+    for ch in valor:
+        if ch.isalnum():
+            if vistos < qtd_visivel:
+                resultado.append(ch)
+                vistos += 1
+            else:
+                resultado.append("*")
+        else:
+            resultado.append(ch)
+    return "".join(resultado)
 
 
 def calcular_outliers_iqr(serie: pd.Series) -> Dict[str, Any]:
@@ -38,11 +77,17 @@ def calcular_outliers_iqr(serie: pd.Series) -> Dict[str, Any]:
     }
 
 
-def calcular_distribuicao_top(serie: pd.Series, top_n: int = 5) -> List[Dict[str, Any]]:
+def calcular_distribuicao_top(
+    serie: pd.Series, top_n: int = 5, mascarar_fn: Optional[Callable[[str], str]] = None
+) -> List[Dict[str, Any]]:
     try:
         vc = serie.value_counts(normalize=True).head(top_n)
         return [
-            {"valor": str(k), "frequencia_relativa": round(float(v), 4), "frequencia_pct": f"{v:.1%}"}
+            {
+                "valor": mascarar_fn(str(k)) if mascarar_fn else str(k),
+                "frequencia_relativa": round(float(v), 4),
+                "frequencia_pct": f"{v:.1%}",
+            }
             for k, v in vc.items()
         ]
     except Exception:
@@ -211,6 +256,7 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
     n_validos = len(serie_limpa)
     n_unicos = int(serie_limpa.nunique())
     tipo_bruto = str(serie_limpa.dtype)
+    tipo_bruto_lower = tipo_bruto.lower()
 
     n_amostrar = min(config.AMOSTRA_ANALISE, n_validos)
     amostra_serie = serie_limpa.sample(n=n_amostrar, random_state=42) if n_validos > 0 else serie_limpa
@@ -222,8 +268,13 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
     alerta_mistura_tipos: Dict[str, Any] = {"tem_mistura": False}
     tipo_amigavel = "Desconhecido"
 
-    if "float" in tipo_bruto or "int" in tipo_bruto:
+    if "float" in tipo_bruto_lower or "int" in tipo_bruto_lower:
         numericos = serie_limpa.replace([np.inf, -np.inf], np.nan).dropna()
+        if pd.api.types.is_extension_array_dtype(numericos):
+            # Dtypes nullable do pandas (Int64, Float64, ...) retornam
+            # pd.NA em várias agregações (kurt, skew) em vez de NaN — usar
+            # o dtype numpy padrão evita vazar NAType para o cálculo.
+            numericos = numericos.astype("float64")
 
         if numericos.empty:
             tipo_amigavel = "Número (Apenas Inf/NaN)"
@@ -258,7 +309,7 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
                 "distribuicao_provavel": detectar_distribuicao_provavel(numericos),
             }
 
-    elif "datetime" in tipo_bruto:
+    elif "datetime" in tipo_bruto_lower:
         tipo_amigavel = "Data / Hora"
         if n_validos > 0:
             estatisticas_extra = {
@@ -268,7 +319,7 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
                 "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5),
             }
 
-    elif "bool" in tipo_bruto:
+    elif "bool" in tipo_bruto_lower:
         tipo_amigavel = "Booleano"
         if n_validos > 0:
             estatisticas_extra = {
@@ -298,13 +349,17 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
 
         if n_validos > 0:
             lens = serie_limpa.astype(str).str.len()
+            mascarar_fn = (
+                (lambda v: mascarar_valor_sensivel(v, flag_padrao_estruturado))
+                if flag_padrao_estruturado != "Nenhum" else None
+            )
             estatisticas_extra = {
                 "str_len_min": int(lens.min()),
                 "str_len_max": int(lens.max()),
                 "str_len_media": round(float(lens.mean()), 2),
                 "str_len_std": round(float(lens.std()), 2) if n_validos > 1 else 0.0,
                 "comprimento_fixo": int(lens.min()) == int(lens.max()),
-                "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5),
+                "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5, mascarar_fn=mascarar_fn),
             }
             if n_unicos <= config.CHI2_MAX_CATEGORIAS:
                 estatisticas_extra["testes_hipotese"] = {
@@ -352,6 +407,8 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
             valores_amostra = (
                 serie_limpa.drop_duplicates().sample(min(10, n_unicos), random_state=42).astype(str).tolist()
             )
+        if flag_padrao_estruturado != "Nenhum":
+            valores_amostra = [mascarar_valor_sensivel(v, flag_padrao_estruturado) for v in valores_amostra]
 
     return {
         "tipo_dados": tipo_amigavel,

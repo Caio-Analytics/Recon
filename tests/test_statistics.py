@@ -140,6 +140,37 @@ def test_ljungbox_amostra_insuficiente():
     assert resultado["aplicavel"] is False
 
 
+def test_valores_lgpd_sensiveis_sao_mascarados_na_amostra_e_no_top5():
+    """Coluna com CPFs reais e nome que dispara detecção CPF: nem a amostra
+    representativa nem a distribuição top5 devem conter o valor original."""
+    cpfs_originais = [f"{100 + i:03d}.456.789-{i:02d}" for i in range(30)]
+    serie = pd.Series(cpfs_originais, name="cpf_colaborador")
+
+    resultado = analisar_estatisticas(serie, total_linhas=30)
+
+    assert resultado["flags"]["detected_pattern"] == "CPF"
+    amostra = resultado["amostra_representativa"]
+    top5 = [item["valor"] for item in resultado["estatisticas_adicionais"]["distribuicao_top5"]]
+
+    for original in cpfs_originais:
+        assert original not in amostra
+        assert original not in top5
+    # A máscara deve preservar reconhecibilidade do padrão (mantém pontuação)
+    assert any("***" in v for v in amostra)
+
+
+def test_dtype_nullable_int64_classificado_como_numero():
+    """pandas Int64 (nullable) tem `str(dtype) == "Int64"` (capital I). A
+    checagem original `"int" in tipo_bruto` é case-sensitive e falha nesse
+    caso, jogando a coluna para o ramo "Texto" silenciosamente."""
+    serie = pd.Series([1, 2, 3, None], dtype="Int64")
+
+    resultado = analisar_estatisticas(serie, total_linhas=4)
+
+    assert "Número" in resultado["tipo_dados"]
+    assert "media" in resultado["estatisticas_adicionais"]
+
+
 def test_analisar_estatisticas_inclui_testes_hipotese_para_numerica():
     serie = pd.Series(range(50), dtype=float)
 
