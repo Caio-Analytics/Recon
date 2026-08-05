@@ -6,7 +6,7 @@ from loguru import logger
 from .ingestion import IngestionError
 from .pipeline import DataProfiler
 
-app = typer.Typer(help="Profiler exploratório de dados CSV/XLSX/XLS/XLSB.")
+app = typer.Typer(help="DataScope — profiler exploratório de dados CSV/XLSX/XLS/XLSB.")
 
 
 def setup_logging(log_file: Optional[str] = None) -> None:

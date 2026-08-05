@@ -1,6 +1,6 @@
 import re
 
-from data_profiler import config
+from datascope import config
 
 
 def test_padrao_email_aceita_dominio_com_multiplos_pontos():

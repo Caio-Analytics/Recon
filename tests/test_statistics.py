@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from data_profiler.statistics import (
+from datascope.statistics import (
     analisar_estatisticas,
     calcular_intervalo_confianca_media,
     detectar_distribuicao_provavel,

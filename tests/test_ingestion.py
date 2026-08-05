@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from data_profiler.ingestion import carregar_arquivo, carregar_todas_abas_excel, FileFormatError
+from datascope.ingestion import carregar_arquivo, carregar_todas_abas_excel, FileFormatError
 
 
 def test_carregar_csv_separador_ponto_virgula(tmp_path):

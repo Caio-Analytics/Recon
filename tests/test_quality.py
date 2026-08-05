@@ -1,7 +1,7 @@
 import pandas as pd
 
-from data_profiler import config
-from data_profiler.quality import _REGRAS_KPI, detectar_dependencias_funcionais, gerar_gap_analysis
+from datascope import config
+from datascope.quality import _REGRAS_KPI, detectar_dependencias_funcionais, gerar_gap_analysis
 
 
 def _meta(coluna, qtd_unicos, ratio_unicidade, caracteristica="🏷️ Categórica / Dimensão Curta"):

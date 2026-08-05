@@ -1,4 +1,4 @@
-from data_profiler.semantics import inferir_semantica, tokenizar
+from datascope.semantics import inferir_semantica, tokenizar
 
 
 def test_tokenizar_separa_camel_case_e_snake_case():
