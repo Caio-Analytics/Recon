@@ -22,6 +22,9 @@ analise_*
 venv/
 env/
 
+# Worktrees de desenvolvimento isolado (superpowers:using-git-worktrees)
+.worktrees/
+
 # Configuração local do Claude Code
 .claude/settings.local.json
 
