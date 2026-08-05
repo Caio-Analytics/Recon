@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from data_profiler.ingestion import carregar_arquivo, FileFormatError
+from data_profiler.ingestion import carregar_arquivo, carregar_todas_abas_excel, FileFormatError
 
 
 def test_carregar_csv_separador_ponto_virgula(tmp_path):
@@ -47,3 +47,20 @@ def test_carregar_xlsx(tmp_path):
 
     assert list(df.columns) == ["a", "b"]
     assert nome == "planilha__Sheet1"
+
+
+def test_carregar_todas_abas_excel_arquivo_inexistente_levanta_file_not_found():
+    with pytest.raises(FileNotFoundError):
+        carregar_todas_abas_excel("/caminho/que/nao/existe.xlsx")
+
+
+def test_carregar_todas_abas_excel_corrompido_levanta_file_format_error(tmp_path):
+    """Um .xlsx corrompido (aqui, texto puro com a extensão errada) faz
+    pd.ExcelFile levantar uma exceção crua da lib (ex.: zipfile.BadZipFile).
+    carregar_todas_abas_excel deve converter isso em FileFormatError, igual
+    sua irmã carregar_arquivo já faz, em vez de deixar vazar."""
+    caminho = tmp_path / "planilha_corrompida.xlsx"
+    caminho.write_text("isto nao e um arquivo excel valido", encoding="utf-8")
+
+    with pytest.raises(FileFormatError):
+        carregar_todas_abas_excel(str(caminho))
