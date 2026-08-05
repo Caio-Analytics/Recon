@@ -1,4 +1,4 @@
-from data_profiler.pipeline import DataProfiler, analisar_temporal_series
+from datascope.pipeline import DataProfiler, analisar_temporal_series
 
 
 def test_processar_dataframe_retorna_payload_completo(df_rh_exemplo):

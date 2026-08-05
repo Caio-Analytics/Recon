@@ -1,7 +1,7 @@
 import json
 import math
 
-from data_profiler.reporting import exportar_json, exportar_markdown, sanear_floats
+from datascope.reporting import exportar_json, exportar_markdown, sanear_floats
 
 
 def test_sanear_floats_converte_nan_para_none():

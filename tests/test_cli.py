@@ -3,7 +3,7 @@ import random
 import pandas as pd
 from typer.testing import CliRunner
 
-from data_profiler.cli import app
+from datascope.cli import app
 
 runner = CliRunner()
 
