@@ -64,3 +64,62 @@ def exportar_parquet(payload: Dict[str, Any], caminho_base: str) -> None:
     pd.DataFrame([meta]).to_parquet(f"{caminho_base}_{nome_safe}_metadata.parquet", index=False)
 
     logger.info(f"✓ Parquet exportado: 5 arquivos com prefixo '{caminho_base}_{nome_safe}_'")
+
+
+def _tabela_markdown(linhas: list, cabecalhos: list) -> str:
+    out = ["| " + " | ".join(cabecalhos) + " |", "|" + "---|" * len(cabecalhos)]
+    for linha in linhas:
+        out.append("| " + " | ".join(str(v) for v in linha) + " |")
+    return "\n".join(out)
+
+
+def exportar_markdown(payload: Dict[str, Any], caminho: str) -> None:
+    meta = payload["metadados_execucao"]
+    resumo = meta["resumo_qualidade"]
+
+    partes = [f"# Relatório de Perfilamento — {meta['tabela']}", ""]
+    partes.append(
+        f"- Linhas originais: {meta['linhas_originais']:,} | Analisadas: {meta['linhas_analisadas']:,}\n"
+        f"- Colunas: {meta['total_colunas']} | Com nulos: {resumo['colunas_com_nulos']} | "
+        f"100% vazias: {resumo['colunas_100pct_nulas']} | Sensíveis LGPD: {resumo['colunas_sensiveis_lgpd']}\n"
+        f"- Semânticas mapeadas: {', '.join(resumo['semanticas_encontradas']) or 'Nenhuma'}\n"
+        f"- KPIs habilitados: {resumo['kpis_habilitados']} | Total de recomendações: {resumo['total_recomendacoes']}"
+    )
+
+    partes.append("\n## Colunas\n")
+    partes.append(_tabela_markdown(
+        [[c["Coluna"], c["Tipo_Inferred"], c["Semantica_IA"], f"{c['Pct_Nulos']:.1f}%", c["Caracteristica"]] for c in payload["colunas"]],
+        ["Coluna", "Tipo", "Semântica", "% Nulos", "Característica"],
+    ))
+
+    partes.append("\n## Recomendações ETL\n")
+    if payload["recomendacoes_etl"]:
+        for r in sorted(payload["recomendacoes_etl"], key=lambda x: x.get("Prioridade", "")):
+            partes.append(f"- **{r['Prioridade']}** [{r['Camada']}] `{r['Coluna']}` — {r['Acao']}")
+    else:
+        partes.append("Nenhuma recomendação gerada.")
+
+    partes.append("\n## Dependências Funcionais\n")
+    if payload["dependencias_funcionais"]:
+        for d in payload["dependencias_funcionais"]:
+            partes.append(f"- `{d['determinante']}` → `{d['dependente']}`: {d['descricao']}")
+    else:
+        partes.append("Nenhuma dependência funcional detectada.")
+
+    partes.append("\n## Gap Analysis de KPIs\n")
+    partes.append(_tabela_markdown(
+        [[g["kpi_id"], g["kpi_nome"], g["status"], g["cobertura_pct"]] for g in payload["gap_analysis_kpis"]],
+        ["KPI", "Nome", "Status", "Cobertura"],
+    ))
+
+    if payload.get("analise_temporal_series"):
+        partes.append("\n## Análise Temporal (ADF / Ljung-Box)\n")
+        for t in payload["analise_temporal_series"]:
+            adf, lb = t["adf"], t["ljung_box"]
+            estac = adf.get("estacionaria") if adf.get("aplicavel") else "N/A"
+            autoc = lb.get("autocorrelacionada") if lb.get("aplicavel") else "N/A"
+            partes.append(f"- `{t['coluna']}` (ref: `{t['coluna_temporal_referencia']}`) — estacionária: {estac} | autocorrelacionada: {autoc}")
+
+    with open(caminho, "w", encoding="utf-8") as f:
+        f.write("\n".join(partes) + "\n")
+    logger.info(f"✓ Markdown exportado: '{caminho}'")
