@@ -14,7 +14,6 @@
 *.json
 *.txt
 analise_*
-!requirements.txt
 
 # Ambiente virtual Python
 .venv/
@@ -49,5 +48,8 @@ dist/
 Thumbs.db
 desktop.ini
 
-# Logs de execução (gerados pelo on_bad_lines="warn")
+# Logs de execução (sink de arquivo opcional do loguru, via setup_logging)
 *.log
+
+# Cobertura de testes (pytest-cov)
+.coverage
