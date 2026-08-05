@@ -287,9 +287,29 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
 
         qtd_inf = int(serie_limpa.isin([np.inf, -np.inf]).sum())
 
+        if tipo_amigavel == "Número Inteiro" and not numericos.empty:
+            # CPF/CNPJ armazenados como número perdem formatação e podem
+            # perder um zero à esquerda — usa comprimento de dígitos em vez
+            # do regex de PADROES_ESTRUTURADOS (que exige pontuação/texto).
+            amostra_num = numericos.sample(
+                n=min(config.AMOSTRA_ANALISE, len(numericos)), random_state=42
+            )
+            amostra_num_str = [str(int(v)) for v in amostra_num]
+            if amostra_num_str:
+                matches_cnpj = sum(1 for v in amostra_num_str if re.fullmatch(r"\d{13,14}", v))
+                matches_cpf = sum(1 for v in amostra_num_str if re.fullmatch(r"\d{10,11}", v))
+                if (matches_cnpj / len(amostra_num_str)) >= config.THRESHOLD_PADRAO_ESTRUTURADO:
+                    flag_padrao_estruturado = "CNPJ"
+                elif (matches_cpf / len(amostra_num_str)) >= config.THRESHOLD_PADRAO_ESTRUTURADO:
+                    flag_padrao_estruturado = "CPF"
+
         if not numericos.empty:
             std_val = float(numericos.std())
             media_val = float(numericos.mean())
+            mascarar_fn_num = (
+                (lambda v: mascarar_valor_sensivel(v, flag_padrao_estruturado))
+                if flag_padrao_estruturado != "Nenhum" else None
+            )
             estatisticas_extra = {
                 "min": round(float(numericos.min()), 6),
                 "max": round(float(numericos.max()), 6),
@@ -303,7 +323,7 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
                 "qtd_zeros": int((numericos == 0).sum()),
                 "qtd_inf": qtd_inf,
                 "outliers_iqr": calcular_outliers_iqr(numericos),
-                "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5),
+                "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5, mascarar_fn=mascarar_fn_num),
             }
             estatisticas_extra["testes_hipotese"] = {
                 "shapiro_wilk": testar_normalidade_shapiro(numericos),

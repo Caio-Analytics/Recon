@@ -60,6 +60,34 @@ def test_cep_nao_detectado_em_coluna_de_chave_sistema():
     assert resultado["flags"]["detected_pattern"] != "CEP"
 
 
+def test_cpf_detectado_quando_armazenado_como_inteiro():
+    serie = pd.Series([12345678900 + i for i in range(20)], name="cpf_colaborador")
+
+    resultado = analisar_estatisticas(serie, total_linhas=20)
+
+    assert resultado["flags"]["detected_pattern"] == "CPF"
+    for valor in resultado["amostra_representativa"]:
+        assert valor.count("*") > 0
+
+
+def test_cnpj_detectado_quando_armazenado_como_inteiro():
+    serie = pd.Series([12345678000100 + i for i in range(20)], name="cnpj_empresa")
+
+    resultado = analisar_estatisticas(serie, total_linhas=20)
+
+    assert resultado["flags"]["detected_pattern"] == "CNPJ"
+
+
+def test_id_numerico_generico_nao_vira_cpf_falso_positivo():
+    # 6 dígitos — comprimento comum de ID sequencial, não deve bater no
+    # heurístico de CPF (10-11 dígitos) nem CNPJ (13-14 dígitos).
+    serie = pd.Series(range(100000, 100020), name="id_funcionario")
+
+    resultado = analisar_estatisticas(serie, total_linhas=20)
+
+    assert resultado["flags"]["detected_pattern"] == "Nenhum"
+
+
 def test_mistura_de_tipos_detectada():
     serie = pd.Series(
         ["123"] * 10 + ["texto_livre"] * 10 + ["2024-01-01"] * 10, name="tipo_misto"

@@ -1,4 +1,12 @@
+import re
+
 from data_profiler import config
+
+
+def test_padrao_email_aceita_dominio_com_multiplos_pontos():
+    regex = config.PADROES_ESTRUTURADOS["E-mail"]
+    assert re.match(regex, "usuario@empresa.com.br")
+    assert re.match(regex, "usuario@empresa.com")
 
 
 def test_categorias_fortes_tem_id_e_data():
