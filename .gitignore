@@ -22,6 +22,9 @@ analise_*
 venv/
 env/
 
+# Worktrees de desenvolvimento isolado (workflow guidance:using-git-worktrees)
+.worktrees/
+
 # Configuração local do contributor Code
 .contributor/settings.local.json
 
