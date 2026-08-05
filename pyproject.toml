@@ -13,7 +13,6 @@ dependencies = [
     "charset-normalizer==3.4.9",
     "rapidfuzz==3.14.5",
     "unidecode==1.4.0",
-    "python-dateutil==2.9.0.post0",
     "scipy==1.17.1",
     "statsmodels==0.14.6",
     "loguru==0.7.3",
