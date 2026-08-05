@@ -252,7 +252,7 @@ def orquestrar(caminho_arquivo: str):
             "valores_unicos": math["n_unicos"],
             "caracteristica": math["caracteristica"],
             "valores_encontrados": math["valores_amostra"] if math["valores_amostra"] else "Não Elegível",
-            "nota_amostragem": math["nota_amostragem"],
+            "nota_amostragem": math.get("nota_amostra", "Não Elegível"),
             "alertas": {
                 "data_como_texto": math["flag_data_como_texto"],
                 "dado_sensivel": math["flag_padrao_estruturado"] if math["flag_padrao_estruturado"] else False,

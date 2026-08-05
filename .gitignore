@@ -14,11 +14,16 @@
 *.json
 *.txt
 analise_*
+!requirements.txt
 
 # Ambiente virtual Python
 .venv/
+.venv_profiler/
 venv/
 env/
+
+# Configuração local do Claude Code
+.claude/settings.local.json
 
 # Cache do Python
 __pycache__/
