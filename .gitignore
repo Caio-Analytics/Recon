@@ -33,6 +33,12 @@ __pycache__/
 *.py[cod]
 *.pyo
 
+# Artefatos de build/instalação editável (pip install -e)
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
 # IDEs
 .vscode/
 .idea/
