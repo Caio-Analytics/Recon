@@ -174,6 +174,8 @@ def testar_estacionariedade_adf(serie_numerica_ordenada: pd.Series) -> Dict[str,
     n = len(serie_numerica_ordenada)
     if n < config.ADF_MIN_N:
         return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
+    if serie_numerica_ordenada.nunique() <= 1:
+        return {"aplicavel": False, "motivo": "Série constante (variância zero) — teste ADF não aplicável"}
     resultado = adfuller(serie_numerica_ordenada.to_numpy(), autolag="AIC")
     estatistica, p_valor = float(resultado[0]), float(resultado[1])
     return {
