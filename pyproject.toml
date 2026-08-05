@@ -1,0 +1,35 @@
+[project]
+name = "data-profiler"
+version = "2.0.0"
+description = "Profiler exploratório de dados para CSV/XLSX/XLS/XLSB com inferência semântica, testes estatísticos e recomendações de ETL."
+requires-python = ">=3.11"
+dependencies = [
+    "pandas==3.0.5",
+    "numpy==2.4.6",
+    "pyarrow==25.0.0",
+    "openpyxl==3.1.5",
+    "xlrd==2.0.2",
+    "pyxlsb==1.0.10",
+    "charset-normalizer==3.4.9",
+    "rapidfuzz==3.14.5",
+    "unidecode==1.4.0",
+    "python-dateutil==2.9.0.post0",
+    "scipy==1.17.1",
+    "statsmodels==0.14.6",
+    "loguru==0.7.3",
+    "typer==0.27.1",
+    "tqdm==4.70.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pytest-cov==7.1.0"]
+
+[project.scripts]
+data-profiler = "data_profiler.cli:app"
+
+[build-system]
+requires = ["setuptools>=83"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
