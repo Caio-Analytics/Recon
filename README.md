@@ -84,6 +84,13 @@ datascope lote dados/*.csv dados/*.xlsx
 
 Se um arquivo falhar (corrompido, formato inválido), o `lote` **continua processando os demais** — não aborta o lote inteiro.
 
+**Caminho relativo ou absoluto — os dois funcionam:**
+
+```bash
+datascope perfilar dados/vendas.csv               # relativo: a partir da pasta onde você rodou o comando
+datascope perfilar /home/usuario/dados/vendas.csv  # absoluto: funciona de qualquer diretório
+```
+
 ### Ajuda
 
 ```bash
@@ -91,6 +98,18 @@ datascope --help
 datascope perfilar --help
 datascope lote --help
 ```
+
+---
+
+## 🔬 Como a análise funciona
+
+Visão técnica rápida do que roda por trás de cada item da tabela acima — não é exaustivo, mas dá pra entender o critério por trás de cada número/rótulo que sai no relatório.
+
+- **Inferência semântica:** primeiro tenta match exato por token contra um dicionário PT/EN curado (`id`, `cpf`, `dt_admissao` → categorias fortes). Se não bate, cai pro fuzzy matching (Jaro-Winkler via `rapidfuzz`) contra as palavras-chave de cada categoria, com threshold mais rigoroso pra nomes curtos (`uf`, `cep`) pra evitar falso positivo. Padrão detectado no **conteúdo** da coluna (CPF, e-mail etc.) tem prioridade sobre o nome — uma coluna chamada `campo1` que só tem CPF ainda é classificada como identificador.
+- **Testes de hipótese:** cada teste só roda com amostra mínima pra não reportar conclusão estatística sem sentido — Shapiro-Wilk exige n≥20 (amostra limitada a 5.000 pra não ficar hipersensível a desvios irrelevantes), qui-quadrado exige frequência esperada ≥5 por categoria, ADF e Ljung-Box exigem n≥30 **e** uma coluna de data na tabela pra estabelecer a ordem temporal — sem isso a análise temporal simplesmente não aparece no relatório, em vez de rodar numa ordem aleatória.
+- **Dependências funcionais:** agrupa cada par de colunas com cardinalidade razoável (<500 valores únicos) e verifica se um valor de A sempre implica o mesmo valor de B (`cod_depto → nome_depto`). Colunas quase-únicas (≥98% de valores distintos, tipo um ID) são excluídas do lado "determinante" — senão qualquer ID "determina" trivialmente todas as outras colunas, o que não é uma dependência útil.
+- **Detecção de LGPD:** regex pros formatos com pontuação (CPF, CNPJ, CEP, e-mail, telefone, UUID) **mais** uma heurística de comprimento de dígito pra número guardado sem formatação (10-11 dígitos = CPF, 13-14 = CNPJ — cobre o caso comum de coluna virar `int64` e perder a máscara). Os valores de amostra no relatório saem sempre mascarados quando um padrão é detectado.
+- **Amostragem:** analisa até 500 mil linhas por padrão (configurável). Os testes estatísticos mais pesados usam subamostras determinísticas (seed fixa) — o mesmo arquivo sempre gera o mesmo resultado, mesmo rodando várias vezes.
 
 ---
 
@@ -123,46 +142,41 @@ pytest -v
 
 ---
 
-## 🔄 Reinstalação do zero
-
-**Com venv:**
+## 🔄 Reinstalação do zero (com venv)
 
 ```bash
 rm -rf .venv && python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip && pip install -e ".[dev]"
 ```
 
-**Sem venv (`--user`):**
+---
+
+## 🏢 Rotina completa pra máquina corporativa (sem venv, sem admin)
+
+Sequência pra ver o que já está instalado, limpar, clonar de novo do zero e reinstalar — útil pra testar numa máquina restrita sem deixar resíduo pra outros projetos.
+
+**1. Ver tudo que está instalado no seu usuário:**
 
 ```bash
-pip uninstall -y datascope pandas numpy pyarrow openpyxl xlrd pyxlsb charset-normalizer rapidfuzz unidecode scipy statsmodels loguru typer tqdm pytest pytest-cov pandas-stubs && pip install --user -e ".[dev]"
+pip list --user
 ```
 
-### 🧹 Limpar tudo (liberar a máquina pra outro projeto)
-
-No modo sem venv, as dependências ficam instaladas globalmente pro seu usuário. Pra remover tudo que o DataScope instalou e não deixar resíduo interferindo em outro projeto:
+**2. Limpar as dependências do DataScope** (remove as diretas do `pyproject.toml`; algumas transitivas pequenas e comuns como `six`/`packaging` podem continuar — são inofensivas e usadas por outras libs também, não vale arriscar remover às cegas):
 
 ```bash
 pip uninstall -y datascope pandas numpy pyarrow openpyxl xlrd pyxlsb charset-normalizer rapidfuzz unidecode scipy statsmodels loguru typer tqdm pytest pytest-cov pandas-stubs
 ```
 
-Isso remove as dependências diretas (as mesmas do `pyproject.toml`). Algumas dependências transitivas pequenas e muito comuns (`six`, `packaging`, `python-dateutil` etc.) podem continuar instaladas — são inofensivas e geralmente usadas por outras bibliotecas Python também, então não vale a pena arriscar removê-las às cegas.
+**3. Apagar a pasta local e clonar de novo** (rode a partir de fora da pasta `DataScope`, senão o shell perde a referência do diretório):
 
----
+```bash
+cd ~/Documentos/Programacao && rm -rf DataScope && git clone https://github.com/Caio-Analytics/DataScope.git && cd DataScope
+```
 
-## 🧩 Extensões do VS Code
+**4. Instalar e testar:**
 
-| Extensão | ID | Por quê |
-|---|---|---|
-| **Python** | `ms-python.python` | Suporte base a Python — execução, debug, ambientes |
-| **Pylance** | `ms-python.vscode-pylance` | Já vem com a Python, é o motor de análise de tipos |
-| **Ruff** | `charliermarsh.ruff` | Lint + formatação rápidos; substitui flake8/black com uma extensão só |
-| **Even Better TOML** | `tamasfe.even-better-toml` | Syntax highlight/validação pro `pyproject.toml` |
-| **Data Wrangler** | `ms-toolsai.datawrangler` | Visualiza e explora DataFrames pandas direto no VS Code — útil pra inspecionar o `.json`/`.parquet` que o DataScope gera |
-| **Rainbow CSV** | `mechatroner.rainbow-csv` | Colore colunas de CSV, essencial pra olhar os arquivos de entrada rapidamente |
-| **Excel Viewer** | `GrapeCity.gc-excelviewer` | Abre `.xlsx`/`.xls` direto no editor, sem precisar do Excel |
-| **Jupyter** | `ms-toolsai.jupyter` | Pra explorar interativamente os módulos (`import datascope`) num notebook antes de rodar via CLI |
-
-**Sobre os erros do Pylance:** os dois problemas reais que você reportou já foram corrigidos no código (tipo `Literal` errado em `ingestion.py`) e adicionamos `pandas-stubs` como dependência de dev — os stubs de tipo que vêm junto do próprio pandas são incompletos e costumam gerar bastante ruído falso-positivo no Pylance; o `pandas-stubs` é a definição de tipos oficial da comunidade, bem mais precisa. Depois de rodar `pip install -e ".[dev]"` de novo (ou `--user`, se for o seu caso) e reiniciar o VS Code (`Ctrl+Shift+P` → "Developer: Reload Window"), a maioria dos falsos positivos deve sumir. Se ainda aparecer bastante coisa, me manda a lista completa dos 9 problemas que eu olho os que sobraram.
+```bash
+pip install --user -e ".[dev]" && pytest -v
+```
 
 ---
 
