@@ -6,6 +6,9 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+from scipy import stats as scipy_stats
+from statsmodels.stats.diagnostic import acorr_ljungbox
+from statsmodels.tsa.stattools import adfuller
 
 from . import config
 from .semantics import tokenizar
@@ -75,6 +78,129 @@ def detectar_mistura_tipos(serie_limpa: pd.Series, amostra_str: List[str]) -> Di
     }
 
 
+def testar_normalidade_shapiro(numericos: pd.Series) -> Dict[str, Any]:
+    n = len(numericos)
+    if n < config.SHAPIRO_MIN_N:
+        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.SHAPIRO_MIN_N})"}
+    amostra = (
+        numericos.sample(n=config.SHAPIRO_MAX_N, random_state=42)
+        if n > config.SHAPIRO_MAX_N else numericos
+    )
+    estatistica, p_valor = scipy_stats.shapiro(amostra)
+    return {
+        "aplicavel": True,
+        "estatistica": round(float(estatistica), 6),
+        "p_valor": round(float(p_valor), 6),
+        "normal_provavel": bool(p_valor > config.ALPHA_SIGNIFICANCIA),
+        "n_amostra": int(len(amostra)),
+    }
+
+
+def testar_uniformidade_chi2(serie_categorica: pd.Series) -> Dict[str, Any]:
+    contagens = serie_categorica.value_counts()
+    n_categorias = len(contagens)
+    n_total = int(contagens.sum())
+    if n_categorias < 2:
+        return {"aplicavel": False, "motivo": "Menos de 2 categorias distintas"}
+    if n_categorias > config.CHI2_MAX_CATEGORIAS:
+        return {"aplicavel": False, "motivo": f"Categorias demais (n={n_categorias} > {config.CHI2_MAX_CATEGORIAS})"}
+    freq_esperada = n_total / n_categorias
+    if freq_esperada < config.CHI2_MIN_FREQ_ESPERADA:
+        return {
+            "aplicavel": False,
+            "motivo": f"Frequência esperada insuficiente ({freq_esperada:.1f} < {config.CHI2_MIN_FREQ_ESPERADA})",
+        }
+    estatistica, p_valor = scipy_stats.chisquare(contagens.to_numpy())
+    return {
+        "aplicavel": True,
+        "estatistica": round(float(estatistica), 6),
+        "p_valor": round(float(p_valor), 6),
+        "distribuicao_uniforme_provavel": bool(p_valor > config.ALPHA_SIGNIFICANCIA),
+        "n_categorias": int(n_categorias),
+    }
+
+
+def calcular_intervalo_confianca_media(numericos: pd.Series) -> Dict[str, Any]:
+    n = len(numericos)
+    if n < 2:
+        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < 2)"}
+    media = float(numericos.mean())
+    erro_padrao = float(numericos.std(ddof=1)) / (n ** 0.5)
+    if erro_padrao == 0.0 or not math.isfinite(erro_padrao):
+        return {"aplicavel": True, "media": round(media, 6), "limite_inferior": round(media, 6), "limite_superior": round(media, 6)}
+    limite_inf, limite_sup = scipy_stats.t.interval(0.95, df=n - 1, loc=media, scale=erro_padrao)
+    return {
+        "aplicavel": True,
+        "media": round(media, 6),
+        "limite_inferior": round(float(limite_inf), 6),
+        "limite_superior": round(float(limite_sup), 6),
+    }
+
+
+def detectar_distribuicao_provavel(numericos: pd.Series) -> Dict[str, Any]:
+    n = len(numericos)
+    if n < config.DIST_DETECTION_MIN_N:
+        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.DIST_DETECTION_MIN_N})"}
+
+    valores = numericos.to_numpy()
+    candidatos = {"normal": scipy_stats.norm}
+    if (valores > 0).all():
+        candidatos["lognormal"] = scipy_stats.lognorm
+    if (valores >= 0).all():
+        candidatos["uniforme"] = scipy_stats.uniform
+        candidatos["exponencial"] = scipy_stats.expon
+
+    melhor_nome: Optional[str] = None
+    melhor_p = -1.0
+    for nome, dist in candidatos.items():
+        try:
+            params = dist.fit(valores)
+            # Skip lognormal if the fitted location is negative (makes it an invalid lognormal)
+            if nome == "lognormal" and len(params) > 1 and params[1] < 0:
+                continue
+            _, p_valor = scipy_stats.kstest(valores, dist.name, args=params)
+        except Exception:
+            continue
+        if p_valor > melhor_p:
+            melhor_p = p_valor
+            melhor_nome = nome
+
+    if melhor_nome is None or melhor_p <= config.ALPHA_SIGNIFICANCIA:
+        return {"aplicavel": True, "distribuicao": "Desconhecida", "p_valor": round(max(melhor_p, 0.0), 6)}
+    return {"aplicavel": True, "distribuicao": melhor_nome, "p_valor": round(melhor_p, 6)}
+
+
+def testar_estacionariedade_adf(serie_numerica_ordenada: pd.Series) -> Dict[str, Any]:
+    n = len(serie_numerica_ordenada)
+    if n < config.ADF_MIN_N:
+        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
+    resultado = adfuller(serie_numerica_ordenada.to_numpy(), autolag="AIC")
+    estatistica, p_valor = float(resultado[0]), float(resultado[1])
+    return {
+        "aplicavel": True,
+        "estatistica": round(estatistica, 6),
+        "p_valor": round(p_valor, 6),
+        "estacionaria": bool(p_valor < config.ALPHA_SIGNIFICANCIA),
+    }
+
+
+def testar_autocorrelacao_ljungbox(serie_numerica_ordenada: pd.Series) -> Dict[str, Any]:
+    n = len(serie_numerica_ordenada)
+    if n < config.ADF_MIN_N:
+        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
+    lags = max(1, min(10, n // 5))
+    resultado = acorr_ljungbox(serie_numerica_ordenada, lags=[lags], return_df=True)
+    estatistica = float(resultado["lb_stat"].iloc[0])
+    p_valor = float(resultado["lb_pvalue"].iloc[0])
+    return {
+        "aplicavel": True,
+        "estatistica": round(estatistica, 6),
+        "p_valor": round(p_valor, 6),
+        "autocorrelacionada": bool(p_valor < config.ALPHA_SIGNIFICANCIA),
+        "lags": int(lags),
+    }
+
+
 def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]:
     nulos_qtd = int(serie.isna().sum())
     nulos_pct = round((nulos_qtd / total_linhas) * 100, 4) if total_linhas > 0 else 0.0
@@ -123,6 +249,11 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
                 "qtd_inf": qtd_inf,
                 "outliers_iqr": calcular_outliers_iqr(numericos),
                 "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5),
+            }
+            estatisticas_extra["testes_hipotese"] = {
+                "shapiro_wilk": testar_normalidade_shapiro(numericos),
+                "intervalo_confianca_media_95": calcular_intervalo_confianca_media(numericos),
+                "distribuicao_provavel": detectar_distribuicao_provavel(numericos),
             }
 
     elif "datetime" in tipo_bruto:
@@ -173,6 +304,10 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
                 "comprimento_fixo": int(lens.min()) == int(lens.max()),
                 "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5),
             }
+            if n_unicos <= config.CHI2_MAX_CATEGORIAS:
+                estatisticas_extra["testes_hipotese"] = {
+                    "qui_quadrado_uniformidade": testar_uniformidade_chi2(serie_limpa),
+                }
 
     ratio_unicidade = n_unicos / total_linhas if total_linhas > 0 else 0.0
     top_freq = 0.0

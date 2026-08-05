@@ -3,7 +3,15 @@ import math
 import numpy as np
 import pandas as pd
 
-from data_profiler.statistics import analisar_estatisticas
+from data_profiler.statistics import (
+    analisar_estatisticas,
+    calcular_intervalo_confianca_media,
+    detectar_distribuicao_provavel,
+    testar_autocorrelacao_ljungbox,
+    testar_estacionariedade_adf,
+    testar_normalidade_shapiro,
+    testar_uniformidade_chi2,
+)
 
 
 def test_coluna_numerica_com_menos_de_3_validos_nao_gera_nan():
@@ -72,3 +80,70 @@ def test_coef_variacao_overflow_guard():
     coef_var = resultado["estatisticas_adicionais"]["coef_variacao"]
     # coef_variacao must be either None or a finite float, never inf/nan
     assert coef_var is None or math.isfinite(coef_var)
+
+
+def test_shapiro_amostra_insuficiente_retorna_nao_aplicavel():
+    resultado = testar_normalidade_shapiro(pd.Series([1.0, 2.0, 3.0]))
+    assert resultado["aplicavel"] is False
+
+
+def test_shapiro_normal_provavel_para_amostra_normal():
+    rng = np.random.default_rng(42)
+    serie = pd.Series(rng.normal(loc=0, scale=1, size=500))
+
+    resultado = testar_normalidade_shapiro(serie)
+
+    assert resultado["aplicavel"] is True
+    assert resultado["normal_provavel"] is True
+
+
+def test_chi2_categorias_demais_retorna_nao_aplicavel():
+    serie = pd.Series([f"cat_{i}" for i in range(60)])
+    resultado = testar_uniformidade_chi2(serie)
+    assert resultado["aplicavel"] is False
+
+
+def test_chi2_distribuicao_uniforme():
+    serie = pd.Series((["A"] * 50 + ["B"] * 50 + ["C"] * 50))
+    resultado = testar_uniformidade_chi2(serie)
+    assert resultado["aplicavel"] is True
+    assert resultado["distribuicao_uniforme_provavel"] is True
+
+
+def test_ic_media_amostra_minima():
+    resultado = calcular_intervalo_confianca_media(pd.Series([10.0, 20.0]))
+    assert resultado["aplicavel"] is True
+    assert resultado["limite_inferior"] <= resultado["media"] <= resultado["limite_superior"]
+
+
+def test_distribuicao_provavel_amostra_insuficiente():
+    resultado = detectar_distribuicao_provavel(pd.Series([1.0, 2.0, 3.0]))
+    assert resultado["aplicavel"] is False
+
+
+def test_distribuicao_provavel_detecta_normal():
+    rng = np.random.default_rng(42)
+    serie = pd.Series(rng.normal(loc=100, scale=15, size=500))
+
+    resultado = detectar_distribuicao_provavel(serie)
+
+    assert resultado["distribuicao"] == "normal"
+
+
+def test_adf_amostra_insuficiente():
+    resultado = testar_estacionariedade_adf(pd.Series(range(10), dtype=float))
+    assert resultado["aplicavel"] is False
+
+
+def test_ljungbox_amostra_insuficiente():
+    resultado = testar_autocorrelacao_ljungbox(pd.Series(range(10), dtype=float))
+    assert resultado["aplicavel"] is False
+
+
+def test_analisar_estatisticas_inclui_testes_hipotese_para_numerica():
+    serie = pd.Series(range(50), dtype=float)
+
+    resultado = analisar_estatisticas(serie, total_linhas=50)
+
+    assert "testes_hipotese" in resultado["estatisticas_adicionais"]
+    assert "shapiro_wilk" in resultado["estatisticas_adicionais"]["testes_hipotese"]
