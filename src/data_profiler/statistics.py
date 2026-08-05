@@ -312,7 +312,7 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
             }
 
     elif "datetime" in tipo_bruto_lower:
-        tipo_amigavel = "Data / Hora"
+        tipo_amigavel = config.TIPO_DATA_HORA
         if n_validos > 0:
             estatisticas_extra = {
                 "min_data": str(serie_limpa.min()),

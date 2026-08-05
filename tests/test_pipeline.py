@@ -75,6 +75,45 @@ def test_analise_temporal_roda_com_coluna_de_data_como_texto_csv():
     assert resultado["analise_temporal_series"][0]["coluna_temporal_referencia"] == "dt_pedido"
 
 
+def test_analise_temporal_datas_br_dd_mm_aaaa_nao_sao_misparseadas():
+    """Regressão: 31 dias consecutivos (janeiro/2024) em formato brasileiro
+    dd/mm/aaaa (config.PADROES_DATA reconhece ^\\d{2}/\\d{2}/\\d{4}$), com uma
+    coluna numérica associada. Sem dayfirst=True, pd.to_datetime assume mês
+    primeiro (convenção US): qualquer linha com dia > 12 (19 das 31, dias
+    13-31) vira NaT (mês inválido) e é descartada por
+    analisar_temporal_series antes do ADF/Ljung-Box. Sobram só 12 linhas
+    (dias 1-12, com dia/mês trocados silenciosamente) — abaixo de
+    config.ADF_MIN_N (30) — então nem ADF nem Ljung-Box ficam aplicáveis e
+    'analise_temporal_series' sai vazia, apesar de haver 31 linhas de dado
+    válido. Com dayfirst=True (a correção), as 31 linhas são parseadas
+    corretamente, n=31 >= ADF_MIN_N, e a análise temporal roda normalmente."""
+    import pandas as pd
+    from datetime import date, timedelta
+
+    inicio = date(2024, 1, 1)
+    datas = [inicio + timedelta(days=i) for i in range(31)]  # janeiro/2024 completo
+    datas_str = [d.strftime("%d/%m/%Y") for d in datas]
+    valores = [100.0 + i * 2.5 + (i % 5) * 0.3 for i in range(31)]  # tendência de alta real + leve ruído
+
+    df = pd.DataFrame({
+        "dt_pedido": datas_str,
+        "valor_pedido": valores,
+    })
+    profiler = DataProfiler()
+
+    resultado = profiler.processar_dataframe(df, "TB_BR_DATAS")
+
+    col_data = next(c for c in resultado["colunas"] if c["Coluna"] == "dt_pedido")
+    assert col_data["Alertas"]["data_como_texto"] is True
+
+    # Sem dayfirst=True, apenas 12/31 linhas sobreviveriam ao parse (dias
+    # 1-12), abaixo do ADF_MIN_N=30 — a seção inteira sairia vazia.
+    assert len(resultado["analise_temporal_series"]) > 0
+    entrada = resultado["analise_temporal_series"][0]
+    assert entrada["coluna_temporal_referencia"] == "dt_pedido"
+    assert entrada["adf"]["aplicavel"] is True
+
+
 def test_dataframe_vazio_levanta_value_error():
     import pandas as pd
     import pytest
