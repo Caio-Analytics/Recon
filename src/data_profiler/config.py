@@ -1,6 +1,14 @@
 from typing import Dict, List, Set
 
 
+
+
+
+SEMANTICA_GENERICA: str = "Genérico / Não mapeado"
+SEMANTICA_DATA_CALENDARIO: str = "Data / Calendário"
+TIPO_DATA_HORA: str = "Data / Hora"
+
+
 THRESHOLD_FUZZY_PADRAO: float = 0.85
 THRESHOLD_FUZZY_CURTO: float = 0.95
 THRESHOLD_QUASE_CHAVE: float = 0.95

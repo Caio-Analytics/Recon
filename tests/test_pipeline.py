@@ -50,6 +50,24 @@ def test_analise_temporal_roda_com_coluna_de_data(df_rh_exemplo):
     assert entrada["coluna_temporal_referencia"] == "dt_admissao"
 
 
+def test_analise_temporal_roda_com_coluna_de_data_como_texto_csv():
+    import pandas as pd
+
+    df = pd.DataFrame({
+        "dt_pedido": ["2020-01-15", "2021-03-10", "2022-06-20", "2023-09-01"] * 12 + ["2024-01-01"] * 2,
+        "valor_pedido": [float(i % 10) + 1 for i in range(50)],
+    })
+    profiler = DataProfiler()
+
+    resultado = profiler.processar_dataframe(df, "TB_CSV")
+
+    col_data = next(c for c in resultado["colunas"] if c["Coluna"] == "dt_pedido")
+    assert col_data["Alertas"]["data_como_texto"] is True
+    assert col_data["Tipo_Inferred"] != "Data / Hora"
+    assert len(resultado["analise_temporal_series"]) > 0
+    assert resultado["analise_temporal_series"][0]["coluna_temporal_referencia"] == "dt_pedido"
+
+
 def test_dataframe_vazio_levanta_value_error():
     import pandas as pd
     import pytest
