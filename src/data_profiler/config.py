@@ -1,7 +1,15 @@
 """Fonte única de taxonomias semânticas e thresholds do profiler."""
 from typing import Dict, List, Set
 
-# ── Thresholds gerais (herdados de Profiller.py) ───────────────────────────
+# ── Nomes de categorias/tipos referenciados fora deste módulo ──────────────
+# Centralizados aqui para evitar cópias literais divergentes em quality.py,
+# pipeline.py e semantics.py — uma renomeação de categoria só precisa mudar
+# neste arquivo.
+SEMANTICA_GENERICA: str = "Genérico / Não mapeado"
+SEMANTICA_DATA_CALENDARIO: str = "Data / Calendário"
+TIPO_DATA_HORA: str = "Data / Hora"
+
+# ── Thresholds gerais ────────────────────────────────────────────────────
 THRESHOLD_FUZZY_PADRAO: float = 0.85
 THRESHOLD_FUZZY_CURTO: float = 0.95
 THRESHOLD_QUASE_CHAVE: float = 0.95

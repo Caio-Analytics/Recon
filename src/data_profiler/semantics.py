@@ -67,7 +67,7 @@ def inferir_semantica(nome_col: str, detectado_padrao: str = "Nenhum") -> Dict[s
 
     nome_limpo = normalizar(nome_col)
     melhor_score = 0.0
-    categoria_vencedora = "Genérico / Não mapeado"
+    categoria_vencedora = config.SEMANTICA_GENERICA
     palavra_vencedora = ""
 
     for categoria, palavras_chave in config.CATEGORIAS_FUZZY.items():

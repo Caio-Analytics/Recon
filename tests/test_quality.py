@@ -1,6 +1,7 @@
 import pandas as pd
 
-from data_profiler.quality import detectar_dependencias_funcionais, gerar_gap_analysis
+from data_profiler import config
+from data_profiler.quality import _REGRAS_KPI, detectar_dependencias_funcionais, gerar_gap_analysis
 
 
 def _meta(coluna, qtd_unicos, ratio_unicidade, caracteristica="🏷️ Categórica / Dimensão Curta"):
@@ -57,3 +58,14 @@ def test_gap_analysis_kpi_habilitado_com_semanticas_completas():
     gaps = gerar_gap_analysis({"Estrutura Organizacional", "Quantidade / Métrica"})
     gap_hr_001 = next(g for g in gaps if g["kpi_id"] == "KPI_HR_001")
     assert gap_hr_001["status"] == "✅ Habilitado"
+
+
+def test_regras_kpi_semanticas_existem_na_taxonomia():
+    """Toda string de semântica referenciada em _REGRAS_KPI precisa existir
+    como chave em config.CATEGORIAS_FORTES ou config.CATEGORIAS_FUZZY — caso
+    contrário uma renomeação de categoria quebraria o gap analysis de KPIs
+    silenciosamente (sem falha de teste)."""
+    todas_categorias = set(config.CATEGORIAS_FORTES) | set(config.CATEGORIAS_FUZZY)
+    for regra in _REGRAS_KPI:
+        for semantica in regra["semanticas"]:
+            assert semantica in todas_categorias, f"{semantica} não existe em nenhuma taxonomia"

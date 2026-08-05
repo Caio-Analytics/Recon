@@ -1,4 +1,5 @@
 """Orquestração do profiling: liga ingestion, semantics, statistics, quality e reporting."""
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Union
 
@@ -14,13 +15,30 @@ def analisar_temporal_series(
 ) -> List[Dict[str, Any]]:
     candidatas_data = [
         m for m in colunas_meta
-        if m.get("Semantica_IA") == "Data / Calendário" and m.get("Tipo_Inferred") == "Data / Hora"
+        if m.get("Semantica_IA") == config.SEMANTICA_DATA_CALENDARIO
+        and (
+            m.get("Tipo_Inferred") == config.TIPO_DATA_HORA
+            or m.get("Alertas", {}).get("data_como_texto") is True
+        )
     ]
     if not candidatas_data:
         return []
 
     col_referencia = min(candidatas_data, key=lambda m: m["Pct_Nulos"])["Coluna"]
-    df_ordenado = df.sort_values(by=col_referencia).reset_index(drop=True)
+
+    if pd.api.types.is_datetime64_any_dtype(df[col_referencia]):
+        df_ordenado = df.sort_values(by=col_referencia).reset_index(drop=True)
+    else:
+        # Coluna de data-como-texto (típico de CSV, que não faz parse_dates):
+        # coerce para datetime só para fins de ordenação, descartando linhas
+        # que não convertem (NaT) em vez de deixá-las poluir o fim da série.
+        df_ordenado = df.copy()
+        df_ordenado["__data_referencia_coerced__"] = pd.to_datetime(
+            df_ordenado[col_referencia], errors="coerce"
+        )
+        df_ordenado = df_ordenado.dropna(subset=["__data_referencia_coerced__"])
+        df_ordenado = df_ordenado.sort_values(by="__data_referencia_coerced__").reset_index(drop=True)
+        df_ordenado = df_ordenado.drop(columns=["__data_referencia_coerced__"])
 
     colunas_numericas = [
         m["Coluna"] for m in colunas_meta
@@ -69,7 +87,7 @@ class DataProfiler:
             padrao_estruturado = stats["flags"]["detected_pattern"]
             sem = semantics.inferir_semantica(str(coluna), detectado_padrao=padrao_estruturado)
 
-            if sem["semantica"] != "Genérico / Não mapeado":
+            if sem["semantica"] != config.SEMANTICA_GENERICA:
                 semanticas_presentes.add(sem["semantica"])
 
             registro = {
@@ -151,7 +169,6 @@ class DataProfiler:
         saida_base: str = "profiler_output",
         tambem_parquet: bool = False,
     ) -> List[Dict[str, Any]]:
-        import os
         extensao = os.path.splitext(caminho)[1].lower()
 
         if processar_todas_abas and extensao in (".xlsx", ".xls", ".xlsb"):
