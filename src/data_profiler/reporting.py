@@ -1,9 +1,9 @@
-"""Exportação do payload de profiling: JSON (IA/código), Markdown (humano,
-Task 9) e Parquet (opcional, BI)."""
+"""Exportação do payload de profiling: JSON (IA/código), Markdown (humano)
+e Parquet (opcional, BI)."""
 import json
 import math
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pandas as pd
 from loguru import logger
@@ -44,26 +44,31 @@ def exportar_parquet(payload: Dict[str, Any], caminho_base: str) -> None:
     )
     df_cols = df_cols.drop(columns=["Alertas"])
     df_cols.to_parquet(f"{caminho_base}_{nome_safe}_columns.parquet", index=False)
+    arquivos_gerados = 1
 
     pd.DataFrame(payload["recomendacoes_etl"]).to_parquet(
         f"{caminho_base}_{nome_safe}_recommendations.parquet", index=False
     )
+    arquivos_gerados += 1
 
     if payload["dependencias_funcionais"]:
         pd.DataFrame(payload["dependencias_funcionais"]).to_parquet(
             f"{caminho_base}_{nome_safe}_dependencies.parquet", index=False
         )
+        arquivos_gerados += 1
 
     df_gaps = pd.DataFrame(payload["gap_analysis_kpis"])
     df_gaps["semanticas_presentes"] = df_gaps["semanticas_presentes"].apply(json.dumps)
     df_gaps["semanticas_ausentes"] = df_gaps["semanticas_ausentes"].apply(json.dumps)
     df_gaps.to_parquet(f"{caminho_base}_{nome_safe}_gap_analysis.parquet", index=False)
+    arquivos_gerados += 1
 
     meta = dict(payload["metadados_execucao"])
     meta["resumo_qualidade"] = json.dumps(sanear_floats(meta["resumo_qualidade"]), ensure_ascii=False)
     pd.DataFrame([meta]).to_parquet(f"{caminho_base}_{nome_safe}_metadata.parquet", index=False)
+    arquivos_gerados += 1
 
-    logger.info(f"✓ Parquet exportado: 5 arquivos com prefixo '{caminho_base}_{nome_safe}_'")
+    logger.info(f"✓ Parquet exportado: {arquivos_gerados} arquivos com prefixo '{caminho_base}_{nome_safe}_'")
 
 
 def _tabela_markdown(linhas: list, cabecalhos: list) -> str:
@@ -71,6 +76,35 @@ def _tabela_markdown(linhas: list, cabecalhos: list) -> str:
     for linha in linhas:
         out.append("| " + " | ".join(str(v) for v in linha) + " |")
     return "\n".join(out)
+
+
+def _formatar_linha_testes_hipotese(nome_coluna: str, testes_hipotese: Dict[str, Any]) -> Optional[str]:
+    """Formata os testes de hipótese aplicáveis de uma coluna em uma única
+    linha Markdown. Retorna None se nenhum teste for aplicável (evita poluir
+    o relatório com "N/A" para cada teste não aplicável)."""
+    fragmentos = []
+
+    shapiro = testes_hipotese.get("shapiro_wilk") or {}
+    if shapiro.get("aplicavel"):
+        normal = "sim" if shapiro.get("normal_provavel") else "não"
+        fragmentos.append(f"Shapiro-Wilk p={shapiro.get('p_valor')} (normal prov.: {normal})")
+
+    ic = testes_hipotese.get("intervalo_confianca_media_95") or {}
+    if ic.get("aplicavel"):
+        fragmentos.append(f"IC95% média: [{ic.get('limite_inferior')}, {ic.get('limite_superior')}]")
+
+    dist = testes_hipotese.get("distribuicao_provavel") or {}
+    if dist.get("aplicavel"):
+        fragmentos.append(f"Distribuição provável: {dist.get('distribuicao')}")
+
+    chi2 = testes_hipotese.get("qui_quadrado_uniformidade") or {}
+    if chi2.get("aplicavel"):
+        uniforme = "sim" if chi2.get("distribuicao_uniforme_provavel") else "não"
+        fragmentos.append(f"Qui-quadrado uniformidade p={chi2.get('p_valor')} (uniforme prov.: {uniforme})")
+
+    if not fragmentos:
+        return None
+    return f"- `{nome_coluna}`: " + " | ".join(fragmentos)
 
 
 def exportar_markdown(payload: Dict[str, Any], caminho: str) -> None:
@@ -111,6 +145,19 @@ def exportar_markdown(payload: Dict[str, Any], caminho: str) -> None:
         [[g["kpi_id"], g["kpi_nome"], g["status"], g["cobertura_pct"]] for g in payload["gap_analysis_kpis"]],
         ["KPI", "Nome", "Status", "Cobertura"],
     ))
+
+    linhas_testes_hipotese = []
+    for c in payload["colunas"]:
+        testes_hipotese = (c.get("Stats_Extra") or {}).get("testes_hipotese") or {}
+        if not testes_hipotese:
+            continue
+        linha = _formatar_linha_testes_hipotese(c["Coluna"], testes_hipotese)
+        if linha:
+            linhas_testes_hipotese.append(linha)
+
+    if linhas_testes_hipotese:
+        partes.append("\n## Testes Estatísticos\n")
+        partes.extend(linhas_testes_hipotese)
 
     if payload.get("analise_temporal_series"):
         partes.append("\n## Análise Temporal (ADF / Ljung-Box)\n")

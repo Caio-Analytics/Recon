@@ -33,6 +33,13 @@ def detectar_dependencias_funcionais(
         m["Coluna"] for m in colunas_meta
         if m.get("Ratio_Unicidade", 1.0) < config.THRESHOLD_DETERMINANTE_MAX_UNICIDADE
     }
+    # Uma coluna constante (Qtd_Unicos <= 1) é trivialmente "determinada" por
+    # qualquer outra coluna — não é uma FD interessante, é ruído. O guard de
+    # determinante (acima) não cobre esse caso porque olha para o lado
+    # determinante, não para o dependente.
+    dependentes_validos = {
+        m["Coluna"] for m in colunas_meta if m.get("Qtd_Unicos", 0) > 1
+    }
 
     dependencias = []
     for i, col_a in enumerate(candidatas):
@@ -40,7 +47,7 @@ def detectar_dependencias_funcionais(
             if col_a == col_b:
                 continue
             try:
-                if col_a in determinantes_validos:
+                if col_a in determinantes_validos and col_b in dependentes_validos:
                     max_b_por_a = df.groupby(col_a, dropna=False)[col_b].nunique(dropna=False).max()
                     if max_b_por_a == 1:
                         dependencias.append({
@@ -48,7 +55,7 @@ def detectar_dependencias_funcionais(
                             "tipo": "Dependência Funcional Direta",
                             "descricao": f"'{col_a}' determina unicamente '{col_b}'. Candidata à desnormalização ou chave composta.",
                         })
-                if col_b in determinantes_validos:
+                if col_b in determinantes_validos and col_a in dependentes_validos:
                     max_a_por_b = df.groupby(col_b, dropna=False)[col_a].nunique(dropna=False).max()
                     if max_a_por_b == 1:
                         dependencias.append({

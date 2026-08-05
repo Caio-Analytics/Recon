@@ -140,6 +140,13 @@ def test_ljungbox_amostra_insuficiente():
     assert resultado["aplicavel"] is False
 
 
+def test_ljungbox_serie_constante_nao_aplicavel():
+    """Mirrors the nunique()<=1 guard já existente em testar_estacionariedade_adf:
+    uma série de variância zero não deve reportar aplicavel=True com NaN."""
+    resultado = testar_autocorrelacao_ljungbox(pd.Series([5.0] * 40))
+    assert resultado["aplicavel"] is False
+
+
 def test_valores_lgpd_sensiveis_sao_mascarados_na_amostra_e_no_top5():
     """Coluna com CPFs reais e nome que dispara detecção CPF: nem a amostra
     representativa nem a distribuição top5 devem conter o valor original."""

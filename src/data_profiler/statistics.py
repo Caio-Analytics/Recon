@@ -235,6 +235,8 @@ def testar_autocorrelacao_ljungbox(serie_numerica_ordenada: pd.Series) -> Dict[s
     n = len(serie_numerica_ordenada)
     if n < config.ADF_MIN_N:
         return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
+    if serie_numerica_ordenada.nunique() <= 1:
+        return {"aplicavel": False, "motivo": "Série constante (variância zero) — Ljung-Box não aplicável"}
     lags = max(1, min(10, n // 5))
     resultado = acorr_ljungbox(serie_numerica_ordenada, lags=[lags], return_df=True)
     estatistica = float(resultado["lb_stat"].iloc[0])

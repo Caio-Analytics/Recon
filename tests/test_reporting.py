@@ -40,6 +40,15 @@ def _payload_minimo():
              "Pct_Nulos": 0.0, "Caracteristica": "🔑 Chave Primária Potencial"},
             {"Coluna": "cpf", "Tipo_Inferred": "Texto", "Semantica_IA": "Chave Identificadora (ID)",
              "Pct_Nulos": 2.0, "Caracteristica": "📋 Atributo Geral"},
+            {"Coluna": "score_desempenho", "Tipo_Inferred": "Número Decimal", "Semantica_IA": "Resultado de Avaliação",
+             "Pct_Nulos": 0.0, "Caracteristica": "📊 Métrica Contínua",
+             "Stats_Extra": {
+                 "testes_hipotese": {
+                     "shapiro_wilk": {"aplicavel": True, "p_valor": 0.1234, "normal_provavel": True},
+                     "intervalo_confianca_media_95": {"aplicavel": True, "media": 11.5, "limite_inferior": 10.2, "limite_superior": 12.8},
+                     "distribuicao_provavel": {"aplicavel": True, "distribuicao": "normal", "p_valor": 0.4},
+                 },
+             }},
         ],
         "recomendacoes_etl": [
             {"Tabela": "TB_TESTE", "Coluna": "cpf", "Prioridade": "🔴 ALTA", "Camada": "Silver",
@@ -64,3 +73,20 @@ def test_exportar_markdown_gera_arquivo_com_secoes_esperadas(tmp_path):
     assert "cpf" in conteudo
     assert "Recomendações ETL" in conteudo
     assert "KPI_HR_001" in conteudo
+
+
+def test_exportar_markdown_inclui_secao_de_testes_estatisticos(tmp_path):
+    """A spec exige um resumo dos testes de hipótese no relatório Markdown
+    (só existia a seção de análise temporal antes desta correção)."""
+    caminho = tmp_path / "relatorio.md"
+
+    exportar_markdown(_payload_minimo(), str(caminho))
+
+    conteudo = caminho.read_text(encoding="utf-8")
+    assert "## Testes Estatísticos" in conteudo
+    assert "score_desempenho" in conteudo
+    assert "Shapiro-Wilk" in conteudo
+    assert "0.1234" in conteudo
+    # coluna 'id' e 'cpf' não têm testes_hipotese no payload -> não devem
+    # gerar ruído de "N/A" na seção.
+    assert "N/A" not in conteudo
