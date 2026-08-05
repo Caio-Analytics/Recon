@@ -1,10 +1,12 @@
 """Carregamento de CSV/XLSX/XLS/XLSB com detecção de encoding e separador."""
 import os
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 from charset_normalizer import from_path
 from loguru import logger
+
+ExcelEngine = Literal["xlrd", "openpyxl", "pyxlsb"]
 
 
 class IngestionError(Exception):
@@ -62,7 +64,7 @@ def carregar_arquivo(
         logger.info(f"CSV carregado via engine automático | Shape: {df.shape}")
         return df, nome_base
 
-    engines = {".xlsx": "openpyxl", ".xls": "xlrd", ".xlsb": "pyxlsb"}
+    engines: Dict[str, ExcelEngine] = {".xlsx": "openpyxl", ".xls": "xlrd", ".xlsb": "pyxlsb"}
     if extensao not in engines:
         raise FileFormatError(
             f"Extensão '{extensao}' não suportada. Use .csv, .xlsx, .xls ou .xlsb."
@@ -87,7 +89,7 @@ def carregar_todas_abas_excel(caminho: str) -> List[Tuple[pd.DataFrame, str]]:
         raise FileNotFoundError(f"Arquivo não encontrado: '{caminho}'")
 
     extensao = os.path.splitext(caminho)[1].lower()
-    engines = {".xlsx": "openpyxl", ".xls": "xlrd", ".xlsb": "pyxlsb"}
+    engines: Dict[str, ExcelEngine] = {".xlsx": "openpyxl", ".xls": "xlrd", ".xlsb": "pyxlsb"}
     engine = engines.get(extensao, "openpyxl")
 
     nome_base = os.path.splitext(os.path.basename(caminho))[0]

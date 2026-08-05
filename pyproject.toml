@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.1.1", "pytest-cov==7.1.0"]
+dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "pandas-stubs==3.0.5.260730"]
 
 [project.scripts]
 datascope = "datascope.cli:app"
