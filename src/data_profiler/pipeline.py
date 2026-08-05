@@ -33,7 +33,7 @@ def analisar_temporal_series(
         
         df_ordenado = df.copy()
         df_ordenado["__data_referencia_coerced__"] = pd.to_datetime(
-            df_ordenado[col_referencia], errors="coerce"
+            df_ordenado[col_referencia], errors="coerce", dayfirst=True
         )
         df_ordenado = df_ordenado.dropna(subset=["__data_referencia_coerced__"])
         df_ordenado = df_ordenado.sort_values(by="__data_referencia_coerced__").reset_index(drop=True)
