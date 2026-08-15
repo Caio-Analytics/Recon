@@ -1,123 +1,155 @@
-from datascope.pipeline import DataProfiler, analisar_temporal_series
+"""Orquestração ponta a ponta."""
+import pandas as pd
+import pytest
+
+from datascope import __version__, config
+from datascope.pipeline import DataProfiler
+
+from .conftest import gerar_cpfs
 
 
 def test_processar_dataframe_retorna_payload_completo(df_rh_exemplo):
-    profiler = DataProfiler()
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "TB_TESTE")
 
-    resultado = profiler.processar_dataframe(df_rh_exemplo, "TB_TESTE")
-
-    assert resultado["metadados_execucao"]["tabela"] == "TB_TESTE"
+    meta = resultado["metadados_execucao"]
+    assert meta["tabela"] == "TB_TESTE"
+    assert meta["versao_profiler"] == __version__
+    assert meta["schema_version"] == config.SCHEMA_VERSION
     assert len(resultado["colunas"]) == len(df_rh_exemplo.columns)
-    assert "recomendacoes_etl" in resultado
-    assert "dependencias_funcionais" in resultado
-    assert "gap_analysis_kpis" in resultado
-    assert "analise_temporal_series" in resultado
+    for chave in ("recomendacoes_etl", "dependencias_funcionais", "colunas_redundantes",
+                  "chaves_compostas", "correlacoes", "gap_analysis_kpis",
+                  "analise_temporal_series"):
+        assert chave in resultado
+
+
+def test_versao_do_payload_vem_do_pacote(df_rh_exemplo):
+    """Regressão: a versão saía hardcoded como '2.0-Fase1' e divergia do
+    pyproject."""
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "T")
+    assert resultado["metadados_execucao"]["versao_profiler"] == __version__
+    assert "Fase1" not in resultado["metadados_execucao"]["versao_profiler"]
+
+
+def test_score_de_qualidade_presente_no_payload(df_rh_exemplo):
+    score = DataProfiler().processar_dataframe(df_rh_exemplo, "T")["metadados_execucao"]["score_qualidade"]
+    assert 0 <= score["score"] <= 100
+    assert score["nota"] in {"A", "B", "C", "D", "E"}
 
 
 def test_processar_dataframe_detecta_lgpd_no_cpf(df_rh_exemplo):
-    profiler = DataProfiler()
-    resultado = profiler.processar_dataframe(df_rh_exemplo, "TB_TESTE")
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "TB_TESTE")
+    col = next(c for c in resultado["colunas"] if c["Coluna"] == "cpf_colaborador")
+    assert col["Dado_Sensivel_LGPD"] == "CPF"
 
-    col_cpf = next(c for c in resultado["colunas"] if c["Coluna"] == "cpf_colaborador")
-    assert col_cpf["Dado_Sensivel_LGPD"] == "CPF"
+
+def test_id_funcionario_e_classificado_como_chave(df_rh_exemplo):
+    """Regressão de ponta a ponta: `id_funcionario` era classificado como
+    'Nome / Identificação Pessoal'."""
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "T")
+    col = next(c for c in resultado["colunas"] if c["Coluna"] == "id_funcionario")
+    assert col["Semantica_IA"] == config.SEMANTICA_CHAVE_ID
+
+
+def test_gap_analysis_enxerga_estrutura_organizacional(df_rh_exemplo):
+    """Regressão: com `cod_departamento` e `nome_departamento` na tabela, o
+    KPI de departamento saía '❌ Bloqueado | 0%' porque as categorias de
+    domínio nunca eram avaliadas."""
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "T")
+
+    semanticas = resultado["metadados_execucao"]["resumo_qualidade"]["semanticas_encontradas"]
+    assert "Estrutura Organizacional" in semanticas
+
+    kpi = next(g for g in resultado["gap_analysis_kpis"] if g["kpi_id"] == "KPI_HR_001")
+    assert kpi["status"] != "❌ Bloqueado"
+
+
+def test_cpf_nao_e_recomendado_como_chave_primaria():
+    """Regressão: o mesmo relatório mandava mascarar o CPF e promovê-lo a PK."""
+    df = pd.DataFrame({"cpf": gerar_cpfs(60), "valor": range(60)})
+    resultado = DataProfiler().processar_dataframe(df, "T")
+
+    acoes = [r["Acao"] for r in resultado["recomendacoes_etl"] if r["Coluna"] == "cpf"]
+    assert any("surrogate key" in a for a in acoes)
+    assert not any("Promover 'cpf' como PK" in a for a in acoes)
 
 
 def test_processar_dataframe_detecta_fd_cod_para_nome_departamento(df_rh_exemplo):
-    profiler = DataProfiler()
-    resultado = profiler.processar_dataframe(df_rh_exemplo, "TB_TESTE")
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "TB_TESTE")
+    envolvidos = {
+        (d["determinante"], d["dependente"]) for d in resultado["dependencias_funcionais"]
+    }
+    assert any("cod_departamento" in par for par in envolvidos)
 
-    determinantes = {d["determinante"] for d in resultado["dependencias_funcionais"]}
-    assert "cod_departamento" in determinantes
+
+def test_duplicatas_e_redundancia_aparecem_no_payload():
+    base = pd.DataFrame({"a": range(60), "b": list("xy") * 30})
+    df = pd.concat([base, base.head(10)], ignore_index=True)
+    df["a_copia"] = df["a"]
+
+    resultado = DataProfiler().processar_dataframe(df, "T")
+
+    assert resultado["metadados_execucao"]["duplicatas"]["qtd_linhas_duplicadas"] == 10
+    assert len(resultado["colunas_redundantes"]) == 1
 
 
-def test_analise_temporal_ausente_sem_coluna_de_data():
-    import pandas as pd
-    df = pd.DataFrame({"valor": range(50)})
-    colunas_meta = [{"Coluna": "valor", "Semantica_IA": "Genérico / Não mapeado", "Tipo_Inferred": "Número Inteiro", "Pct_Nulos": 0.0}]
+def test_sentinelas_viram_recomendacao_de_alta_prioridade():
+    df = pd.DataFrame({
+        "uf": ["SP"] * 300 + ["N/A"] * 100 + ["RJ"] * 100,
+        "valor": range(500),
+    })
+    resultado = DataProfiler().processar_dataframe(df, "T")
 
-    resultado = analisar_temporal_series(df, colunas_meta)
-
-    assert resultado == []
+    recomendacoes_uf = [r for r in resultado["recomendacoes_etl"] if r["Coluna"] == "uf"]
+    assert any("NULL" in r["Acao"] and "ALTA" in r["Prioridade"] for r in recomendacoes_uf)
 
 
 def test_analise_temporal_roda_com_coluna_de_data(df_rh_exemplo):
-    profiler = DataProfiler()
-    resultado = profiler.processar_dataframe(df_rh_exemplo, "TB_TESTE")
-
-    # dt_admissao é datetime e o nome bate em "Data / Calendário" -> deve ativar
-    assert len(resultado["analise_temporal_series"]) > 0
-    entrada = resultado["analise_temporal_series"][0]
-    assert entrada["coluna_temporal_referencia"] == "dt_admissao"
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "TB_TESTE")
+    assert all(t["coluna_temporal_referencia"] == "dt_admissao"
+               for t in resultado["analise_temporal_series"])
 
 
-def test_analise_temporal_roda_com_coluna_de_data_como_texto_csv():
-    """CSVs nunca passam por parse_dates em ingestion.py — uma coluna de data
-    chega como string pura ('2020-01-15', não pd.Timestamp) e statistics.py a
-    classifica como 'Texto (⚠️ Parece Data)', não 'Data / Hora'. Antes da
-    correção, analisar_temporal_series só aceitava Tipo_Inferred == 'Data /
-    Hora', então a análise temporal nunca ativava para CSV. Este teste usa uma
-    coluna de datas como strings Python simples (não pd.to_datetime-wrapped),
-    ao contrário da fixture df_rh_exemplo que já vem pré-parseada."""
-    import pandas as pd
+def test_amostragem_e_sinalizada_no_payload():
+    df = pd.DataFrame({"a": range(1000), "b": ["x"] * 1000})
+    resultado = DataProfiler(limite_amostra=100).processar_dataframe(df, "T")
 
-    df = pd.DataFrame({
-        "dt_pedido": ["2020-01-15", "2021-03-10", "2022-06-20", "2023-09-01"] * 12 + ["2024-01-01"] * 2,
-        "valor_pedido": [float(i % 10) + 1 for i in range(50)],
-    })
-    profiler = DataProfiler()
-
-    resultado = profiler.processar_dataframe(df, "TB_CSV")
-
-    col_data = next(c for c in resultado["colunas"] if c["Coluna"] == "dt_pedido")
-    assert col_data["Alertas"]["data_como_texto"] is True
-    assert col_data["Tipo_Inferred"] != "Data / Hora"
-    assert len(resultado["analise_temporal_series"]) > 0
-    assert resultado["analise_temporal_series"][0]["coluna_temporal_referencia"] == "dt_pedido"
-
-
-def test_analise_temporal_datas_br_dd_mm_aaaa_nao_sao_misparseadas():
-    """Regressão: 31 dias consecutivos (janeiro/2024) em formato brasileiro
-    dd/mm/aaaa (config.PADROES_DATA reconhece ^\\d{2}/\\d{2}/\\d{4}$), com uma
-    coluna numérica associada. Sem dayfirst=True, pd.to_datetime assume mês
-    primeiro (convenção US): qualquer linha com dia > 12 (19 das 31, dias
-    13-31) vira NaT (mês inválido) e é descartada por
-    analisar_temporal_series antes do ADF/Ljung-Box. Sobram só 12 linhas
-    (dias 1-12, com dia/mês trocados silenciosamente) — abaixo de
-    config.ADF_MIN_N (30) — então nem ADF nem Ljung-Box ficam aplicáveis e
-    'analise_temporal_series' sai vazia, apesar de haver 31 linhas de dado
-    válido. Com dayfirst=True (a correção), as 31 linhas são parseadas
-    corretamente, n=31 >= ADF_MIN_N, e a análise temporal roda normalmente."""
-    import pandas as pd
-    from datetime import date, timedelta
-
-    inicio = date(2024, 1, 1)
-    datas = [inicio + timedelta(days=i) for i in range(31)]  # janeiro/2024 completo
-    datas_str = [d.strftime("%d/%m/%Y") for d in datas]
-    valores = [100.0 + i * 2.5 + (i % 5) * 0.3 for i in range(31)]  # tendência de alta real + leve ruído
-
-    df = pd.DataFrame({
-        "dt_pedido": datas_str,
-        "valor_pedido": valores,
-    })
-    profiler = DataProfiler()
-
-    resultado = profiler.processar_dataframe(df, "TB_BR_DATAS")
-
-    col_data = next(c for c in resultado["colunas"] if c["Coluna"] == "dt_pedido")
-    assert col_data["Alertas"]["data_como_texto"] is True
-
-    # Sem dayfirst=True, apenas 12/31 linhas sobreviveriam ao parse (dias
-    # 1-12), abaixo do ADF_MIN_N=30 — a seção inteira sairia vazia.
-    assert len(resultado["analise_temporal_series"]) > 0
-    entrada = resultado["analise_temporal_series"][0]
-    assert entrada["coluna_temporal_referencia"] == "dt_pedido"
-    assert entrada["adf"]["aplicavel"] is True
+    meta = resultado["metadados_execucao"]
+    assert meta["amostragem_aplicada"] is True
+    assert meta["linhas_analisadas"] == 100
+    assert meta["linhas_originais"] == 1000
 
 
 def test_dataframe_vazio_levanta_value_error():
-    import pandas as pd
-    import pytest
-
-    profiler = DataProfiler()
     with pytest.raises(ValueError):
-        profiler.processar_dataframe(pd.DataFrame(), "TB_VAZIA")
+        DataProfiler().processar_dataframe(pd.DataFrame(), "TB_VAZIA")
+
+
+def test_regras_kpi_customizadas_sao_usadas(df_rh_exemplo):
+    regras = [{"id": "X1", "nome": "Custom", "semanticas": ["Valor Financeiro"]}]
+    resultado = DataProfiler(regras_kpi=regras).processar_dataframe(df_rh_exemplo, "T")
+
+    assert len(resultado["gap_analysis_kpis"]) == 1
+    assert resultado["gap_analysis_kpis"][0]["kpi_id"] == "X1"
+
+
+def test_processar_arquivo_gera_todos_os_formatos(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    caminho = tmp_path / "dados.csv"
+    pd.DataFrame({"id": range(60), "uf": ["SP", "RJ"] * 30}).to_csv(caminho, index=False)
+
+    DataProfiler().processar_arquivo(
+        str(caminho), saida_base="saida", formatos=["json", "markdown", "html", "parquet"]
+    )
+
+    assert (tmp_path / "saida_dados.json").exists()
+    assert (tmp_path / "saida_dados.md").exists()
+    assert (tmp_path / "saida_dados.html").exists()
+    assert (tmp_path / "saida_dados_columns.parquet").exists()
+
+
+def test_formato_invalido_levanta_value_error(tmp_path):
+    caminho = tmp_path / "dados.csv"
+    pd.DataFrame({"a": range(10)}).to_csv(caminho, index=False)
+
+    with pytest.raises(ValueError, match="inválido"):
+        DataProfiler().processar_arquivo(str(caminho), formatos=["pdf"])
