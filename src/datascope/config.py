@@ -1,4 +1,9 @@
-from typing import Dict, List, Set
+from typing import Any
+
+
+
+
+SCHEMA_VERSION: str = "3.0"
 
 
 
@@ -6,7 +11,9 @@ from typing import Dict, List, Set
 
 SEMANTICA_GENERICA: str = "Genérico / Não mapeado"
 SEMANTICA_DATA_CALENDARIO: str = "Data / Calendário"
+SEMANTICA_CHAVE_ID: str = "Chave Identificadora (ID)"
 TIPO_DATA_HORA: str = "Data / Hora"
+TIPO_VAZIO: str = "Vazio / Sem Tipo Definido"
 
 
 THRESHOLD_FUZZY_PADRAO: float = 0.85
@@ -17,12 +24,22 @@ THRESHOLD_MISTO_TIPOS: float = 0.05
 THRESHOLD_OUTLIER_IQR: float = 1.5
 THRESHOLD_PADRAO_ESTRUTURADO: float = 0.75
 THRESHOLD_DATA_TEXTO: float = 0.80
-AMOSTRA_ANALISE: int = 200
+
+
+
+
+AMOSTRA_ANALISE: int = 5_000
+
+
+
+
+MAX_VALORES_AMOSTRA_COMPLETA: int = 50
 
 
 
 
 THRESHOLD_DETERMINANTE_MAX_UNICIDADE: float = 0.98
+FD_MAX_CARDINALIDADE: int = 500
 
 
 ALPHA_SIGNIFICANCIA: float = 0.05
@@ -35,12 +52,45 @@ ADF_MIN_N: int = 30
 ANALISE_TEMPORAL_MAX_PONTOS: int = 50_000
 
 
-CATEGORIAS_FORTES: Dict[str, List[str]] = {
-    "Chave Identificadora (ID)": [
+THRESHOLD_ASSIMETRIA_ROBUSTA: float = 1.0
+
+
+
+
+THRESHOLD_SENTINELA_MIN_PCT: float = 0.005
+
+
+SENTINELAS_TEXTO: frozenset[str] = frozenset({
+    "", "-", "--", "---", ".", "..", "...", "?", "??", "???",
+    "n/a", "na", "n.a.", "n/d", "nd", "null", "none", "nil", "nan",
+    "#n/d", "#n/a", "#valor!", "#value!", "#ref!", "#nome?", "#name?", "#div/0!",
+    "sem informacao", "sem informacoes", "nao informado", "nao informada",
+    "nao consta", "nao se aplica", "nao disponivel", "nao identificado",
+    "desconhecido", "desconhecida", "indefinido", "indefinida",
+    "vazio", "branco", "em branco", "s/i", "s/d", "s/n", "ignorado",
+})
+
+
+
+SENTINELAS_NUMERICAS: frozenset[float] = frozenset({
+    -1.0, -99.0, -999.0, -9999.0, -99999.0, -1.0e9,
+    9999.0, 99999.0, 999999.0, 9999999.0, 99999999.0, 999999999.0,
+})
+
+SENTINELAS_DATA: frozenset[str] = frozenset({
+    "1753-01-01",  
+    "1899-12-30",  
+    "1900-01-01", "1901-01-01", "1970-01-01",
+    "2099-12-31", "9999-12-31",
+})
+
+
+CATEGORIAS_FORTES: dict[str, list[str]] = {
+    SEMANTICA_CHAVE_ID: [
         "id", "cod", "codigo", "code", "key", "number", "matricula", "mat",
         "cpf", "cnpj", "registro", "chave", "identifier", "iden", "nr", "num", "pk", "fk",
     ],
-    "Data / Calendário": [
+    SEMANTICA_DATA_CALENDARIO: [
         "date", "dt", "data", "time", "timestamp", "periodo", "competencia",
         "admissao", "demissao", "nascimento", "vencimento", "inicio", "fim",
         "prazo", "realizacao", "referencia", "vigencia", "expiracao",
@@ -81,7 +131,7 @@ CATEGORIAS_FORTES: Dict[str, List[str]] = {
 }
 
 
-CATEGORIAS_FUZZY: Dict[str, List[str]] = {
+CATEGORIAS_FUZZY: dict[str, list[str]] = {
     "Localização Geográfica": [
         "country", "province", "city", "facility", "pais", "cidade",
         "estado", "regiao", "municipio", "cep", "uf", "endereco", "local",
@@ -90,7 +140,8 @@ CATEGORIAS_FUZZY: Dict[str, List[str]] = {
     "Estrutura Organizacional": [
         "department", "company", "business", "hierarquia", "departamento",
         "diretoria", "gerencia", "setor", "area", "divisao", "celula",
-        "squad", "lotacao", "unidade", "filial", "subsidiaria",
+        "squad", "lotacao", "unidade", "filial", "subsidiaria", "agencia",
+        "coordenacao", "superintendencia", "nucleo", "equipe", "time",
     ],
     "Perfil do Colaborador": [
         "gender", "nationality", "career", "workforce", "staff",
@@ -100,7 +151,7 @@ CATEGORIAS_FUZZY: Dict[str, List[str]] = {
     "Cargo / Função": [
         "cargo", "funcao", "nivel", "grade", "posicao", "categoria",
         "classe", "faixa", "perfil", "role", "position", "job",
-        "title", "occupation", "hierarquia",
+        "title", "occupation",
     ],
     "Curso / Treinamento": [
         "curso", "treinamento", "capacitacao", "formacao", "modulo",
@@ -110,7 +161,27 @@ CATEGORIAS_FUZZY: Dict[str, List[str]] = {
 }
 
 
-PADROES_DATA: List[str] = [
+
+
+
+
+TOKENS_QUALIFICADORES: frozenset[str] = frozenset({
+    "id", "cod", "codigo", "code", "key", "chave", "pk", "fk", "nr", "num",
+    "number", "matricula", "mat", "iden", "identifier", "registro",
+    "nome", "name", "desc", "descricao", "description", "sigla", "abrev",
+    "tipo", "type", "categoria", "class", "flag", "flg", "status",
+    "qtd", "quantidade", "total", "vlr", "valor", "pct", "percentual",
+    "dt", "date", "data", "hora", "time", "timestamp",
+})
+
+
+
+
+PESO_TOKEN_QUALIFICADOR: float = 0.45
+PESO_TOKEN_ENTIDADE: float = 1.0
+
+
+PADROES_DATA: list[str] = [
     r"^\d{4}-\d{2}-\d{2}$",
     r"^\d{2}/\d{2}/\d{4}$",
     r"^\d{2}-\d{2}-\d{4}$",
@@ -122,7 +193,7 @@ PADROES_DATA: List[str] = [
     r"^\d{2}/\d{2}/\d{4}\s+\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM|am|pm)?$",
 ]
 
-PADROES_ESTRUTURADOS: Dict[str, str] = {
+PADROES_ESTRUTURADOS: dict[str, str] = {
     "CPF":      r"^\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2}$",
     "CNPJ":     r"^\d{2}[.\-]?\d{3}[.\-]?\d{3}[\/\-]?\d{4}[.\-]?\d{2}$",
     "CEP":      r"^\d{5}[-\s]?\d{3}$",
@@ -131,4 +202,65 @@ PADROES_ESTRUTURADOS: Dict[str, str] = {
     "UUID":     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 }
 
-TOKENS_CHAVE_SISTEMA: Set[str] = {"id", "code", "number", "key", "cod", "pk", "fk", "identifier"}
+
+
+
+PADROES_COM_VALIDACAO: frozenset[str] = frozenset({"CPF", "CNPJ"})
+
+
+PADRAO_MOJIBAKE: str = r"Ã[-¿–—‚-…]|Â[ -¿]|â€|ï¿½|�"
+
+TOKENS_CHAVE_SISTEMA: set[str] = {"id", "code", "number", "key", "cod", "pk", "fk", "identifier"}
+
+
+
+
+TIPOS_ELEGIVEIS_CHAVE: frozenset[str] = frozenset({"Número Inteiro", "Texto", "Texto (⚠️ Parece Data)"})
+
+
+CORRELACAO_MIN_ABS: float = 0.7
+CORRELACAO_MAX_CARDINALIDADE_CAT: int = 50
+CORRELACAO_MIN_N: int = 30
+
+
+
+
+
+
+
+
+
+PESOS_SCORE_QUALIDADE: dict[str, float] = {
+    "colunas_com_defeito": 25.0,
+    "nulos": 15.0,
+    "sentinelas": 10.0,
+    "duplicatas": 10.0,
+    "colunas_vazias": 6.0,
+    "mistura_tipos": 6.0,
+    "inconsistencia_texto": 6.0,
+    "documento_invalido": 6.0,
+    "mojibake": 5.0,
+    "lgpd_exposto": 5.0,
+    "data_como_texto": 3.0,
+    "colunas_redundantes": 3.0,
+}
+
+
+
+
+
+
+REGRAS_KPI_PADRAO: list[dict[str, Any]] = [
+    {"id": "KPI_HR_001", "nome": "Volume de Esforço por Departamento",
+     "semanticas": ["Estrutura Organizacional", "Quantidade / Métrica"]},
+    {"id": "KPI_HR_002", "nome": "Distribuição de Liderança por Perfil",
+     "semanticas": ["Perfil do Colaborador", "Cargo / Função"]},
+    {"id": "KPI_HR_003", "nome": "Evolução de Custo de Pessoal",
+     "semanticas": ["Valor Financeiro", SEMANTICA_DATA_CALENDARIO]},
+    {"id": "KPI_HR_004", "nome": "Análise de Turnover",
+     "semanticas": ["Perfil do Colaborador", SEMANTICA_DATA_CALENDARIO]},
+    {"id": "KPI_TREIN_001", "nome": "Efetividade de Treinamentos",
+     "semanticas": ["Curso / Treinamento", "Resultado de Avaliação"]},
+    {"id": "KPI_GEO_001", "nome": "Distribuição Geográfica de Headcount",
+     "semanticas": ["Localização Geográfica", "Estrutura Organizacional"]},
+]
