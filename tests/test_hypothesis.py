@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-from datascope.hypothesis import (
+from recon.hypothesis import (
     calcular_intervalo_confianca_media,
     calcular_outliers,
     detectar_distribuicao_provavel,

@@ -2,8 +2,8 @@
 import numpy as np
 import pandas as pd
 
-from datascope import rules
-from datascope.pipeline import DataProfiler
+from recon import rules
+from recon.pipeline import DataProfiler
 
 
 def _meta(df: pd.DataFrame, nome_tabela: str = "T"):

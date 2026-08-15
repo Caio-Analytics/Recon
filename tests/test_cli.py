@@ -4,8 +4,8 @@ import random
 import pandas as pd
 from typer.testing import CliRunner
 
-from datascope import __version__
-from datascope.cli import app
+from recon import __version__
+from recon.cli import app
 
 runner = CliRunner()
 
@@ -16,14 +16,28 @@ def _csv(tmp_path, nome="dados.csv", n=30):
     return caminho
 
 
-def test_perfilar_gera_json_e_markdown(tmp_path, monkeypatch):
+def test_perfilar_gera_json_e_html_por_padrao(tmp_path, monkeypatch):
+    """O padrão é HTML: um `.html` clicado abre renderizado no navegador de
+    qualquer máquina, enquanto um `.md` abre no bloco de notas mostrando a
+    marcação crua para quem não tem visualizador."""
     monkeypatch.chdir(tmp_path)
     resultado = runner.invoke(app, ["perfilar", str(_csv(tmp_path)), "--saida-base", "saida"])
 
     assert resultado.exit_code == 0
     assert (tmp_path / "saida_dados.json").exists()
-    assert (tmp_path / "saida_dados.md").exists()
-    assert not (tmp_path / "saida_dados.html").exists()
+    assert (tmp_path / "saida_dados.html").exists()
+    assert not (tmp_path / "saida_dados.md").exists()
+
+
+def test_markdown_continua_disponivel_por_opcao(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    resultado = runner.invoke(
+        app, ["perfilar", str(_csv(tmp_path)), "--saida-base", "m", "--formatos", "json,markdown"]
+    )
+
+    assert resultado.exit_code == 0
+    assert (tmp_path / "m_dados.md").exists()
+    assert not (tmp_path / "m_dados.html").exists()
 
 
 def test_perfilar_com_formatos_customizados(tmp_path, monkeypatch):

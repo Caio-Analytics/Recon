@@ -1,7 +1,7 @@
 """Recomendações de ETL, gap analysis, score e regras de KPI."""
 import pytest
 
-from datascope import config, quality
+from recon import config, quality
 
 
 def _stats(**overrides):
@@ -104,14 +104,33 @@ def test_datas_futuras_geram_recomendacao():
     assert "futuro" in _acoes(quality.gerar_recomendacoes_etl("T", "dt", stats, "Nenhum", 100))
 
 
-def test_sugestao_de_dtype_so_aparece_com_ganho_relevante():
-    pouco = _stats(otimizacao={"dtype_sugerido": "int32", "dtype_atual": "int64",
-                               "economia_mb": 0.1, "economia_pct": 0.1})
-    muito = _stats(otimizacao={"dtype_sugerido": "int8", "dtype_atual": "int64",
-                               "economia_mb": 3.5, "economia_pct": 0.87})
+def test_sugestao_de_dtype_e_agregada_numa_linha_so():
+    """Regressão: numa tabela de 70 colunas eram 68 recomendações de 'converter
+    para category' afogando os 22 achados que importavam."""
+    colunas = [
+        {"Coluna": f"c{i}", "Otimizacao": {"dtype_sugerido": "category",
+                                           "dtype_atual": "str",
+                                           "economia_mb": 1.5, "economia_pct": 0.9}}
+        for i in range(30)
+    ]
+    recomendacoes = quality.gerar_recomendacoes_tabela(
+        "T", {"qtd_linhas_duplicadas": 0}, [], [], 1000, colunas=colunas
+    )
+    dtype = [r for r in recomendacoes if "dtype" in r["Acao"]]
 
-    assert "Converter" not in _acoes(quality.gerar_recomendacoes_etl("T", "x", pouco, "Nenhum", 100))
-    assert "Converter" in _acoes(quality.gerar_recomendacoes_etl("T", "x", muito, "Nenhum", 100))
+    assert len(dtype) == 1
+    assert "30 coluna(s)" in dtype[0]["Acao"]
+    assert "45.0 MB" in dtype[0]["Acao"]
+
+
+def test_dtype_com_ganho_pequeno_nao_entra():
+    colunas = [{"Coluna": "c", "Otimizacao": {"dtype_sugerido": "int32",
+                                              "dtype_atual": "int64",
+                                              "economia_mb": 0.1, "economia_pct": 0.1}}]
+    recomendacoes = quality.gerar_recomendacoes_tabela(
+        "T", {"qtd_linhas_duplicadas": 0}, [], [], 100, colunas=colunas
+    )
+    assert not [r for r in recomendacoes if "dtype" in r["Acao"]]
 
 
 # ── Recomendações de tabela ─────────────────────────────────────────────────
@@ -179,7 +198,7 @@ def test_carregar_regras_kpi_invalido_levanta_erro(tmp_path):
 
 def _coluna(**overrides):
     base = {
-        "Pct_Nulos": 0.0, "Caracteristica": "🏷️ Categórica / Dimensão Curta",
+        "Coluna": "c", "Pct_Nulos": 0.0, "Caracteristica": "🏷️ Categórica / Dimensão Curta",
         "Alertas": {"mistura_tipos": {"tem_mistura": False}, "data_como_texto": False},
         "Qualidade": {"nulos_efetivos_pct": 0.0},
     }
@@ -191,39 +210,74 @@ def test_score_maximo_para_tabela_limpa():
     resultado = quality.calcular_score_qualidade([_coluna(), _coluna()], {}, [])
     assert resultado["score"] == 100.0
     assert resultado["nota"] == "A"
+    assert resultado["colunas_comprometidas"] == 0
 
 
-def test_score_penaliza_e_ordena_dimensoes():
+def test_score_e_invariante_ao_tamanho_da_tabela():
+    """Regressão: cada dimensão dividia pelo total de colunas, então o score
+    encolhia conforme a tabela crescia — uma base de 70 colunas com 21
+    comprometidas tirava a mesma nota de uma base limpa."""
+    def tabela(n_total, n_ruins):
+        ruim = _coluna(Pct_Nulos=0.0,
+                       Qualidade={"nulos_efetivos_pct": 0.0,
+                                  "mojibake": {"tem_mojibake": True},
+                                  "sentinelas": {"tem_sentinela": True}})
+        return [ruim] * n_ruins + [_coluna()] * (n_total - n_ruins)
+
+    pequena = quality.calcular_score_qualidade(tabela(10, 3), {}, [])["score"]
+    grande = quality.calcular_score_qualidade(tabela(200, 60), {}, [])["score"]
+
+    assert abs(pequena - grande) < 1.0
+    assert pequena < 80
+
+
+def test_score_discrimina_tabela_muito_suja():
+    limpa = [_coluna() for _ in range(10)]
+    suja = [
+        _coluna(Caracteristica="⚠️ Coluna 100% Vazia"),
+        _coluna(Pct_Nulos=60.0, Qualidade={"nulos_efetivos_pct": 60.0}),
+        _coluna(Qualidade={"nulos_efetivos_pct": 0.0,
+                           "mojibake": {"tem_mojibake": True},
+                           "documento_invalido": {"tem_documento_invalido": True}}),
+    ] + [_coluna() for _ in range(3)]
+
+    assert quality.calcular_score_qualidade(limpa, {}, [])["score"] == 100.0
+    assert quality.calcular_score_qualidade(suja, {}, [])["score"] < 65
+
+
+def test_score_lista_as_colunas_mais_comprometidas():
     colunas = [
-        _coluna(Pct_Nulos=80.0,
-                Qualidade={"nulos_efetivos_pct": 90.0,
-                           "sentinelas": {"tem_sentinela": True}}),
-        _coluna(Pct_Nulos=100.0, Caracteristica="⚠️ Coluna 100% Vazia",
-                Qualidade={"nulos_efetivos_pct": 100.0}),
+        _coluna(Coluna="ok"),
+        _coluna(Coluna="morta", Caracteristica="⚠️ Coluna 100% Vazia"),
     ]
-    resultado = quality.calcular_score_qualidade(
+    resultado = quality.calcular_score_qualidade(colunas, {}, [])
+
+    assert resultado["colunas_criticas"][0]["coluna"] == "morta"
+    assert resultado["colunas_criticas"][0]["dano"] == 1.0
+    assert "vazia" in resultado["colunas_criticas"][0]["motivos"][0]
+
+
+def test_dano_da_coluna_satura_em_um():
+    """Uma coluna com vários defeitos está mais comprometida que uma com um só,
+    mas nenhuma passa de inutilizável."""
+    pior = _coluna(Pct_Nulos=90.0, Qualidade={
+        "nulos_efetivos_pct": 90.0,
+        "mojibake": {"tem_mojibake": True},
+        "documento_invalido": {"tem_documento_invalido": True},
+        "sentinelas": {"tem_sentinela": True},
+    })
+    dano, motivos = quality.dano_da_coluna(pior)
+    assert dano == 1.0
+    assert len(motivos) >= 3
+
+
+def test_duplicatas_derrubam_o_score():
+    colunas = [_coluna() for _ in range(5)]
+    limpo = quality.calcular_score_qualidade(colunas, {}, [])["score"]
+    com_dup = quality.calcular_score_qualidade(
         colunas, {"pct_linhas_duplicadas": 0.5}, []
-    )
-
-    assert resultado["score"] < 60
-    assert resultado["nota"] in {"C", "D", "E"}
-    pontos = [p["pontos_perdidos"] for p in resultado["penalidades"]]
-    assert pontos == sorted(pontos, reverse=True)
-
-
-def test_score_nao_conta_sentinela_duas_vezes():
-    """Regressão: `nulos_efetivos_pct` inclui as sentinelas, e usá-lo na
-    dimensão de nulos fazia a mesma sujeira penalizar duas dimensões — o score
-    saía pessimista em toda tabela com 'N/A'."""
-    so_sentinela = [_coluna(
-        Pct_Nulos=0.0,
-        Qualidade={"nulos_efetivos_pct": 30.0, "sentinelas": {"tem_sentinela": True}},
-    )]
-    resultado = quality.calcular_score_qualidade(so_sentinela, {}, [])
-
-    perdido = {p["dimensao"]: p["pontos_perdidos"] for p in resultado["penalidades"]}
-    assert "Nulos reais" not in perdido
-    assert perdido["Sentinelas / nulos disfarçados"] > 0
+    )["score"]
+    assert com_dup < limpo
 
 
 def test_score_de_tabela_sem_colunas():

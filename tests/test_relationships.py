@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
-from datascope import config, relationships
+from recon import config, relationships
 
 
 def _meta(coluna, qtd_unicos, ratio_unicidade,
