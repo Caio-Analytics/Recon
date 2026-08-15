@@ -8,41 +8,88 @@ Tempo estimado: 15 minutos, uma vez só.
 
 ---
 
+## ⚠️ A regra de ouro: tudo dentro da sua pasta de usuário
+
+Esta é a parte que resolve 90% dos problemas em máquina corporativa, então
+leia antes de baixar qualquer coisa.
+
+Quando você baixa um instalador, ele cai em **Downloads**. Se você executar
+dali, na maioria das máquinas corporativas o Windows **pede senha de
+administrador** — e você trava.
+
+**A solução é mover o instalador para dentro da sua pasta de usuário antes de
+executar.** Ou seja:
+
+1. Abra o **Explorador de Arquivos**
+2. Vá em **Este Computador → Disco Local (C:) → Usuários → `seu.nome`**
+3. Crie ali uma pasta chamada **`Instaladores`**
+4. **Recorte** o arquivo que está em Downloads e **cole** nessa pasta
+5. Execute o instalador **de dentro dela**
+
+```
+C:\
+└── Usuários\
+    └── seu.nome\          ← tudo que for seu vive aqui dentro
+        ├── Instaladores\   ← execute os instaladores daqui
+        └── Programas\      ← e instale os programas aqui
+```
+
+**Por que isso funciona:** o Windows só pede administrador quando um programa
+tenta escrever fora da sua pasta de usuário — em `C:\Program Files` ou no
+registro da máquina inteira. Ficando tudo dentro de `C:\Usuários\seu.nome`,
+nada é compartilhado com outros usuários da máquina e nada precisa de
+permissão elevada. Muitas empresas também bloqueiam por política a execução
+direta da pasta Downloads, o que produz o mesmo pedido de senha — mover
+resolve os dois casos de uma vez.
+
+**Sempre que uma tela de instalação oferecer escolha, prefira:**
+
+- ✅ "Install for me only" / "Somente para mim" / "Apenas para este usuário"
+- ❌ "Install for all users" / "Para todos os usuários deste computador"
+
+A segunda opção é *sempre* a que dispara o pedido de senha.
+
+---
+
 ## O que você vai instalar
 
 | O quê | Para quê | Precisa de admin? |
 |---|---|---|
-| Python | a linguagem em que o Recon é escrito | **Não** |
-| Git | para baixar o Recon e receber atualizações | **Não** |
+| Python | a linguagem em que o Recon é escrito | **Não** — validado |
+| Git | para baixar o Recon e receber atualizações | **Não** — validado |
 | Recon | a ferramenta | **Não** |
+| VS Code *(opcional)* | editor, deixa o uso mais confortável | **Não**, com o instalador certo |
 
 ---
 
 ## Passo 1 — Instalar o Python
 
-### Windows
-
 1. Acesse **https://www.python.org/downloads/windows/**
 2. Baixe o **Windows installer (64-bit)** da versão **3.12 ou superior**.
-3. Execute o instalador e, na primeira tela:
-   - ✅ marque **"Add python.exe to PATH"** (importante — sem isso o terminal
-     não vai encontrar o Python)
-   - clique em **"Customize installation"**
-4. Na tela seguinte, deixe as opções como estão e avance.
-5. Na tela **"Advanced Options"**:
-   - ❌ **desmarque** "Install Python for all users" — é essa opção que pediria
-     senha de administrador
-   - ✅ marque "Install Python for me only" (ou deixe o caminho que aparece
-     dentro de `C:\Users\seu.nome\...`)
-6. Clique em **Install**.
+3. **Mova o arquivo baixado** de Downloads para `C:\Usuários\seu.nome\Instaladores`
+   (veja a regra de ouro acima). Execute a partir de lá.
+4. Na primeira tela do instalador:
+   - ✅ marque **"Add python.exe to PATH"** — sem isso o terminal não encontra
+     o Python depois
+   - clique em **"Customize installation"** (não em "Install Now")
+5. Na tela seguinte deixe tudo como está e avance.
+6. Na tela **"Advanced Options"**:
+   - ❌ **desmarque** "Install Python for all users" — é exatamente essa opção
+     que pediria a senha
+   - ✅ confirme que o caminho de instalação começa com
+     `C:\Users\seu.nome\AppData\...`
+7. Clique em **Install**. Não deve aparecer nenhum pedido de senha.
 
-> Se sua empresa bloqueia o instalador `.exe`, use a versão **embeddable** ou
-> peça pela Microsoft Store (busque "Python 3.12"), que instala só para o seu
-> usuário sem pedir senha.
+> **Se mesmo assim pedir senha:** você deixou marcado "for all users", ou está
+> executando de Downloads. Cancele, verifique os dois pontos e tente de novo.
+
+> **Se a empresa bloquear o `.exe` por completo:** busque "Python 3.12" na
+> **Microsoft Store**. A instalação por lá é sempre por usuário e não pede
+> senha.
 
 ### macOS / Linux
 
-Provavelmente já tem. Abra o terminal e digite:
+Abra o terminal e digite:
 
 ```bash
 python3 --version
@@ -59,9 +106,9 @@ Abra o terminal (veja o Passo 4 se não souber como) e digite:
 python --version
 ```
 
-Deve aparecer algo como `Python 3.12.x`. Se disser que o comando não existe,
-tente `python3 --version`. Se ainda assim não funcionar, o Python não foi
-adicionado ao PATH — reinstale marcando aquela opção do passo 3.
+Deve aparecer `Python 3.12.x` ou maior. Se disser que o comando não existe,
+tente `python3 --version`. Se nenhum dos dois funcionar, o Python não foi
+adicionado ao PATH — reinstale marcando aquela opção do item 4.
 
 ---
 
@@ -72,11 +119,14 @@ O Git é o que baixa o Recon e permite atualizá-lo depois com um comando só.
 ### Windows
 
 1. Acesse **https://git-scm.com/download/win**
-2. Baixe e execute o instalador.
-3. Pode aceitar todas as opções padrão (Next em tudo).
+2. Baixe o instalador **64-bit Git for Windows Setup**.
+3. **Mova de Downloads para `C:\Usuários\seu.nome\Instaladores`** e execute
+   de lá.
+4. Pode aceitar todas as opções padrão (Next em tudo). O instalador do Git
+   por usuário não pede senha de administrador.
 
-O instalador do Git **não pede senha de administrador** na instalação por
-usuário.
+> Se aparecer uma tela perguntando entre "Git for Windows Setup" e "Portable",
+> qualquer uma serve. A portátil nem instala — descompacta e roda.
 
 ### macOS
 
@@ -84,33 +134,36 @@ usuário.
 git --version
 ```
 
-Se não tiver, o macOS oferece instalar sozinho ao rodar esse comando.
+O macOS oferece instalar sozinho ao rodar esse comando.
 
 ### Linux
 
 ```bash
-sudo apt install git      # Ubuntu/Debian — este pede senha
+sudo apt install git      # este pede senha, mas é a sua máquina pessoal
 ```
 
 ---
 
 ## Passo 3 — Baixar o Recon
 
-Escolha uma pasta sua para guardar a ferramenta. Sugestão:
-`Documentos\Programas` no Windows, ou `~/programas` no Mac/Linux.
+Pela regra de ouro, o Recon também vai para dentro da sua pasta de usuário —
+naquela pasta `Programas` que você criou em `C:\Usuários\seu.nome`.
 
 Abra o terminal e digite, **uma linha por vez**:
 
 ```bash
-cd Documentos
+cd %USERPROFILE%
 mkdir Programas
 cd Programas
 git clone https://github.com/Caio-Analytics/Recon.git
 cd Recon
 ```
 
-> `cd` significa "entrar na pasta". `mkdir` cria uma pasta. `git clone` baixa
-> o projeto.
+> `%USERPROFILE%` é um atalho do Windows para `C:\Usuários\seu.nome` — ele te
+> leva direto ao lugar certo, sem digitar o caminho inteiro.
+> `cd` entra numa pasta, `mkdir` cria uma, `git clone` baixa o projeto.
+
+No **macOS ou Linux**, troque a primeira linha por `cd ~`.
 
 Agora instale, **só para o seu usuário**:
 
@@ -153,8 +206,21 @@ Há dois caminhos. Escolha o que combina com você.
 
 ### Caminho A — Com VS Code (recomendado se você já usa)
 
-1. Baixe em **https://code.visualstudio.com/** e instale (a instalação
-   *User Installer* não pede senha de administrador).
+1. Baixe em **https://code.visualstudio.com/**. Na página de download do
+   Windows, escolha a opção **"User Installer"** — não a "System Installer".
+
+   | Versão | Instala em | Pede admin? |
+   |---|---|---|
+   | **User Installer** ✅ | `C:\Users\seu.nome\AppData\Local\Programs` | **Não** |
+   | System Installer ❌ | `C:\Program Files` | **Sim** |
+   | **.zip (Portable)** ✅ | onde você descompactar | **Não**, nem instala |
+
+   Se o instalador estiver bloqueado pela empresa, baixe o **.zip**,
+   descompacte dentro de `C:\Usuários\seu.nome\Programas` e execute o
+   `Code.exe` de lá. Funciona igual e não passa por instalação nenhuma.
+
+   Mova o arquivo baixado para a sua pasta antes de executar, como nos
+   passos anteriores.
 2. Abra o VS Code → menu **Arquivo → Abrir Pasta** → escolha a pasta onde
    estão as suas planilhas.
 3. Abra o terminal integrado: menu **Terminal → Novo Terminal**
@@ -263,9 +329,24 @@ O Python não foi adicionado ao PATH. Reinstale marcando
 Veja a seção "Se o comando `recon` não for reconhecido" no Passo 3. A
 alternativa `python -m recon.cli` sempre funciona.
 
-**"Acesso negado" ou pedido de senha de administrador**
-Você esqueceu o `--user` no comando de instalação. Ele é o que faz tudo ser
-instalado só na sua pasta.
+**Pediu senha de administrador**
+Três causas possíveis, em ordem de frequência:
+
+1. Você executou o instalador direto da pasta **Downloads**. Mova para
+   `C:\Usuários\seu.nome\Instaladores` e execute de lá.
+2. Deixou marcado **"Install for all users"** em alguma tela. Cancele e
+   refaça desmarcando.
+3. Esqueceu o `--user` no `pip install`. É ele que faz tudo ser instalado só
+   na sua pasta.
+
+Se mesmo assim persistir, é um programa que realmente exige administrador —
+aí não tem jeito por fora, precisa de chamado. Mas **Python, Git e VS Code
+não são o caso**: os três instalam por usuário.
+
+**A empresa bloqueou o instalador `.exe`**
+- Python: instale pela **Microsoft Store** (busque "Python 3.12")
+- Git: baixe a versão **Portable**, que só descompacta
+- VS Code: baixe o **.zip**, descompacte na sua pasta e rode o `Code.exe`
 
 **O relatório abriu no bloco de notas em vez do navegador**
 Você abriu o arquivo `.json` ou `.md`. O que abre no navegador é o `.html`.

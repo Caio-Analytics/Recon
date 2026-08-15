@@ -53,3 +53,5 @@ desktop.ini
 
 # Cobertura de testes (pytest-cov)
 .coverage
+# Script de correção de atalhos local, específico da máquina
+.corrigir-atalhos-vscode.sh
