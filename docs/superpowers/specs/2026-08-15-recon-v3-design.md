@@ -1,4 +1,4 @@
-# DataScope v3 — Design da arquitetura atual
+# Recon v3 — Design da arquitetura atual
 
 Data: 2026-08-15
 Status: Implementado
@@ -29,7 +29,7 @@ arquivo** e começar o trabalho real com boa parte do caminho andado.
 ## Arquitetura
 
 ```
-src/datascope/
+src/recon/
 ├── config.py            só dado: taxonomias, thresholds, regras de KPI
 ├── ingestion.py         leitura CSV/XLSX/XLS/XLSB, encoding, separador
 ├── layout.py            cabeçalho real, linha de total, célula mesclada, blocos

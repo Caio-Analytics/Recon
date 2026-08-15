@@ -1,8 +1,8 @@
-# 🔭 DataScope
+# 🔭 Recon
 
 **A ferramenta que você roda *antes* de começar a análise de verdade.**
 
-Você recebeu um arquivo — ou cinco — que nunca viu. O DataScope perfila cada tabela (o que é lixo, o que é data, o que é chave, o que dá pra usar), descobre **como as tabelas se ligam entre si**, identifica quais são fato e quais são dimensão, e devolve **análises sugeridas com o código pronto pra rodar**. A ideia é chegar no trabalho real já com metade do caminho andado, em vez de gastar meio dia entendendo o dado.
+Você recebeu um arquivo — ou cinco — que nunca viu. O Recon perfila cada tabela (o que é lixo, o que é data, o que é chave, o que dá pra usar), descobre **como as tabelas se ligam entre si**, identifica quais são fato e quais são dimensão, e devolve **análises sugeridas com o código pronto pra rodar**. A ideia é chegar no trabalho real já com metade do caminho andado, em vez de gastar meio dia entendendo o dado.
 
 Roda em CSV, XLSX, XLS e XLSB. Sem banco de dados, sem serviço externo, sem modelo de IA — só Python e as bibliotecas do `pyproject.toml`, instaláveis com `pip install --user` em máquina corporativa. Saída em **JSON** (pra colar num prompt ou consumir via código), **Markdown** e **HTML** (pra ler) e **Parquet** (pra BI).
 
@@ -31,74 +31,105 @@ Roda em CSV, XLSX, XLS e XLSB. Sem banco de dados, sem serviço externo, sem mod
 
 ---
 
-## 🚀 Instalação
+## 🚀 Começando
 
-### Com venv (recomendado, máquina pessoal)
+**Nunca usou Python nem terminal?** Vá direto para o **[GUIA.md](GUIA.md)** —
+passo a passo com telas, sem precisar de permissão de administrador.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-### Sem venv (máquina corporativa restrita — sem admin, sem venv)
-
-Se sua política de TI bloqueia `venv` mas permite `pip`, instale tudo **só no seu usuário** (`--user`), sem tocar no Python global e sem precisar de admin:
+**Já tem Python?**
 
 ```bash
-pip install --user --upgrade pip
-pip install --user -e ".[dev]"
+git clone https://github.com/Caio-Analytics/Recon.git
+cd Recon
+pip install --user -e .
+recon
 ```
 
-O comando `datascope` vai parar em `~/.local/bin` — se o terminal não reconhecer o comando depois de instalar, adicione essa pasta ao PATH:
+Digitar `recon` sozinho abre um menu que pergunta o que você quer. Dar Enter
+em tudo funciona.
 
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+```
+╭───────────────────────────────────────────────────────────────────╮
+│ Recon 3.0.0                                                       │
+│ Descubra o que tem nos seus arquivos antes de começar a analisar. │
+╰───────────────────────────────────────────────────────────────────╯
+
+Onde estão os arquivos? (Enter = pasta atual):
+
+Encontrei 3 arquivo(s):
+  1  empregados.csv       2.4 MB
+  2  treinamentos.csv     8.1 MB
+  3  cursos.csv           0.1 MB
+
+O que você quer fazer?
+  1  Comparar os arquivos  — um relatório só, do pior para o melhor
+  2  Descobrir como se ligam  — chaves, fato × dimensão, análises prontas
+  3  Analisar um por um  — relatório completo de cada arquivo
 ```
 
-Se o `pip` recusar instalar com um erro tipo `externally-managed-environment` (comum em Python de sistema em distros mais novas), isso **não é permissão de admin** — é só uma trava de segurança do próprio `pip`. Contorna com:
+No fim, um arquivo `.html`: **clique duas vezes e abre no navegador**, sem
+instalar mais nada.
 
-```bash
-pip install --user --break-system-packages -e ".[dev]"
-```
-
-**⚠️ Sem isolamento:** instalar `--user` (em vez de venv) coloca as dependências do DataScope no mesmo lugar que as de qualquer outro projeto Python que você rodar nessa máquina com `--user`. Se dois projetos precisarem de versões diferentes da mesma biblioteca, um vai sobrescrever o outro. Veja a seção de limpeza abaixo pra remover as dependências do DataScope quando for usar outro projeto.
-
-**Requer Python ≥ 3.12** — não é escolha de estilo: `numpy` 2.5 e `scipy` 1.18, nas versões fixadas no `pyproject.toml`, declaram `Requires-Python >= 3.12`, então o `pip` recusa a instalação em 3.11. A versão em que a suíte roda está registrada em `.python-version`.
+**Requer Python ≥ 3.12** — não é escolha de estilo: `numpy` 2.5 e `scipy`
+1.18, nas versões fixadas no `pyproject.toml`, declaram
+`Requires-Python >= 3.12`, então o `pip` recusa a instalação em 3.11.
 
 ---
 
-## 🖥️ Como usar
+## 📖 Documentação
+
+| Documento | Para quem |
+|---|---|
+| **[GUIA.md](GUIA.md)** | quem nunca usou Python: instalar do zero, com e sem VS Code |
+| **[COMANDOS.md](COMANDOS.md)** | qual comando usar em cada situação, opções e receitas |
+| [docs/TECNICO.md](docs/TECNICO.md) | como funciona por dentro: módulos, contrato do JSON, critérios |
+| [docs/superpowers/specs/](docs/superpowers/specs/) | as decisões de projeto e o porquê de cada uma |
+
+---
+
+## 🖥️ Uso pela linha de comando
+
+### O atalho: uma pasta inteira
+
+```bash
+recon pasta ./extracoes --saida ./relatorios
+```
+
+Lê a pasta e decide sozinho: um arquivo vira perfil individual; vários viram
+lote comparativo (ou pergunta se você quer cruzar as tabelas). É o comando
+para quem não quer pensar em qual modo usar.
 
 ### Perfilar um único arquivo
 
 ```bash
-datascope perfilar caminho/do/arquivo.csv
+recon perfilar caminho/do/arquivo.csv
 ```
 
 Gera dois arquivos no diretório atual:
+- `profiler_output_arquivo.html` — relatório completo; **clique nele e abre renderizado no navegador**, em qualquer máquina, sem instalar nada
 - `profiler_output_arquivo.json` — estrutura completa, pra colar num prompt de IA ou consumir via código
-- `profiler_output_arquivo.md` — relatório legível, com detalhe por coluna e recomendações
+
+Prefere Markdown? `--formatos json,markdown`. O padrão é HTML porque um `.md` clicado abre no bloco de notas mostrando `##` e `|---|` crus para quem não tem visualizador.
 
 **Opções:**
 
 ```bash
-datascope perfilar arquivo.xlsx --todas-abas               # processa todas as abas do Excel
-datascope perfilar arquivo.xlsx --aba 1                    # processa só a aba de índice 1
-datascope perfilar arquivo.csv --saida-base relatorios/q1  # prefixo customizado de saída
-datascope perfilar arquivo.csv --formatos json,md,html     # escolhe os formatos de saída
-datascope perfilar arquivo.csv --tambem-parquet            # atalho pra incluir Parquet
-datascope perfilar arquivo.csv --json-compacto             # JSON sem indentação (menor)
-datascope perfilar arquivo.csv --limite-amostra 100000     # teto de linhas analisadas
-datascope perfilar arquivo.csv --kpis meu_dominio.yaml     # regras de KPI próprias
-datascope perfilar arquivo.xlsx --linha-cabecalho 4        # força a linha do cabeçalho
-datascope perfilar arquivo.xlsx --sem-deteccao-layout      # lê o arquivo cru
-datascope perfilar arquivo.csv --gerar-limpeza             # emite o script de limpeza
+recon perfilar arquivo.xlsx --todas-abas               # processa todas as abas do Excel
+recon perfilar arquivo.xlsx --aba 1                    # processa só a aba de índice 1
+recon perfilar arquivo.csv --saida-base relatorios/q1  # prefixo customizado de saída
+recon perfilar arquivo.csv --formatos json,markdown    # troca o HTML por Markdown
+recon perfilar arquivo.csv --tambem-parquet            # atalho pra incluir Parquet
+recon perfilar arquivo.csv --json-compacto             # JSON sem indentação (menor)
+recon perfilar arquivo.csv --limite-amostra 100000     # teto de linhas analisadas
+recon perfilar arquivo.csv --kpis meu_dominio.yaml     # regras de KPI próprias
+recon perfilar arquivo.xlsx --linha-cabecalho 4        # força a linha do cabeçalho
+recon perfilar arquivo.xlsx --sem-deteccao-layout      # lê o arquivo cru
+recon perfilar arquivo.csv --gerar-limpeza             # emite o script de limpeza
 ```
 
-Formatos válidos: `json`, `markdown`, `html`, `parquet` (padrão: `json,markdown`).
+Formatos válidos: `json`, `markdown`, `html`, `parquet` (padrão: `json,html`).
 
-**Excel com várias abas:** por padrão o `perfilar` analisa só a primeira aba, mas avisa quando há outras. Use `--todas-abas` para gerar um relatório por aba, ou `datascope modelar` para analisá-las juntas e descobrir como se relacionam.
+**Excel com várias abas:** por padrão o `perfilar` analisa só a primeira aba, mas avisa quando há outras. Use `--todas-abas` para gerar um relatório por aba, ou `recon modelar` para analisá-las juntas e descobrir como se relacionam.
 
 ### Regras de KPI de outro domínio
 
@@ -115,7 +146,7 @@ kpis:
 ```
 
 ```bash
-datascope perfilar vendas.csv --kpis kpis_financeiro.yaml
+recon perfilar vendas.csv --kpis kpis_financeiro.yaml
 ```
 
 ### Descobrir como várias tabelas se ligam
@@ -123,8 +154,8 @@ datascope perfilar vendas.csv --kpis kpis_financeiro.yaml
 O `perfilar` olha uma tabela por vez. Quando você tem um conjunto — bases de empregados, de treinamentos e de cursos, por exemplo — o que interessa é como elas conversam:
 
 ```bash
-datascope modelar empregados.csv treinamentos.csv cursos.csv --saida-base rh
-datascope modelar rh_completo.xlsx --saida-base rh      # cada aba vira uma tabela
+recon modelar empregados.csv treinamentos.csv cursos.csv --saida-base rh
+recon modelar rh_completo.xlsx --saida-base rh      # cada aba vira uma tabela
 ```
 
 Gera um relatório do conjunto com:
@@ -155,7 +186,7 @@ Repare que a medida (`carga_horaria`) mora na dimensão de cursos e o eixo (`dir
 ### Perfilar vários arquivos de uma vez
 
 ```bash
-datascope lote dados/*.csv dados/*.xlsx
+recon lote dados/*.csv dados/*.xlsx
 ```
 
 Se um arquivo falhar (corrompido, formato inválido), o `lote` **continua processando os demais** — não aborta o lote inteiro.
@@ -163,17 +194,17 @@ Se um arquivo falhar (corrompido, formato inválido), o `lote` **continua proces
 **Caminho relativo ou absoluto — os dois funcionam:**
 
 ```bash
-datascope perfilar dados/vendas.csv                # relativo: a partir da pasta onde você rodou o comando
-datascope perfilar /home/usuario/dados/vendas.csv  # absoluto: funciona de qualquer diretório
+recon perfilar dados/vendas.csv                # relativo: a partir da pasta onde você rodou o comando
+recon perfilar /home/usuario/dados/vendas.csv  # absoluto: funciona de qualquer diretório
 ```
 
 ### Ajuda
 
 ```bash
-datascope --help
-datascope perfilar --help
-datascope lote --help
-datascope versao
+recon --help
+recon perfilar --help
+recon lote --help
+recon versao
 ```
 
 ---
@@ -208,9 +239,9 @@ Visão técnica do critério por trás de cada número/rótulo que sai no relat�
 ## 📁 Estrutura do projeto
 
 ```
-DataScope/
+Recon/
 ├── pyproject.toml           ← comandos de instalação rodam AQUI (raiz do projeto)
-├── src/datascope/
+├── src/recon/
 │   ├── config.py             taxonomias, thresholds e regras de KPI (fonte única, só dado)
 │   ├── ingestion.py          carrega CSV/XLSX/XLS/XLSB, detecta encoding e separador
 │   ├── layout.py             cabeçalho real, linha de total, célula mesclada, blocos
@@ -229,7 +260,8 @@ DataScope/
 │   ├── quality.py            recomendações de ETL, gap analysis de KPI, score de qualidade
 │   ├── reporting/            exporta JSON, Markdown, HTML e Parquet
 │   ├── pipeline.py           `DataProfiler` — orquestra tudo acima
-│   └── cli.py                comandos `perfilar`, `modelar`, `lote` e `versao`
+│   ├── interativo.py         menu no terminal para quem não decora comando
+│   └── cli.py                comandos `perfilar`, `lote`, `modelar`, `pasta`, `versao`
 └── tests/                    suíte pytest (um arquivo por módulo)
 ```
 
@@ -240,6 +272,7 @@ A inferência semântica vem depois da descrição das colunas de propósito: os
 Cada módulo é um conjunto de funções puras sem estado global. `config.py` é só dado; a lógica que o consome vive nos módulos de análise.
 
 ---
+
 
 ## 🧪 Rodando os testes
 
@@ -273,16 +306,16 @@ Sequência pra ver o que já está instalado, limpar, clonar de novo do zero e r
 pip list --user
 ```
 
-**2. Limpar as dependências do DataScope** (remove as diretas do `pyproject.toml`; algumas transitivas pequenas e comuns como `six`/`packaging` podem continuar — são inofensivas e usadas por outras libs também, não vale arriscar remover às cegas):
+**2. Limpar as dependências do Recon** (remove as diretas do `pyproject.toml`; algumas transitivas pequenas e comuns como `six`/`packaging` podem continuar — são inofensivas e usadas por outras libs também, não vale arriscar remover às cegas):
 
 ```bash
-pip uninstall -y datascope pandas numpy pyarrow openpyxl xlrd pyxlsb charset-normalizer rapidfuzz unidecode scipy statsmodels pyyaml loguru typer tqdm pytest pytest-cov pandas-stubs
+pip uninstall -y recon pandas numpy pyarrow openpyxl xlrd pyxlsb charset-normalizer rapidfuzz unidecode scipy statsmodels pyyaml loguru typer tqdm pytest pytest-cov pandas-stubs
 ```
 
-**3. Apagar a pasta local e clonar de novo** (rode a partir de fora da pasta `DataScope`, senão o shell perde a referência do diretório):
+**3. Apagar a pasta local e clonar de novo** (rode a partir de fora da pasta `Recon`, senão o shell perde a referência do diretório):
 
 ```bash
-cd ~/Documentos/Programacao && rm -rf DataScope && git clone https://github.com/Caio-Analytics/DataScope.git && cd DataScope
+cd ~/Documentos/Programacao && rm -rf Recon && git clone https://github.com/Caio-Analytics/Recon.git && cd Recon
 ```
 
 **4. Instalar e testar:**
