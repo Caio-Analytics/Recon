@@ -211,3 +211,50 @@ def test_contexto_nao_altera_coluna_ja_conclusiva():
 
 def test_coluna_com_apenas_dominio_entra_no_contexto():
     assert inferir_semantica("diretoria")["conclusiva"] is True
+
+
+def test_token_conhecido_nao_e_expandido_como_abreviatura():
+    assert expandir_abreviatura("name") == ()
+    assert inferir_semantica("FULL_NAME")["semantica"] == "Nome / Identificação Pessoal"
+
+
+def test_abreviatura_de_verdade_continua_expandindo():
+    for abreviatura, esperado in (("dpto", "departamento"), ("mvto", "movimento"),
+                                  ("nasc", "nascimento"), ("vl", "valor")):
+        assert esperado in [p for p, _ in expandir_abreviatura(abreviatura)]
+
+
+def test_qualificador_na_ponta_final_define_o_papel():
+    for coluna in ("SUPPLIER_CONTACT_CODE", "WAREHOUSE_ACCESS_IDENTIFIER",
+                   "SHIPPING_MANAGER_IDEN", "PROJECT_BUDGET_CODE"):
+        assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_CHAVE_ID, coluna
+    assert inferir_semantica("id_funcionario")["papel"] == config.SEMANTICA_CHAVE_ID
+
+
+def test_expansao_ambigua_na_borda_resolve_pelo_papel():
+    assert inferir_semantica("REFUND_TYPE_DES")["papel"] != "Valor Financeiro"
+
+
+def test_nome_de_coisa_nao_e_nome_de_pessoa():
+    assert inferir_semantica("FULL_NAME")["papel"] == config.SEMANTICA_NOME_PESSOA
+    for coluna in ("DEPARTMENT_NAME", "POSITION_NAME"):
+        assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_ROTULO_ENTIDADE, coluna
+
+
+def test_descricao_com_poucos_valores_vira_categoria():
+    poucos = PerfilConteudo(tipo_dados="Texto", n_unicos=4, ratio_unicidade=0.00005)
+    muitos = PerfilConteudo(tipo_dados="Texto", n_unicos=9000, ratio_unicidade=0.7)
+    assert inferir_semantica("SHIFT_TYPE_DESC", perfil=poucos)["papel"] == \
+        config.SEMANTICA_CATEGORIA
+    assert inferir_semantica("JOB_DESCRIPTION", perfil=muitos)["papel"] == \
+        config.SEMANTICA_TEXTO_LIVRE
+
+
+def test_homografo_com_papel_forte_nao_gera_dominio():
+    resultado = inferir_semantica("RECORD_UPDATE_TIME")
+    assert resultado["papel"] == config.SEMANTICA_DATA_CALENDARIO
+    assert resultado["dominio"] != "Estrutura Organizacional"
+
+
+def test_prefixo_curto_nao_casa_com_palavra_longa():
+    assert inferir_semantica("WORK_EMAIL_ADDRESS")["dominio"] != "Curso / Treinamento"

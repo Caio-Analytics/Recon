@@ -13,6 +13,7 @@ from . import (
     config,
     datamodel,
     ingestion,
+    patterns,
     quality,
     relationships,
     reporting,
@@ -28,6 +29,14 @@ FORMATOS_PADRAO = ("json", "html")
 FORMATOS_VALIDOS = ("json", "markdown", "html", "parquet")
 
 _SEMANTICAS_BENFORD = frozenset({"Valor Financeiro"})
+
+
+def _mascarar_nomes(stats: dict[str, Any]) -> None:
+    stats["amostra_representativa"] = [
+        patterns.mascarar_nome_pessoa(v) for v in stats["amostra_representativa"]
+    ]
+    for item in stats["estatisticas_adicionais"].get("distribuicao_top5", []):
+        item["valor"] = patterns.mascarar_nome_pessoa(item["valor"])
 
 
 class DataProfiler:
@@ -80,6 +89,16 @@ class DataProfiler:
             padrao_estruturado = stats["flags"]["detected_pattern"]
             semanticas_presentes.update(semantics.semanticas_para_gap_analysis(sem))
 
+            
+            
+            
+            
+            if sem["papel"] == config.SEMANTICA_NOME_PESSOA and not patterns.eh_sensivel(
+                padrao_estruturado
+            ):
+                padrao_estruturado = "Nome de pessoa"
+                _mascarar_nomes(stats)
+
             lista_colunas.append({
                 "Tabela_Origem": str(nome_tabela),
                 "Coluna": str(coluna),
@@ -95,7 +114,9 @@ class DataProfiler:
                 "Ratio_Unicidade": stats["ratio_unicidade"],
                 "Qtd_Nulos": stats["nulos_qtd"],
                 "Pct_Nulos": stats["nulos_pct"],
-                "Caracteristica": stats["caracteristica"],
+                "Caracteristica": statistics.ajustar_caracteristica_com_semantica(
+                    stats["caracteristica"], sem["papel"]
+                ),
                 "Dado_Sensivel_LGPD": padrao_estruturado,
                 "Amostra_Valores": ", ".join(stats["amostra_representativa"]),
                 "Alertas": {

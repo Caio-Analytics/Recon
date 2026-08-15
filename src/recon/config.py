@@ -12,6 +12,15 @@ SCHEMA_VERSION: str = "3.0"
 SEMANTICA_GENERICA: str = "Genérico / Não mapeado"
 SEMANTICA_DATA_CALENDARIO: str = "Data / Calendário"
 SEMANTICA_CHAVE_ID: str = "Chave Identificadora (ID)"
+SEMANTICA_TEXTO_LIVRE: str = "Texto Descritivo Livre"
+SEMANTICA_NOME_PESSOA: str = "Nome / Identificação Pessoal"
+
+
+
+SEMANTICA_ROTULO_ENTIDADE: str = "Rótulo / Nome de Entidade"
+
+
+SEMANTICA_CATEGORIA: str = "Categoria / Classificação"
 TIPO_DATA_HORA: str = "Data / Hora"
 TIPO_VAZIO: str = "Vazio / Sem Tipo Definido"
 
@@ -153,6 +162,14 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
         "classe", "faixa", "perfil", "role", "position", "job",
         "title", "occupation",
     ],
+    
+    
+    
+    
+    "Financeiro / Custo": [
+        "custo", "cost", "centro de custo", "despesa", "orcamento", "budget",
+        "financeiro", "finance", "contabil", "fiscal", "conta", "rateio",
+    ],
     "Curso / Treinamento": [
         "curso", "treinamento", "capacitacao", "formacao", "modulo",
         "trilha", "programa", "workshop", "disciplina", "tema",
@@ -179,6 +196,14 @@ TOKENS_QUALIFICADORES: frozenset[str] = frozenset({
 
 PESO_TOKEN_QUALIFICADOR: float = 0.45
 PESO_TOKEN_ENTIDADE: float = 1.0
+
+
+
+DOMINIOS_DE_PESSOA: frozenset[str] = frozenset({"Perfil do Colaborador"})
+
+
+
+CARDINALIDADE_MAX_CATEGORIA: int = 100
 
 
 PADROES_DATA: list[str] = [
@@ -219,6 +244,14 @@ TIPOS_ELEGIVEIS_CHAVE: frozenset[str] = frozenset({"Número Inteiro", "Texto", "
 
 
 CORRELACAO_MIN_ABS: float = 0.7
+
+
+
+
+
+
+REDUNDANCIA_PARCIAL_MINIMA: float = 0.9
+REDUNDANCIA_PARCIAL_MAX_PARES: int = 400
 CORRELACAO_MAX_CARDINALIDADE_CAT: int = 50
 CORRELACAO_MIN_N: int = 30
 

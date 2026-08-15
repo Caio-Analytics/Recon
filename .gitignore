@@ -55,3 +55,8 @@ desktop.ini
 .coverage
 # Script de correção de atalhos local, específico da máquina
 .corrigir-atalhos-vscode.sh
+
+# Relatórios gerados e planilhas de entrada: contêm dado real
+Output/
+Input/
+*.html

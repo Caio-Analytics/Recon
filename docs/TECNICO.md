@@ -176,7 +176,8 @@ monta as análises sugeridas com código pronto.
   "colunas": [ { /* ver 5.2 */ } ],
   "recomendacoes_etl":       [{"Prioridade": "🔴 ALTA", "Camada": "Bronze", "Coluna": "...", "Acao": "..."}],
   "dependencias_funcionais": [{"determinante": "...", "dependente": "...", "tipo": "..."}],
-  "colunas_redundantes":     [{"coluna": "...", "coluna_redundante": "..."}],
+  "colunas_redundantes":     [{"coluna": "...", "coluna_redundante": "...",
+                              "tipo": "idêntica|quase idêntica", "concordancia": 0.93}],
   "chaves_compostas":        [{"colunas": ["ano", "mes"]}],
   "correlacoes":             [{"coluna_a": "...", "coluna_b": "...", "metrica": "V de Cramér", "valor": 0.91}],
   "hierarquias":             [{"niveis": ["celula", "setor", "diretoria"]}],
@@ -265,10 +266,36 @@ Combinação por **noisy-OR**: `1 - Π(1 - peso)`. Duas pistas de 0,5 valem 0,75
 (≥0,70) para desambiguar o que ficou em aberto. Domínio abaixo de 0,50 não é
 afirmado — fica só como hipótese.
 
-Regra do qualificador posicional: quando o primeiro token é um qualificador
-conhecido (`id`, `cod`, `dt`, `nome`, `vl`) que mapeia para uma única
-categoria, ele define o papel. É a convenção `<papel>_<entidade>` do
-português.
+**Regra do qualificador de borda**: o token na ponta do nome, quando é um
+qualificador conhecido (`id`, `cod`, `dt`, `nome`, `vl`, `code`, `name`,
+`iden`, `desc`) que mapeia para uma única categoria, define o papel. As duas
+convenções de nomenclatura corporativa põem o qualificador em pontas opostas —
+`id_funcionario`, `dt_movimento` no português; `EMPLOYEE_ID`,
+`SUPPLIER_CONTACT_CODE` no inglês —, então as duas bordas são olhadas. Quando a
+abreviatura da borda é ambígua, a posição resolve: `des` em
+`REFUND_TYPE_DES` é `desc`, não `despesa`.
+
+**Precedência do literal sobre o palpite.** Um token que já é palavra do
+vocabulário não é expandido como abreviatura (`name` é subsequência de
+`nascimento`, e sem essa guarda `FULL_NAME` virava data), e não contribui para
+o fuzzy de domínio (`time` é "equipe" em português, e `RECORD_UPDATE_TIME`
+ganhava domínio de estrutura organizacional pelo mesmo token que já resolvera
+o papel). No fuzzy, o match que é só prefixo da palavra-alvo vale o que cobre
+dela — Jaro-Winkler bonifica prefixo de propósito, e `work` casava com
+`workshop` a 0,90.
+
+**Refino do papel pelo segundo eixo e pelo conteúdo**, depois que os dois eixos
+fecham:
+
+| De | Para | Critério |
+|---|---|---|
+| Nome / Identificação Pessoal | Rótulo / Nome de Entidade | domínio não é de pessoa (`DEPARTMENT_NAME`) |
+| Texto Descritivo Livre | Categoria / Classificação | ≤100 valores distintos e unicidade < 0,50 |
+
+E a característica, que sai só da forma do dado, é corrigida pelo papel: uma
+coluna com papel de chave nunca é rotulada "Métrica Contínua" nem "Dimensão
+Longa (Texto Livre)" — vira "Código / Identificador". Sem isso, `MANAGER_IDEN`
+saía como métrica e convidava a somar matrícula.
 
 ### 6.3 Estatística
 

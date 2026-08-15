@@ -207,3 +207,24 @@ def test_pii_embutida_em_frase_continua_sendo_detectada():
     cpf = gerar_cpfs(1)[0]
     amostra = [f"Cliente reclamou, CPF {cpf}"] * 5
     assert patterns.detectar_pii_em_texto_livre(amostra)["tem_pii"] is True
+
+
+def test_matricula_alfanumerica_nao_vira_telefone():
+    matriculas = ["AB000123456", "CD9988776655", "AB772104537", "EF14290712"] * 5
+    assert patterns.detectar_pii_em_texto_livre(matriculas)["tem_pii"] is False
+
+
+def test_coluna_de_codigo_sem_espaco_nao_e_texto_livre():
+    codigos = [f"AB{i:08d}CD" for i in range(40)]
+    assert patterns.detectar_pii_em_texto_livre(codigos)["tem_pii"] is False
+
+
+def test_telefone_em_frase_continua_sendo_detectado():
+    frases = ["Cliente ligou do 11 99999-8888 ontem", "retornar no (21) 98888-7777"] * 10
+    assert patterns.detectar_pii_em_texto_livre(frases)["tem_pii"] is True
+
+
+def test_nome_de_pessoa_e_mascarado_preservando_a_forma():
+    mascarado = patterns.mascarar_nome_pessoa("MARIANA OLIVEIRA DOS SANTOS")
+    assert mascarado == "M****** O******* D** S*****"
+    assert "AMANDA" not in mascarado

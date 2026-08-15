@@ -156,6 +156,10 @@ def eh_sensivel(padrao_estruturado: str) -> bool:
     return padrao_estruturado != "Nenhum"
 
 
+def mascarar_nome_pessoa(valor: str) -> str:
+    return _RE_PALAVRA.sub(lambda m: m.group(0)[0] + "*" * (len(m.group(0)) - 1), valor)
+
+
 
 
 def _normalizar_para_comparacao(valor: str) -> str:
@@ -296,13 +300,24 @@ _RE_PII_LIVRE: dict[str, re.Pattern] = {
     "CPF": re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b"),
     "CNPJ": re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b"),
     "E-mail": re.compile(r"\b[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+\b"),
-    "Telefone": re.compile(r"\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}\b"),
+    
+    
+    
+    "Telefone": re.compile(r"(?<!\w)\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}(?!\w)"),
 }
 
 
 def detectar_pii_em_texto_livre(amostra_str: list[str]) -> dict[str, Any]:
     if not amostra_str:
         return {"tem_pii": False}
+
+    
+    
+    
+    com_espaco = sum(1 for v in amostra_str if " " in str(v).strip())
+    if com_espaco / len(amostra_str) < _FRACAO_MINIMA_TEXTO_LIVRE:
+        return {"tem_pii": False}
+
     total = len(amostra_str)
     achados: dict[str, dict[str, Any]] = {}
     for nome, regex in _RE_PII_LIVRE.items():
@@ -380,6 +395,12 @@ def inferir_formato(amostra_str: list[str], cobertura_minima: float = 0.8) -> di
 
 
 
+
+
+
+_FRACAO_MINIMA_TEXTO_LIVRE = 0.5
+
+_RE_PALAVRA = re.compile(r"\w+", re.UNICODE)
 
 _BENFORD_ESPERADO = [0.301, 0.176, 0.125, 0.097, 0.079, 0.067, 0.058, 0.051, 0.046]
 

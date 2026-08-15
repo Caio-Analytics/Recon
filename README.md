@@ -16,7 +16,7 @@ Roda em CSV, XLSX, XLS e XLSB. Sem banco de dados, sem serviço externo, sem mod
 | 📊 **Estatística descritiva** | Min/max/média/mediana/desvio, outliers robustos a assimetria, distribuição de frequência, tipo de dado real |
 | 🔬 **Testes de hipótese** | Shapiro-Wilk com tamanho de efeito, qui-quadrado com V de Cramér, IC 95%, seleção de distribuição por AIC, ADF e Ljung-Box sobre série agregada |
 | 🧹 **Sujeira de dados** | Nulos disfarçados (`N/A`, `-`, `#N/D`, `-1`, `999999`), grafias divergentes (`SP`/`sp`/`S.P.`), mojibake de encoding, documento com dígito verificador inválido |
-| 🔗 **Relações entre colunas** | Dependências funcionais, equivalências 1:1, colunas idênticas, chaves compostas candidatas |
+| 🔗 **Relações entre colunas** | Dependências funcionais, equivalências 1:1, colunas idênticas **e quase idênticas** (o mesmo campo vindo de dois sistemas), chaves compostas candidatas |
 | 📈 **Correlação** | Pearson/Spearman (numérica), V de Cramér (categórica), razão de correlação η (mista) |
 | 🔒 **LGPD** | Identifica CPF, CNPJ, e-mail, telefone, CEP (com validação de dígito verificador), **mascara** as amostras e **suprime** estatísticas que exporiam o valor real. Detecta PII embutida em texto livre |
 | ✅ **Recomendações ETL** | Lista priorizada de ações (🔴 alta / 🟡 média / 🟢 baixa) por coluna, camada Bronze/Silver |

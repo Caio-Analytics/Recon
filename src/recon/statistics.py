@@ -202,6 +202,10 @@ def perfilar_datas(serie: pd.Series) -> dict[str, Any]:
 
 
 
+_CARACTERISTICA_METRICA = "📊 Métrica Contínua"
+_CARACTERISTICA_TEXTO_LONGO = "📋 Dimensão Longa (Texto Livre)"
+
+
 def _classificar_caracteristica(
     n_validos: int,
     n_unicos: int,
@@ -225,7 +229,12 @@ def _classificar_caracteristica(
         if ratio_unicidade == 1.0:
             return "🔑 Chave Primária Potencial"
         if ratio_unicidade >= config.THRESHOLD_QUASE_CHAVE:
-            return f"🔑 Quase-Chave ({ratio_unicidade:.1%} únicos — possível dado sujo)"
+            
+            
+            
+            
+            
+            return f"🔑 Quase-Chave ({ratio_unicidade:.1%} únicos)"
 
     if config.TIPO_DATA_HORA in tipo_amigavel or "Parece Data" in tipo_amigavel:
         return "📅 Série Temporal"
@@ -234,10 +243,18 @@ def _classificar_caracteristica(
     if 25 < n_unicos <= 100:
         return "📂 Dimensão Média"
     if "Texto" in tipo_amigavel:
-        return "📋 Dimensão Longa (Texto Livre)"
+        return _CARACTERISTICA_TEXTO_LONGO
     if "Número" in tipo_amigavel:
-        return "📊 Métrica Contínua"
+        return _CARACTERISTICA_METRICA
     return "📋 Atributo Geral"
+
+
+def ajustar_caracteristica_com_semantica(caracteristica: str, papel: str | None) -> str:
+    if papel != config.SEMANTICA_CHAVE_ID:
+        return caracteristica
+    if caracteristica in (_CARACTERISTICA_METRICA, _CARACTERISTICA_TEXTO_LONGO):
+        return "🔢 Código / Identificador"
+    return caracteristica
 
 
 

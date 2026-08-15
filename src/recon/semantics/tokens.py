@@ -48,6 +48,14 @@ def expandir_abreviatura(token: str) -> tuple[tuple[str, float], ...]:
     if len(token) < _MIN_LEN_ABREVIATURA or not token.isalpha():
         return ()
 
+    
+    
+    
+    
+    
+    if token in _vocabulario_expansao():
+        return ()
+
     curadas = ABREVIATURAS.get(token)
     if curadas:
         

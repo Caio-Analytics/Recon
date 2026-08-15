@@ -60,7 +60,23 @@ def _coletar_evidencias(
     return evidencias
 
 
-def _montar_resultado(evidencias: list[Evidencia]) -> dict[str, Any]:
+def _refinar_papel(papel: str | None, dominio: str | None, perfil: PerfilConteudo | None) -> str | None:
+    if papel == config.SEMANTICA_NOME_PESSOA:
+        if dominio is not None and dominio not in config.DOMINIOS_DE_PESSOA:
+            return config.SEMANTICA_ROTULO_ENTIDADE
+    elif papel == config.SEMANTICA_TEXTO_LIVRE and perfil is not None:
+        cardinalidade_de_dimensao = (
+            1 < perfil.n_unicos <= config.CARDINALIDADE_MAX_CATEGORIA
+            and perfil.ratio_unicidade < 0.5
+        )
+        if cardinalidade_de_dimensao:
+            return config.SEMANTICA_CATEGORIA
+    return papel
+
+
+def _montar_resultado(
+    evidencias: list[Evidencia], perfil: PerfilConteudo | None = None
+) -> dict[str, Any]:
     ranking_papel = ranquear(evidencias, EIXO_PAPEL)
     ranking_dominio = ranquear(evidencias, EIXO_DOMINIO)
 
@@ -75,6 +91,8 @@ def _montar_resultado(evidencias: list[Evidencia]) -> dict[str, Any]:
     dominio_incerto = dominio is not None and conf_dominio < _CONFIANCA_MINIMA_DOMINIO
     if dominio_incerto:
         dominio, conf_dominio, origem_dominio = None, 0.0, "Sem evidência"
+
+    papel = _refinar_papel(papel, dominio, perfil)
 
     
     
@@ -116,7 +134,7 @@ def inferir_semantica(
     detectado_padrao: str = "Nenhum",
     perfil: PerfilConteudo | None = None,
 ) -> dict[str, Any]:
-    return _montar_resultado(_coletar_evidencias(nome_col, detectado_padrao, perfil))
+    return _montar_resultado(_coletar_evidencias(nome_col, detectado_padrao, perfil), perfil)
 
 
 def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -127,7 +145,7 @@ def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[st
             str(entrada["nome"]), entrada.get("padrao", "Nenhum"), entrada.get("perfil")
         )
         evidencias_por_coluna.append(evidencias)
-        resultados.append(_montar_resultado(evidencias))
+        resultados.append(_montar_resultado(evidencias, entrada.get("perfil")))
 
     contexto = _perfil_de_assunto(resultados)
     if not contexto:
@@ -139,7 +157,9 @@ def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[st
         extras = por_contexto_da_tabela(tokenizar(str(entrada["nome"])), contexto)
         if not extras:
             continue
-        resultados[indice] = _montar_resultado(evidencias_por_coluna[indice] + extras)
+        resultados[indice] = _montar_resultado(
+            evidencias_por_coluna[indice] + extras, entrada.get("perfil")
+        )
 
     return resultados
 
