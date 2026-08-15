@@ -71,6 +71,14 @@ def expandir_abreviatura(token: str) -> tuple[tuple[str, float], ...]:
     if len(token) < _MIN_LEN_ABREVIATURA or not token.isalpha():
         return ()
 
+    # Token que já é uma palavra conhecida do vocabulário não é abreviatura de
+    # nada. Sem esta guarda, `name` — que está na taxonomia como nome de
+    # pessoa — era expandido para `nascimento` (do qual é subsequência:
+    # n-a-s-c-i-M-E-n-t-o) e a coluna `FULL_NAME` virava "Data / Calendário".
+    # Um palpite não pode competir com a evidência literal do mesmo token.
+    if token in _vocabulario_expansao():
+        return ()
+
     curadas = ABREVIATURAS.get(token)
     if curadas:
         # Quando há várias expansões, nenhuma é certa — a confiança cai e o

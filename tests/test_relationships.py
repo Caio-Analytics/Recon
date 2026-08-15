@@ -298,3 +298,35 @@ def test_analise_temporal_data_brasileira_dd_mm_aaaa():
 
     assert len(resultado) == 1
     assert resultado[0]["n_pontos"] >= config.ADF_MIN_N
+
+
+def test_redundancia_parcial_encontra_mesmo_dado_de_duas_origens():
+    """Numa base consolidada, o par 93% igual vale mais que o 100% igual: o
+    idêntico é coluna sobrando, o quase-idêntico é o mesmo campo vindo de dois
+    sistemas — e as linhas divergentes são a lista de reconciliação."""
+    base = [f"USR{i:05d}" for i in range(200)]
+    divergente = list(base)
+    for i in range(0, 200, 25):          # 8 linhas divergentes = 96% de acordo
+        divergente[i] = f"OUTRO{i}"
+    df = pd.DataFrame({"sistema_a": base, "sistema_b": divergente})
+
+    achados = relationships.detectar_colunas_redundantes(df)
+    parciais = [a for a in achados if a["tipo"] == "quase idêntica"]
+    assert len(parciais) == 1
+    assert parciais[0]["linhas_divergentes"] == 8
+    assert 0.9 <= parciais[0]["concordancia"] < 1.0
+
+
+def test_colunas_sem_relacao_nao_viram_redundancia_parcial():
+    df = pd.DataFrame({"a": [f"x{i}" for i in range(100)],
+                       "b": [f"y{i}" for i in range(100)]})
+    assert relationships.detectar_colunas_redundantes(df) == []
+
+
+def test_redundancia_exata_continua_reportada_sozinha():
+    """Par idêntico não pode aparecer duas vezes (exato + parcial)."""
+    valores = [f"v{i}" for i in range(50)]
+    df = pd.DataFrame({"a": valores, "b": list(valores)})
+    achados = relationships.detectar_colunas_redundantes(df)
+    assert len(achados) == 1
+    assert achados[0]["tipo"] == "idêntica"

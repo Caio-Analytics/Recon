@@ -198,6 +198,18 @@ def eh_sensivel(padrao_estruturado: str) -> bool:
     return padrao_estruturado != "Nenhum"
 
 
+def mascarar_nome_pessoa(valor: str) -> str:
+    """Mascara nome de pessoa preservando a forma do valor.
+
+    Nome completo é dado pessoal sob a LGPD, mas não tem padrão estruturado que
+    o detector de documento reconheça — `FULL_NAME` saía no relatório com os
+    nomes em claro e marcada como "Dado_Sensivel_LGPD: Nenhum". A inicial e a
+    contagem de palavras bastam para quem está perfilando (dá para ver que são
+    cinco tokens, com preposição no meio) e não identificam ninguém.
+    """
+    return _RE_PALAVRA.sub(lambda m: m.group(0)[0] + "*" * (len(m.group(0)) - 1), valor)
+
+
 # ── Sentinelas (nulos disfarçados) ──────────────────────────────────────────
 
 def _normalizar_para_comparacao(valor: str) -> str:
@@ -362,7 +374,10 @@ _RE_PII_LIVRE: dict[str, re.Pattern] = {
     "CPF": re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b"),
     "CNPJ": re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b"),
     "E-mail": re.compile(r"\b[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+\b"),
-    "Telefone": re.compile(r"\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}\b"),
+    # `(?<!\w)` no início e `(?!\w)` no fim impedem o casamento no *meio* de
+    # um código alfanumérico: sem eles, `CD9988776655` (uma matrícula) casava
+    # pelo trecho `9988776655`. Telefone não tem letra ao lado.
+    "Telefone": re.compile(r"(?<!\w)\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}(?!\w)"),
 }
 
 
@@ -380,6 +395,14 @@ def detectar_pii_em_texto_livre(amostra_str: list[str]) -> dict[str, Any]:
     """
     if not amostra_str:
         return {"tem_pii": False}
+
+    # Texto livre tem espaço. Uma coluna de código (`AB772104537`) não é texto
+    # livre, e rodar a busca nela só produz falso positivo — foi assim que uma
+    # matrícula virou "telefone embutido".
+    com_espaco = sum(1 for v in amostra_str if " " in str(v).strip())
+    if com_espaco / len(amostra_str) < _FRACAO_MINIMA_TEXTO_LIVRE:
+        return {"tem_pii": False}
+
     total = len(amostra_str)
     achados: dict[str, dict[str, Any]] = {}
     for nome, regex in _RE_PII_LIVRE.items():
@@ -468,6 +491,12 @@ def inferir_formato(amostra_str: list[str], cobertura_minima: float = 0.8) -> di
 
 
 # ── Lei de Benford ──────────────────────────────────────────────────────────
+
+# Fração mínima de valores com espaço para a coluna ser tratada como texto
+# livre na busca de PII embutida.
+_FRACAO_MINIMA_TEXTO_LIVRE = 0.5
+
+_RE_PALAVRA = re.compile(r"\w+", re.UNICODE)
 
 _BENFORD_ESPERADO = [0.301, 0.176, 0.125, 0.097, 0.079, 0.067, 0.058, 0.051, 0.046]
 
