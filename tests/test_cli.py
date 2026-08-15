@@ -1,31 +1,113 @@
+"""Comandos de terminal."""
 import random
 
 import pandas as pd
 from typer.testing import CliRunner
 
+from datascope import __version__
 from datascope.cli import app
 
 runner = CliRunner()
 
 
+def _csv(tmp_path, nome="dados.csv", n=30):
+    caminho = tmp_path / nome
+    pd.DataFrame({"id": range(n), "valor": range(n)}).to_csv(caminho, index=False)
+    return caminho
+
+
 def test_perfilar_gera_json_e_markdown(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    caminho_csv = tmp_path / "dados.csv"
-    pd.DataFrame({"id": range(30), "valor": range(30)}).to_csv(caminho_csv, index=False)
-
-    resultado = runner.invoke(app, ["perfilar", str(caminho_csv), "--saida-base", "saida"])
+    resultado = runner.invoke(app, ["perfilar", str(_csv(tmp_path)), "--saida-base", "saida"])
 
     assert resultado.exit_code == 0
     assert (tmp_path / "saida_dados.json").exists()
     assert (tmp_path / "saida_dados.md").exists()
+    assert not (tmp_path / "saida_dados.html").exists()
+
+
+def test_perfilar_com_formatos_customizados(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    resultado = runner.invoke(
+        app, ["perfilar", str(_csv(tmp_path)), "--saida-base", "s", "--formatos", "html,json"]
+    )
+
+    assert resultado.exit_code == 0
+    assert (tmp_path / "s_dados.html").exists()
+    assert not (tmp_path / "s_dados.md").exists()
+
+
+def test_formato_invalido_e_rejeitado(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    resultado = runner.invoke(
+        app, ["perfilar", str(_csv(tmp_path)), "--formatos", "pdf"]
+    )
+    assert resultado.exit_code != 0
+
+
+def test_limite_amostra_e_respeitado(tmp_path, monkeypatch):
+    """Regressão: `limite_amostra` era a decisão mais importante de custo ×
+    precisão da ferramenta e só existia na API Python."""
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    resultado = runner.invoke(
+        app, ["perfilar", str(_csv(tmp_path, n=500)), "--saida-base", "s", "--limite-amostra", "50"]
+    )
+
+    assert resultado.exit_code == 0
+    meta = json.loads((tmp_path / "s_dados.json").read_text(encoding="utf-8"))["metadados_execucao"]
+    assert meta["linhas_analisadas"] == 50
+    assert meta["amostragem_aplicada"] is True
+
+
+def test_json_compacto_reduz_o_arquivo(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    caminho = _csv(tmp_path, n=100)
+    runner.invoke(app, ["perfilar", str(caminho), "--saida-base", "normal"])
+    runner.invoke(app, ["perfilar", str(caminho), "--saida-base", "compacto", "--json-compacto"])
+
+    assert (tmp_path / "compacto_dados.json").stat().st_size < \
+           (tmp_path / "normal_dados.json").stat().st_size
+
+
+def test_kpis_customizados_via_yaml(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    yaml_kpis = tmp_path / "kpis.yaml"
+    yaml_kpis.write_text(
+        "kpis:\n  - id: MEU_KPI\n    nome: Teste\n    semanticas: [Valor Financeiro]\n",
+        encoding="utf-8",
+    )
+
+    resultado = runner.invoke(
+        app, ["perfilar", str(_csv(tmp_path)), "--saida-base", "s", "--kpis", str(yaml_kpis)]
+    )
+
+    assert resultado.exit_code == 0
+    payload = json.loads((tmp_path / "s_dados.json").read_text(encoding="utf-8"))
+    assert [g["kpi_id"] for g in payload["gap_analysis_kpis"]] == ["MEU_KPI"]
+
+
+def test_aba_em_csv_gera_aviso(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    resultado = runner.invoke(
+        app, ["perfilar", str(_csv(tmp_path)), "--saida-base", "s", "--aba", "2"]
+    )
+    assert resultado.exit_code == 0
+    assert "ignorados" in resultado.output
+
+
+def test_comando_versao():
+    resultado = runner.invoke(app, ["versao"])
+    assert resultado.exit_code == 0
+    assert __version__ in resultado.output
 
 
 def test_perfilar_arquivo_inexistente_retorna_codigo_erro(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-
-    resultado = runner.invoke(app, ["perfilar", "nao_existe.csv"])
-
-    assert resultado.exit_code != 0
+    assert runner.invoke(app, ["perfilar", "nao_existe.csv"]).exit_code != 0
 
 
 def test_lote_processa_varios_arquivos_mesmo_com_um_falhando(tmp_path, monkeypatch):
@@ -33,44 +115,98 @@ def test_lote_processa_varios_arquivos_mesmo_com_um_falhando(tmp_path, monkeypat
     pd.DataFrame({"a": range(10)}).to_csv(tmp_path / "bom.csv", index=False)
     (tmp_path / "vazio.csv").write_text("", encoding="utf-8")
 
-    resultado = runner.invoke(app, ["lote", str(tmp_path / "bom.csv"), str(tmp_path / "vazio.csv"), "--saida-base", "lote_saida"])
+    runner.invoke(app, ["lote", str(tmp_path / "bom.csv"), str(tmp_path / "vazio.csv"),
+                        "--saida-base", "lote_saida"])
 
     assert (tmp_path / "lote_saida_bom.json").exists()
 
 
 def test_lote_continua_apos_falha_mesmo_com_arquivo_ruim_primeiro(tmp_path, monkeypatch):
-    """Garante que 'lote' processa os arquivos subsequentes mesmo quando o
-    arquivo que falha (CSV vazio, sem delimitador detectável) vem PRIMEIRO na
-    lista. Isso prova que a exceção do arquivo ruim (FileFormatError, após a
-    correção de ingestion.py) é capturada e não aborta o restante do lote,
-    independentemente da ordem dos arquivos."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "vazio.csv").write_text("", encoding="utf-8")
     pd.DataFrame({"a": range(10)}).to_csv(tmp_path / "bom.csv", index=False)
 
-    resultado = runner.invoke(app, ["lote", str(tmp_path / "vazio.csv"), str(tmp_path / "bom.csv"), "--saida-base", "lote_saida2"])
+    runner.invoke(app, ["lote", str(tmp_path / "vazio.csv"), str(tmp_path / "bom.csv"),
+                        "--saida-base", "lote_saida2"])
 
     assert (tmp_path / "lote_saida2_bom.json").exists()
     assert not (tmp_path / "lote_saida2_vazio.json").exists()
 
 
-def test_lote_continua_apos_falha_de_encoding_mesmo_com_arquivo_ruim_primeiro(tmp_path, monkeypatch):
-    """Um arquivo .csv com bytes binários (sem encoding detectável com
-    confiança) faz charset_normalizer.from_path(...).best() retornar None,
-    o que ingestion.detectar_encoding converte em EncodingDetectionError.
-    Antes da correção, cli.py só capturava (FileNotFoundError, FileFormatError,
-    ValueError) — EncodingDetectionError não é subclasse de nenhum desses e
-    escapava, abortando o restante do lote. Agora ambas as exceções tipadas de
-    ingestão compartilham a base IngestionError, capturada pela CLI."""
+def test_lote_continua_apos_falha_de_encoding(tmp_path, monkeypatch):
+    """Ambas as exceções tipadas de ingestão compartilham a base
+    IngestionError, capturada pela CLI — um arquivo binário não aborta o lote."""
     monkeypatch.chdir(tmp_path)
-    caminho_ruim = tmp_path / "binario.csv"
+    ruim = tmp_path / "binario.csv"
     rng = random.Random(1)
-    caminho_ruim.write_bytes(bytes(rng.randint(0, 255) for _ in range(2000)))
+    ruim.write_bytes(bytes(rng.randint(0, 255) for _ in range(2000)))
     pd.DataFrame({"a": range(10)}).to_csv(tmp_path / "bom.csv", index=False)
 
+    runner.invoke(app, ["lote", str(ruim), str(tmp_path / "bom.csv"), "--saida-base", "lote3"])
+
+    assert (tmp_path / "lote3_bom.json").exists()
+    assert not (tmp_path / "lote3_binario.json").exists()
+
+
+
+def _conjunto(tmp_path):
+    dim = pd.DataFrame({"cod_dep": [f"D{i:02d}" for i in range(20)],
+                        "nome_dep": [f"Depto {i}" for i in range(20)]})
+    fato = pd.DataFrame({"id_registro": range(200),
+                         "cod_dep": [f"D{i % 20:02d}" for i in range(200)],
+                         "vl_gasto": range(200)})
+    dim.to_csv(tmp_path / "dim.csv", index=False)
+    fato.to_csv(tmp_path / "fato.csv", index=False)
+    return str(tmp_path / "dim.csv"), str(tmp_path / "fato.csv")
+
+
+def test_modelar_gera_relatorio_do_conjunto(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    dim, fato = _conjunto(tmp_path)
+
     resultado = runner.invoke(
-        app, ["lote", str(caminho_ruim), str(tmp_path / "bom.csv"), "--saida-base", "lote_saida3"]
+        app, ["modelar", dim, fato, "--saida-base", "m", "--sem-perfis", "--formatos", "markdown"]
     )
 
-    assert (tmp_path / "lote_saida3_bom.json").exists()
-    assert not (tmp_path / "lote_saida3_binario.json").exists()
+    assert resultado.exit_code == 0
+    assert (tmp_path / "m_modelo.md").exists()
+    assert not (tmp_path / "m_dim.md").exists()
+
+
+def test_modelar_com_perfis_individuais(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    dim, fato = _conjunto(tmp_path)
+
+    runner.invoke(app, ["modelar", dim, fato, "--saida-base", "p", "--formatos", "markdown"])
+
+    assert (tmp_path / "p_modelo.md").exists()
+    assert (tmp_path / "p_dim.md").exists()
+    assert (tmp_path / "p_fato.md").exists()
+
+
+def test_modelar_com_uma_tabela_so_falha_com_orientacao(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    dim, _ = _conjunto(tmp_path)
+
+    resultado = runner.invoke(app, ["modelar", dim, "--saida-base", "u"])
+
+    assert resultado.exit_code != 0
+    assert "perfilar" in resultado.output
+
+
+def test_perfilar_avisa_sobre_abas_ignoradas(tmp_path, monkeypatch):
+    """Perfilar em silêncio só a primeira aba de um arquivo com várias é a
+    forma mais fácil de alguém concluir coisa errada sobre os dados."""
+    monkeypatch.chdir(tmp_path)
+    caminho = tmp_path / "varias.xlsx"
+    with pd.ExcelWriter(caminho) as writer:
+        for nome in ("Um", "Dois", "Tres"):
+            pd.DataFrame({"a": range(30), "b": range(30)}).to_excel(
+                writer, sheet_name=nome, index=False
+            )
+
+    resultado = runner.invoke(app, ["perfilar", str(caminho), "--saida-base", "s"])
+
+    assert resultado.exit_code == 0
+    assert "3 abas" in resultado.output
+    assert "--todas-abas" in resultado.output
