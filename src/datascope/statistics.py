@@ -1,111 +1,76 @@
 """Análise estatística descritiva por coluna: tipagem, outliers, mistura de
-tipos, padrões estruturados e testes de hipótese."""
-import math
+tipos, padrões estruturados, sentinelas e sugestão de dtype.
+
+Os testes de hipótese vivem em `hypothesis`; a lógica de conteúdo de valor
+(validação de documento, mascaramento, sentinela, mojibake) vive em
+`patterns`. Aqui fica a descrição da coluna e a montagem do registro.
+"""
 import re
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
-from scipy import stats as scipy_stats
-from statsmodels.stats.diagnostic import acorr_ljungbox
-from statsmodels.tsa.stattools import adfuller
 
-from . import config
+from . import config, hypothesis, patterns
 from .semantics import tokenizar
 
+# Máximo de valores distintos para os quais vale a pena rodar as análises que
+# dependem de agrupar por valor (sentinela textual, inconsistência de grafia).
+# Acima disso a coluna é texto livre e o agrupamento não diz nada.
+_MAX_CARDINALIDADE_ANALISE_VALOR = 5_000
 
-def _valor_ou_none(x: float) -> Optional[float]:
-    return round(float(x), 6) if math.isfinite(float(x)) else None
-
-
-def mascarar_valor_sensivel(valor: str, padrao_estruturado: str) -> str:
-    """Mascara um valor de coluna sinalizada como sensível LGPD
-    (CPF/CNPJ/CEP/E-mail/Telefone/UUID), preservando o formato o suficiente
-    para o leitor reconhecer o padrão sem expor o dado real."""
-    if padrao_estruturado == "E-mail":
-        m = re.match(r"^([\w.+\-]+)@([\w\-]+\.[\w\-]+)$", valor)
-        if not m:
-            return "***MASCARADO***"
-        local, dominio = m.groups()
-        visivel = local[0] if local else ""
-        return f"{visivel}{'*' * max(len(local) - 1, 3)}@{dominio}"
-
-    if padrao_estruturado == "UUID":
-        partes = valor.split("-")
-        if len(partes) != 5:
-            return "***MASCARADO***"
-        return "-".join([partes[0]] + ["*" * len(p) for p in partes[1:]])
-
-    if padrao_estruturado not in config.PADROES_ESTRUTURADOS:
-        return "***MASCARADO***"
-
-    # CPF/CNPJ/CEP/Telefone: mantém os N primeiros caracteres alfanuméricos
-    # visíveis e mascara o restante, preservando pontuação/espaços — dá pra
-    # reconhecer o formato sem reconstruir o valor original.
-    qtd_visivel = 3 if padrao_estruturado == "CPF" else 2
-    resultado = []
-    vistos = 0
-    for ch in valor:
-        if ch.isalnum():
-            if vistos < qtd_visivel:
-                resultado.append(ch)
-                vistos += 1
-            else:
-                resultado.append("*")
-        else:
-            resultado.append(ch)
-    return "".join(resultado)
-
-
-def calcular_outliers_iqr(serie: pd.Series) -> Dict[str, Any]:
-    q1 = float(serie.quantile(0.25))
-    q3 = float(serie.quantile(0.75))
-    iqr = q3 - q1
-    limite_inf = q1 - config.THRESHOLD_OUTLIER_IQR * iqr
-    limite_sup = q3 + config.THRESHOLD_OUTLIER_IQR * iqr
-    n_outliers_inf = int((serie < limite_inf).sum())
-    n_outliers_sup = int((serie > limite_sup).sum())
-    return {
-        "q1": round(q1, 4),
-        "q3": round(q3, 4),
-        "iqr": round(iqr, 4),
-        "limite_inferior": round(limite_inf, 4),
-        "limite_superior": round(limite_sup, 4),
-        "qtd_outliers_inferiores": n_outliers_inf,
-        "qtd_outliers_superiores": n_outliers_sup,
-        "qtd_outliers_total": n_outliers_inf + n_outliers_sup,
-    }
+_RE_NUMERICO = re.compile(r"^-?\d+([.,]\d+)?$")
+_RE_DATA_QUALQUER = re.compile("|".join(config.PADROES_DATA))
 
 
 def calcular_distribuicao_top(
-    serie: pd.Series, top_n: int = 5, mascarar_fn: Optional[Callable[[str], str]] = None
-) -> List[Dict[str, Any]]:
-    try:
-        vc = serie.value_counts(normalize=True).head(top_n)
-        return [
-            {
-                "valor": mascarar_fn(str(k)) if mascarar_fn else str(k),
-                "frequencia_relativa": round(float(v), 4),
-                "frequencia_pct": f"{v:.1%}",
-            }
-            for k, v in vc.items()
-        ]
-    except Exception:
+    contagens: pd.Series,
+    n_validos: int,
+    top_n: int = 5,
+    mascarar_fn: Callable[[str], str] | None = None,
+) -> list[dict[str, Any]]:
+    """Top-N valores mais frequentes a partir do `value_counts` já calculado."""
+    if contagens.empty or n_validos <= 0:
         return []
+    resultado = []
+    for valor, qtd in contagens.head(top_n).items():
+        freq = float(qtd) / n_validos
+        resultado.append({
+            "valor": mascarar_fn(str(valor)) if mascarar_fn else str(valor),
+            "frequencia_relativa": round(freq, 4),
+            "frequencia_pct": f"{freq:.1%}",
+        })
+    return resultado
 
 
-def detectar_mistura_tipos(serie_limpa: pd.Series, amostra_str: List[str]) -> Dict[str, Any]:
+def _casas_decimais_fixas(numericos: pd.Series) -> int | None:
+    """Quantas casas decimais a coluna usa, se usar sempre as mesmas.
+
+    Um decimal sempre com 2 casas é uma assinatura de valor monetário — pista
+    fraca sozinha, útil quando somada a um nome ambíguo.
+    """
+    amostra = (
+        numericos.sample(n=1_000, random_state=42) if len(numericos) > 1_000 else numericos
+    )
+    valores = amostra.to_numpy()
+    for casas in range(4):
+        if np.allclose(valores, np.round(valores, casas), rtol=0, atol=1e-9):
+            return casas
+    return None
+
+
+def detectar_mistura_tipos(amostra_str: list[str]) -> dict[str, Any]:
+    """Estima a proporção de numéricos, datas, texto e vazios numa amostra de
+    strings, sinalizando quando mais de um tipo é relevante na mesma coluna."""
     n = len(amostra_str)
     if n == 0:
         return {"tem_mistura": False}
 
-    re_numerico = re.compile(r"^-?\d+([.,]\d+)?$")
-    re_data = re.compile("|".join(config.PADROES_DATA))
-
-    qtd_num = sum(1 for v in amostra_str if re_numerico.match(v.replace(",", ".")))
-    qtd_data = sum(1 for v in amostra_str if re_data.match(v))
+    qtd_num = sum(1 for v in amostra_str if _RE_NUMERICO.match(v.replace(",", ".")))
+    qtd_data = sum(1 for v in amostra_str if _RE_DATA_QUALQUER.match(v))
     qtd_vazio = sum(1 for v in amostra_str if v.strip() == "")
-    qtd_texto_puro = n - qtd_num - qtd_data - qtd_vazio
+    qtd_texto_puro = max(n - qtd_num - qtd_data - qtd_vazio, 0)
 
     proporcoes = {
         "numerico": round(qtd_num / n, 4),
@@ -123,157 +88,193 @@ def detectar_mistura_tipos(serie_limpa: pd.Series, amostra_str: List[str]) -> Di
     }
 
 
-def testar_normalidade_shapiro(numericos: pd.Series) -> Dict[str, Any]:
-    n = len(numericos)
-    if n < config.SHAPIRO_MIN_N:
-        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.SHAPIRO_MIN_N})"}
-    if float(numericos.std()) == 0.0:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — teste de normalidade não aplicável"}
-    amostra = (
-        numericos.sample(n=config.SHAPIRO_MAX_N, random_state=42)
-        if n > config.SHAPIRO_MAX_N else numericos
-    )
-    estatistica, p_valor = scipy_stats.shapiro(amostra)
-    return {
-        "aplicavel": True,
-        "estatistica": round(float(estatistica), 6),
-        "p_valor": round(float(p_valor), 6),
-        "normal_provavel": bool(p_valor > config.ALPHA_SIGNIFICANCIA),
-        "n_amostra": int(len(amostra)),
-    }
+# ── Sugestão de dtype ───────────────────────────────────────────────────────
 
+def sugerir_dtype(
+    serie: pd.Series, tipo_amigavel: str, n_unicos: int, n_validos: int
+) -> dict[str, Any]:
+    """Sugere um dtype mais econômico e estima o ganho de memória.
 
-def testar_uniformidade_chi2(serie_categorica: pd.Series) -> Dict[str, Any]:
-    contagens = serie_categorica.value_counts()
-    n_categorias = len(contagens)
-    n_total = int(contagens.sum())
-    if n_categorias < 2:
-        return {"aplicavel": False, "motivo": "Menos de 2 categorias distintas"}
-    if n_categorias > config.CHI2_MAX_CATEGORIAS:
-        return {"aplicavel": False, "motivo": f"Categorias demais (n={n_categorias} > {config.CHI2_MAX_CATEGORIAS})"}
-    freq_esperada = n_total / n_categorias
-    if freq_esperada < config.CHI2_MIN_FREQ_ESPERADA:
+    É a recomendação de ETL mais diretamente acionável que dá para extrair de
+    um profiling: vem com número em MB, não com uma opinião.
+    """
+    dtype_atual = str(serie.dtype)
+    memoria_atual = int(serie.memory_usage(deep=True))
+    sugerido: str | None = None
+
+    if tipo_amigavel == "Número Inteiro" and n_validos > 0:
+        numericos = pd.to_numeric(serie.dropna(), errors="coerce").dropna()
+        if not numericos.empty:
+            minimo, maximo = float(numericos.min()), float(numericos.max())
+            for nome_tipo in ("int8", "int16", "int32"):
+                info = np.iinfo(nome_tipo)
+                if minimo >= info.min and maximo <= info.max:
+                    sugerido = nome_tipo
+                    break
+    elif tipo_amigavel == "Número Decimal":
+        if dtype_atual == "float64":
+            sugerido = "float32"
+    elif tipo_amigavel.startswith("Texto"):
+        # `category` só compensa quando há repetição real; com cardinalidade
+        # alta o dicionário custa mais do que economiza.
+        if n_validos > 0 and n_unicos > 0 and (n_unicos / n_validos) <= 0.5:
+            sugerido = "category"
+
+    if sugerido is None or sugerido == dtype_atual:
         return {
-            "aplicavel": False,
-            "motivo": f"Frequência esperada insuficiente ({freq_esperada:.1f} < {config.CHI2_MIN_FREQ_ESPERADA})",
+            "dtype_atual": dtype_atual,
+            "dtype_sugerido": None,
+            "memoria_atual_mb": round(memoria_atual / 1e6, 3),
         }
-    estatistica, p_valor = scipy_stats.chisquare(contagens.to_numpy())
+
+    try:
+        memoria_nova = int(serie.astype(cast(Any, sugerido)).memory_usage(deep=True))
+    except Exception:
+        return {
+            "dtype_atual": dtype_atual,
+            "dtype_sugerido": None,
+            "memoria_atual_mb": round(memoria_atual / 1e6, 3),
+        }
+
+    economia = memoria_atual - memoria_nova
     return {
-        "aplicavel": True,
-        "estatistica": round(float(estatistica), 6),
-        "p_valor": round(float(p_valor), 6),
-        "distribuicao_uniforme_provavel": bool(p_valor > config.ALPHA_SIGNIFICANCIA),
-        "n_categorias": int(n_categorias),
+        "dtype_atual": dtype_atual,
+        "dtype_sugerido": sugerido,
+        "memoria_atual_mb": round(memoria_atual / 1e6, 3),
+        "memoria_sugerida_mb": round(memoria_nova / 1e6, 3),
+        "economia_mb": round(economia / 1e6, 3),
+        "economia_pct": round(economia / memoria_atual, 4) if memoria_atual > 0 else 0.0,
     }
 
 
-def calcular_intervalo_confianca_media(numericos: pd.Series) -> Dict[str, Any]:
-    n = len(numericos)
-    if n < 2:
-        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < 2)"}
-    media = float(numericos.mean())
-    erro_padrao = float(numericos.std(ddof=1)) / (n ** 0.5)
-    if erro_padrao == 0.0 or not math.isfinite(erro_padrao):
-        return {"aplicavel": True, "media": round(media, 6), "limite_inferior": round(media, 6), "limite_superior": round(media, 6)}
-    limite_inf, limite_sup = scipy_stats.t.interval(0.95, df=n - 1, loc=media, scale=erro_padrao)
+# ── Perfil de datas ─────────────────────────────────────────────────────────
+
+def perfilar_datas(serie: pd.Series) -> dict[str, Any]:
+    """Estatísticas específicas de coluna temporal.
+
+    Datas no futuro, concentração no dia 1º e meses sem nenhum registro são
+    sinais clássicos de erro de digitação, valor default e falha de carga —
+    coisas que min/max sozinhos não revelam.
+    """
+    if serie.empty:
+        return {}
+
+    agora = pd.Timestamp.now()
+    futuras = int((serie > agora).sum())
+    dias_semana = serie.dt.dayofweek
+    fim_de_semana = int(dias_semana.isin([5, 6]).sum())
+    primeiro_dia_mes = int((serie.dt.day == 1).sum())
+    n = len(serie)
+
+    # A cobertura de calendário é medida só sobre o passado: uma única data
+    # sentinela em 2099 esticaria o intervalo por décadas e transformaria todo
+    # mês real num "mês faltante".
+    serie_passado = serie[serie <= agora]
+    meses = serie_passado.dt.to_period("M")
+    meses_presentes = int(meses.nunique())
+    span_meses = 0
+    meses_faltantes: list[str] = []
+    if meses_presentes > 0:
+        periodo_min, periodo_max = meses.min(), meses.max()
+        span_meses = int((periodo_max - periodo_min).n) + 1
+        if 0 < span_meses <= 1_200:
+            presentes = set(meses.unique().astype(str))
+            todos = pd.period_range(periodo_min, periodo_max, freq="M").astype(str)
+            meses_faltantes = [m for m in todos if m not in presentes]
+
     return {
-        "aplicavel": True,
-        "media": round(media, 6),
-        "limite_inferior": round(float(limite_inf), 6),
-        "limite_superior": round(float(limite_sup), 6),
+        "min_data": str(serie.min()),
+        "max_data": str(serie.max()),
+        "range_dias": int((serie.max() - serie.min()).days),
+        "qtd_datas_futuras": futuras,
+        "pct_datas_futuras": round(futuras / n, 4),
+        "pct_fim_de_semana": round(fim_de_semana / n, 4),
+        "pct_primeiro_dia_do_mes": round(primeiro_dia_mes / n, 4),
+        "meses_cobertos": meses_presentes,
+        "meses_no_intervalo": span_meses,
+        "meses_sem_registro": meses_faltantes[:12],
+        "qtd_meses_sem_registro": len(meses_faltantes),
     }
 
 
-def detectar_distribuicao_provavel(numericos: pd.Series) -> Dict[str, Any]:
-    n = len(numericos)
-    if n < config.DIST_DETECTION_MIN_N:
-        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.DIST_DETECTION_MIN_N})"}
-    if float(numericos.std()) == 0.0:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — nenhuma distribuição é aplicável"}
+# ── Característica da coluna ────────────────────────────────────────────────
 
-    valores = numericos.to_numpy()
-    candidatos = {"normal": scipy_stats.norm}
-    if (valores > 0).all():
-        candidatos["lognormal"] = scipy_stats.lognorm
-    if (valores >= 0).all():
-        candidatos["uniforme"] = scipy_stats.uniform
-        candidatos["exponencial"] = scipy_stats.expon
+def _classificar_caracteristica(
+    n_validos: int,
+    n_unicos: int,
+    total_linhas: int,
+    ratio_unicidade: float,
+    top_freq: float,
+    tipo_amigavel: str,
+) -> str:
+    if n_validos == 0:
+        return "⚠️ Coluna 100% Vazia"
+    if n_unicos == 1:
+        return "🔒 Valor Constante"
+    if top_freq >= config.THRESHOLD_QUASI_CONSTANTE:
+        return f"⚠️ Quasi-Constante ({top_freq:.1%} em um único valor)"
 
-    melhor_nome: Optional[str] = None
-    melhor_p = -1.0
-    for nome, dist in candidatos.items():
-        try:
-            params = dist.fit(valores)
-            # Skip lognormal if the fitted location is negative (makes it an invalid lognormal)
-            if nome == "lognormal" and len(params) > 1 and params[1] < 0:
-                continue
-            _, p_valor = scipy_stats.kstest(valores, dist.name, args=params)
-        except Exception:
-            continue
-        if p_valor > melhor_p:
-            melhor_p = p_valor
-            melhor_nome = nome
+    # Unicidade alta só é sinal de chave em coluna que pode ser chave. Um
+    # `Número Decimal` (salário, medida) é quase-único por natureza e virava
+    # "possível dado sujo" sem nenhum motivo.
+    elegivel_chave = tipo_amigavel in config.TIPOS_ELEGIVEIS_CHAVE
+    if elegivel_chave and total_linhas > 1:
+        if ratio_unicidade == 1.0:
+            return "🔑 Chave Primária Potencial"
+        if ratio_unicidade >= config.THRESHOLD_QUASE_CHAVE:
+            return f"🔑 Quase-Chave ({ratio_unicidade:.1%} únicos — possível dado sujo)"
 
-    if melhor_nome is None or melhor_p <= config.ALPHA_SIGNIFICANCIA:
-        return {"aplicavel": True, "distribuicao": "Desconhecida", "p_valor": round(max(melhor_p, 0.0), 6)}
-    return {"aplicavel": True, "distribuicao": melhor_nome, "p_valor": round(melhor_p, 6)}
-
-
-def testar_estacionariedade_adf(serie_numerica_ordenada: pd.Series) -> Dict[str, Any]:
-    n = len(serie_numerica_ordenada)
-    if n < config.ADF_MIN_N:
-        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
-    if serie_numerica_ordenada.nunique() <= 1:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — teste ADF não aplicável"}
-    resultado = adfuller(serie_numerica_ordenada.to_numpy(), autolag="AIC")
-    estatistica, p_valor = float(resultado[0]), float(resultado[1])
-    return {
-        "aplicavel": True,
-        "estatistica": round(estatistica, 6),
-        "p_valor": round(p_valor, 6),
-        "estacionaria": bool(p_valor < config.ALPHA_SIGNIFICANCIA),
-    }
+    if config.TIPO_DATA_HORA in tipo_amigavel or "Parece Data" in tipo_amigavel:
+        return "📅 Série Temporal"
+    if 1 < n_unicos <= 25:
+        return "🏷️ Categórica / Dimensão Curta"
+    if 25 < n_unicos <= 100:
+        return "📂 Dimensão Média"
+    if "Texto" in tipo_amigavel:
+        return "📋 Dimensão Longa (Texto Livre)"
+    if "Número" in tipo_amigavel:
+        return "📊 Métrica Contínua"
+    return "📋 Atributo Geral"
 
 
-def testar_autocorrelacao_ljungbox(serie_numerica_ordenada: pd.Series) -> Dict[str, Any]:
-    n = len(serie_numerica_ordenada)
-    if n < config.ADF_MIN_N:
-        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
-    if serie_numerica_ordenada.nunique() <= 1:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — Ljung-Box não aplicável"}
-    lags = max(1, min(10, n // 5))
-    resultado = acorr_ljungbox(serie_numerica_ordenada, lags=[lags], return_df=True)
-    estatistica = float(resultado["lb_stat"].iloc[0])
-    p_valor = float(resultado["lb_pvalue"].iloc[0])
-    return {
-        "aplicavel": True,
-        "estatistica": round(estatistica, 6),
-        "p_valor": round(p_valor, 6),
-        "autocorrelacionada": bool(p_valor < config.ALPHA_SIGNIFICANCIA),
-        "lags": int(lags),
-    }
+# ── Análise principal ───────────────────────────────────────────────────────
 
-
-def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]:
+def analisar_estatisticas(
+    serie: pd.Series, total_linhas: int, avaliar_benford: bool = False
+) -> dict[str, Any]:
+    """Perfil descritivo completo de uma coluna."""
     nulos_qtd = int(serie.isna().sum())
     nulos_pct = round((nulos_qtd / total_linhas) * 100, 4) if total_linhas > 0 else 0.0
 
     serie_limpa = serie.dropna()
     n_validos = len(serie_limpa)
     n_unicos = int(serie_limpa.nunique())
-    tipo_bruto = str(serie_limpa.dtype)
-    tipo_bruto_lower = tipo_bruto.lower()
+    tipo_bruto_lower = str(serie_limpa.dtype).lower()
+
+    # Uma única passada de contagem alimenta top-5, frequência máxima,
+    # qui-quadrado, sentinela textual e inconsistência de grafia. Antes cada
+    # um desses recalculava por conta própria.
+    contagens: pd.Series = (
+        serie_limpa.value_counts() if n_validos > 0 else pd.Series(dtype="int64")
+    )
 
     n_amostrar = min(config.AMOSTRA_ANALISE, n_validos)
-    amostra_serie = serie_limpa.sample(n=n_amostrar, random_state=42) if n_validos > 0 else serie_limpa
+    amostra_serie = (
+        serie_limpa.sample(n=n_amostrar, random_state=42) if n_validos > 0 else serie_limpa
+    )
     amostra_str = amostra_serie.astype(str).tolist()
 
     flag_data_como_texto = False
     flag_padrao_estruturado = "Nenhum"
-    estatisticas_extra: Dict[str, Any] = {}
-    alerta_mistura_tipos: Dict[str, Any] = {"tem_mistura": False}
+    estatisticas_extra: dict[str, Any] = {}
+    alerta_mistura_tipos: dict[str, Any] = {"tem_mistura": False}
+    qualidade: dict[str, Any] = {}
     tipo_amigavel = "Desconhecido"
+    stats_suprimidas = False
+    monotonica_crescente = False
+    casas_decimais: int | None = None
 
+    # ── Numérico ────────────────────────────────────────────────────────
     if "float" in tipo_bruto_lower or "int" in tipo_bruto_lower:
         numericos = serie_limpa.replace([np.inf, -np.inf], np.nan).dropna()
         if pd.api.types.is_extension_array_dtype(numericos):
@@ -282,7 +283,9 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
             # o dtype numpy padrão evita vazar NAType para o cálculo.
             numericos = numericos.astype("float64")
 
-        if numericos.empty:
+        if n_validos == 0:
+            tipo_amigavel = config.TIPO_VAZIO
+        elif numericos.empty:
             tipo_amigavel = "Número (Apenas Inf/NaN)"
         elif (numericos % 1 == 0).all():
             tipo_amigavel = "Número Inteiro"
@@ -292,162 +295,189 @@ def analisar_estatisticas(serie: pd.Series, total_linhas: int) -> Dict[str, Any]
         qtd_inf = int(serie_limpa.isin([np.inf, -np.inf]).sum())
 
         if tipo_amigavel == "Número Inteiro" and not numericos.empty:
-            # CPF/CNPJ armazenados como número perdem formatação e podem
-            # perder um zero à esquerda — usa comprimento de dígitos em vez
-            # do regex de PADROES_ESTRUTURADOS (que exige pontuação/texto).
             amostra_num = numericos.sample(
                 n=min(config.AMOSTRA_ANALISE, len(numericos)), random_state=42
             )
-            amostra_num_str = [str(int(v)) for v in amostra_num]
-            if amostra_num_str:
-                matches_cnpj = sum(1 for v in amostra_num_str if re.fullmatch(r"\d{13,14}", v))
-                matches_cpf = sum(1 for v in amostra_num_str if re.fullmatch(r"\d{10,11}", v))
-                if (matches_cnpj / len(amostra_num_str)) >= config.THRESHOLD_PADRAO_ESTRUTURADO:
-                    flag_padrao_estruturado = "CNPJ"
-                elif (matches_cpf / len(amostra_num_str)) >= config.THRESHOLD_PADRAO_ESTRUTURADO:
-                    flag_padrao_estruturado = "CPF"
+            flag_padrao_estruturado = patterns.detectar_padrao_numerico(
+                [str(int(v)) for v in amostra_num]
+            )
 
         if not numericos.empty:
-            std_val = float(numericos.std())
-            media_val = float(numericos.mean())
+            monotonica_crescente = bool(numericos.is_monotonic_increasing)
+            casas_decimais = (
+                _casas_decimais_fixas(numericos) if tipo_amigavel == "Número Decimal" else 0
+            )
+            sensivel = patterns.eh_sensivel(flag_padrao_estruturado)
             mascarar_fn_num = (
-                (lambda v: mascarar_valor_sensivel(v, flag_padrao_estruturado))
-                if flag_padrao_estruturado != "Nenhum" else None
+                (lambda v: patterns.mascarar_valor_sensivel(v, flag_padrao_estruturado))
+                if sensivel else None
             )
             estatisticas_extra = {
-                "min": round(float(numericos.min()), 6),
-                "max": round(float(numericos.max()), 6),
-                "media": round(media_val, 6),
-                "mediana": round(float(numericos.median()), 6),
-                "desvio_padrao": _valor_ou_none(std_val),
-                "coef_variacao": _valor_ou_none(std_val / media_val) if media_val != 0 else None,
-                "assimetria": _valor_ou_none(numericos.skew()),
-                "curtose": _valor_ou_none(numericos.kurt()),
                 "qtd_negativos": int((numericos < 0).sum()),
                 "qtd_zeros": int((numericos == 0).sum()),
                 "qtd_inf": qtd_inf,
-                "outliers_iqr": calcular_outliers_iqr(numericos),
-                "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5, mascarar_fn=mascarar_fn_num),
-            }
-            estatisticas_extra["testes_hipotese"] = {
-                "shapiro_wilk": testar_normalidade_shapiro(numericos),
-                "intervalo_confianca_media_95": calcular_intervalo_confianca_media(numericos),
-                "distribuicao_provavel": detectar_distribuicao_provavel(numericos),
+                "distribuicao_top5": calcular_distribuicao_top(
+                    contagens, n_validos, 5, mascarar_fn=mascarar_fn_num
+                ),
             }
 
+            if sensivel:
+                # Min, max, média, mediana e limites de outlier de uma coluna
+                # de CPF/CNPJ *são* documentos reais de pessoas reais. Mascarar
+                # só a amostra e publicar o mínimo em claro anula a proteção —
+                # e para um identificador nenhum desses números tem
+                # significado analítico. Suprimidos por completo.
+                stats_suprimidas = True
+                estatisticas_extra["estatisticas_suprimidas"] = {
+                    "motivo": (
+                        f"Coluna identificada como {flag_padrao_estruturado} (dado sensível LGPD). "
+                        "Estatísticas de posição e dispersão omitidas para não expor o valor real."
+                    ),
+                }
+            else:
+                std_val = float(numericos.std())
+                media_val = float(numericos.mean())
+                estatisticas_extra.update({
+                    "min": round(float(numericos.min()), 6),
+                    "max": round(float(numericos.max()), 6),
+                    "media": round(media_val, 6),
+                    "mediana": round(float(numericos.median()), 6),
+                    "desvio_padrao": hypothesis.valor_ou_none(std_val),
+                    "coef_variacao": hypothesis.valor_ou_none(std_val / media_val) if media_val != 0 else None,
+                    "assimetria": hypothesis.valor_ou_none(numericos.skew()),
+                    "curtose": hypothesis.valor_ou_none(numericos.kurt()),
+                    "outliers_iqr": hypothesis.calcular_outliers(numericos),
+                })
+                estatisticas_extra["testes_hipotese"] = {
+                    "shapiro_wilk": hypothesis.testar_normalidade_shapiro(numericos),
+                    "intervalo_confianca_media_95": hypothesis.calcular_intervalo_confianca_media(numericos),
+                    "distribuicao_provavel": hypothesis.detectar_distribuicao_provavel(numericos),
+                }
+                if avaliar_benford:
+                    benford = patterns.distribuicao_benford(numericos)
+                    if benford:
+                        estatisticas_extra["benford"] = benford
+
+                qualidade["sentinelas"] = patterns.detectar_sentinelas_numericas(numericos, n_validos)
+
+    # ── Data / hora ─────────────────────────────────────────────────────
     elif "datetime" in tipo_bruto_lower:
         tipo_amigavel = config.TIPO_DATA_HORA
         if n_validos > 0:
-            estatisticas_extra = {
-                "min_data": str(serie_limpa.min()),
-                "max_data": str(serie_limpa.max()),
-                "range_dias": (serie_limpa.max() - serie_limpa.min()).days,
-                "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5),
-            }
+            estatisticas_extra = perfilar_datas(serie_limpa)
+            estatisticas_extra["distribuicao_top5"] = calcular_distribuicao_top(contagens, n_validos, 5)
+            qualidade["sentinelas"] = patterns.detectar_sentinelas_data(serie_limpa, n_validos)
 
+    # ── Booleano ────────────────────────────────────────────────────────
     elif "bool" in tipo_bruto_lower:
         tipo_amigavel = "Booleano"
         if n_validos > 0:
+            qtd_true = int(serie_limpa.sum())
             estatisticas_extra = {
-                "qtd_true": int(serie_limpa.sum()),
-                "qtd_false": n_validos - int(serie_limpa.sum()),
-                "pct_true": round(float(serie_limpa.sum()) / n_validos, 4),
+                "qtd_true": qtd_true,
+                "qtd_false": n_validos - qtd_true,
+                "pct_true": round(qtd_true / n_validos, 4),
             }
 
+    # ── Texto ───────────────────────────────────────────────────────────
     else:
-        tipo_amigavel = "Texto"
+        tipo_amigavel = config.TIPO_VAZIO if n_validos == 0 else "Texto"
         if amostra_str:
-            matches_dt = sum(1 for v in amostra_str if any(re.match(p, v) for p in config.PADROES_DATA))
+            matches_dt = sum(1 for v in amostra_str if _RE_DATA_QUALQUER.match(v))
             if (matches_dt / len(amostra_str)) >= config.THRESHOLD_DATA_TEXTO:
                 tipo_amigavel = "Texto (⚠️ Parece Data)"
                 flag_data_como_texto = True
             else:
                 tokens_col = set(tokenizar(str(serie.name)))
-                eh_chave_sistema = bool(tokens_col & config.TOKENS_CHAVE_SISTEMA)
-                for padrao_nome, regex in config.PADROES_ESTRUTURADOS.items():
-                    if eh_chave_sistema and padrao_nome in ("CEP", "Telefone"):
-                        continue
-                    matches_pad = sum(1 for v in amostra_str if re.match(regex, v))
-                    if (matches_pad / len(amostra_str)) >= config.THRESHOLD_PADRAO_ESTRUTURADO:
-                        flag_padrao_estruturado = padrao_nome
-                        break
-                alerta_mistura_tipos = detectar_mistura_tipos(serie_limpa, amostra_str)
+                flag_padrao_estruturado = patterns.detectar_padrao_texto(
+                    amostra_str, eh_chave_sistema=bool(tokens_col & config.TOKENS_CHAVE_SISTEMA)
+                )
+                alerta_mistura_tipos = detectar_mistura_tipos(amostra_str)
 
         if n_validos > 0:
-            lens = serie_limpa.astype(str).str.len()
+            sensivel = patterns.eh_sensivel(flag_padrao_estruturado)
             mascarar_fn = (
-                (lambda v: mascarar_valor_sensivel(v, flag_padrao_estruturado))
-                if flag_padrao_estruturado != "Nenhum" else None
+                (lambda v: patterns.mascarar_valor_sensivel(v, flag_padrao_estruturado))
+                if sensivel else None
             )
+            lens = serie_limpa.astype(str).str.len()
             estatisticas_extra = {
                 "str_len_min": int(lens.min()),
                 "str_len_max": int(lens.max()),
                 "str_len_media": round(float(lens.mean()), 2),
                 "str_len_std": round(float(lens.std()), 2) if n_validos > 1 else 0.0,
                 "comprimento_fixo": int(lens.min()) == int(lens.max()),
-                "distribuicao_top5": calcular_distribuicao_top(serie_limpa, 5, mascarar_fn=mascarar_fn),
+                "distribuicao_top5": calcular_distribuicao_top(
+                    contagens, n_validos, 5, mascarar_fn=mascarar_fn
+                ),
             }
             if n_unicos <= config.CHI2_MAX_CATEGORIAS:
                 estatisticas_extra["testes_hipotese"] = {
-                    "qui_quadrado_uniformidade": testar_uniformidade_chi2(serie_limpa),
+                    "qui_quadrado_uniformidade": hypothesis.testar_uniformidade_chi2(contagens),
                 }
 
+            qualidade["mojibake"] = patterns.detectar_mojibake(amostra_str)
+            if not sensivel:
+                qualidade["pii_texto_livre"] = patterns.detectar_pii_em_texto_livre(amostra_str)
+                qualidade["documento_invalido"] = patterns.detectar_documento_invalido(amostra_str)
+            if n_unicos <= _MAX_CARDINALIDADE_ANALISE_VALOR:
+                qualidade["sentinelas"] = patterns.detectar_sentinelas_texto(contagens, n_validos)
+                qualidade["inconsistencia_normalizacao"] = (
+                    patterns.detectar_inconsistencia_normalizacao(contagens)
+                )
+
+    # ── Consolidação ────────────────────────────────────────────────────
     ratio_unicidade = n_unicos / total_linhas if total_linhas > 0 else 0.0
-    top_freq = 0.0
-    if n_validos > 0 and n_unicos > 1:
-        try:
-            top_freq = float(serie_limpa.value_counts(normalize=True).iloc[0])
-        except Exception:
-            top_freq = 0.0
+    top_freq = float(contagens.iloc[0]) / n_validos if (n_validos > 0 and n_unicos > 1) else 0.0
 
-    if nulos_pct == 100.0:
-        caracteristica = "⚠️ Coluna 100% Vazia"
-    elif n_unicos == 0:
-        caracteristica = "⚠️ Sem Valores Válidos"
-    elif n_unicos == 1:
-        caracteristica = "🔒 Valor Constante"
-    elif top_freq >= config.THRESHOLD_QUASI_CONSTANTE:
-        caracteristica = f"⚠️ Quasi-Constante ({top_freq:.1%} em um único valor)"
-    elif ratio_unicidade == 1.0 and total_linhas > 1:
-        caracteristica = "🔑 Chave Primária Potencial"
-    elif ratio_unicidade >= config.THRESHOLD_QUASE_CHAVE and total_linhas > 1:
-        caracteristica = f"🔑 Quase-Chave ({ratio_unicidade:.1%} únicos — possível dado sujo)"
-    elif "Data" in tipo_amigavel:
-        caracteristica = "📅 Série Temporal"
-    elif 1 < n_unicos <= 25:
-        caracteristica = "🏷️ Categórica / Dimensão Curta"
-    elif 25 < n_unicos <= 100:
-        caracteristica = "📂 Dimensão Média"
-    elif "Texto" in tipo_amigavel:
-        caracteristica = "📋 Dimensão Longa (Texto Livre)"
-    elif "Número" in tipo_amigavel:
-        caracteristica = "📊 Métrica Contínua"
-    else:
-        caracteristica = "📋 Atributo Geral"
+    caracteristica = _classificar_caracteristica(
+        n_validos, n_unicos, total_linhas, ratio_unicidade, top_freq, tipo_amigavel
+    )
 
-    valores_amostra: List[str] = []
+    # Nulos efetivos = nulos reais + sentinelas. É o número que importa para
+    # decidir se a coluna é utilizável, e o que antes saía como 0% numa coluna
+    # 30% preenchida com "N/A".
+    sentinela_qtd = int(qualidade.get("sentinelas", {}).get("qtd_total", 0))
+    nulos_efetivos = nulos_qtd + sentinela_qtd
+    qualidade["nulos_efetivos_qtd"] = nulos_efetivos
+    qualidade["nulos_efetivos_pct"] = (
+        round(nulos_efetivos / total_linhas * 100, 4) if total_linhas > 0 else 0.0
+    )
+
+    valores_amostra: list[str] = []
     if n_validos > 0:
-        if n_unicos <= 25:
+        if n_unicos <= config.MAX_VALORES_AMOSTRA_COMPLETA:
             valores_amostra = [str(v) for v in serie_limpa.unique().tolist()]
         else:
             valores_amostra = (
-                serie_limpa.drop_duplicates().sample(min(10, n_unicos), random_state=42).astype(str).tolist()
+                serie_limpa.drop_duplicates()
+                .sample(min(10, n_unicos), random_state=42)
+                .astype(str).tolist()
             )
-        if flag_padrao_estruturado != "Nenhum":
-            valores_amostra = [mascarar_valor_sensivel(v, flag_padrao_estruturado) for v in valores_amostra]
+        if patterns.eh_sensivel(flag_padrao_estruturado):
+            valores_amostra = [
+                patterns.mascarar_valor_sensivel(v, flag_padrao_estruturado) for v in valores_amostra
+            ]
+        elif qualidade.get("pii_texto_livre", {}).get("tem_pii"):
+            valores_amostra = [patterns.redigir_pii_em_texto(v) for v in valores_amostra]
 
     return {
         "tipo_dados": tipo_amigavel,
         "valores_unicos": n_unicos,
+        "monotonica_crescente": monotonica_crescente,
+        "casas_decimais_fixas": casas_decimais,
         "nulos_qtd": nulos_qtd,
         "nulos_pct": nulos_pct,
         "caracteristica": caracteristica,
         "ratio_unicidade": round(ratio_unicidade, 4),
         "amostra_representativa": valores_amostra,
         "estatisticas_adicionais": estatisticas_extra,
+        "qualidade": qualidade,
+        "otimizacao": sugerir_dtype(serie, tipo_amigavel, n_unicos, n_validos),
         "flags": {
             "is_date_as_text": flag_data_como_texto,
             "detected_pattern": flag_padrao_estruturado,
             "mistura_tipos": alerta_mistura_tipos,
+            "stats_suprimidas_lgpd": stats_suprimidas,
         },
     }
