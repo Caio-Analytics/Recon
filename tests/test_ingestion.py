@@ -2,7 +2,7 @@
 import pandas as pd
 import pytest
 
-from datascope.ingestion import (
+from recon.ingestion import (
     FileFormatError,
     carregar_arquivo,
     carregar_todas_abas_excel,

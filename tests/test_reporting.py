@@ -1,7 +1,7 @@
 """Exportação: JSON, Markdown, HTML e nomes de arquivo."""
 import json
 
-from datascope.reporting import (
+from recon.reporting import (
     exportar_html,
     exportar_json,
     exportar_markdown,
@@ -195,14 +195,29 @@ def test_markdown_sinaliza_supressao_de_estatisticas_lgpd(tmp_path):
 # ── HTML ────────────────────────────────────────────────────────────────────
 
 def test_html_e_autocontido_e_sem_recurso_externo(tmp_path):
+    """Nenhum recurso buscado na rede: o relatório precisa abrir numa máquina
+    corporativa com CDN bloqueada.
+
+    O `xmlns` do SVG (`http://www.w3.org/2000/svg`) é identificador de
+    namespace, não endereço buscado — verificar `"http://" not in conteudo`
+    acusaria falso positivo em todo gráfico inline.
+    """
+    import re
+
     caminho = tmp_path / "relatorio.html"
     exportar_html(_payload(), str(caminho))
     conteudo = caminho.read_text(encoding="utf-8")
 
     assert conteudo.startswith("<!doctype html>")
     assert "<style>" in conteudo
-    assert "http://" not in conteudo and "https://" not in conteudo
     assert "<script" not in conteudo
+
+    buscados = (
+        re.findall(r"""(?:src|href)\s*=\s*['"]\s*https?://""", conteudo)
+        + re.findall(r"url\(\s*['\"]?https?://", conteudo)
+        + re.findall(r"@import\s+url", conteudo)
+    )
+    assert buscados == []
 
 
 def test_html_contem_secoes_e_dados(tmp_path):
@@ -226,3 +241,56 @@ def test_html_escapa_conteudo_do_dado(tmp_path):
     conteudo = caminho.read_text(encoding="utf-8")
     assert "<script>alert(1)</script>" not in conteudo
     assert "&lt;script&gt;" in conteudo
+
+
+def test_html_tem_as_mesmas_secoes_do_markdown(tmp_path):
+    """O HTML é o formato padrão — não pode perder seção que o Markdown tem.
+
+    Regressão: `Principais problemas`, `Regras de negócio`, `Hierarquias` e
+    `O que explica cada medida` só existiam no Markdown, e trocar o padrão
+    teria rebaixado a saída sem ninguém perceber.
+    """
+    import re
+
+    payload = _payload()
+    payload["regras_negocio"] = [{
+        "tipo": "Ordem entre datas", "regra": "`a` <= `b`", "descricao": "a nunca é posterior a b",
+        "conformidade": 1.0, "qtd_violacoes": 0, "exemplos_violacao": [],
+    }]
+    payload["hierarquias"] = [{"niveis": ["a", "b", "c"], "descricao": "Hierarquia: a → b → c"}]
+    payload["explicacoes_de_medidas"] = [{
+        "medida": "salario", "explicacoes": [{"atributo": "cargo", "eta_quadrado": 0.87}],
+        "descricao": "`salario` é explicada por `cargo`",
+    }]
+
+    md_path, html_path = tmp_path / "r.md", tmp_path / "r.html"
+    exportar_markdown(payload, str(md_path))
+    exportar_html(payload, str(html_path))
+
+    md = md_path.read_text(encoding="utf-8")
+    html = html_path.read_text(encoding="utf-8")
+
+    for secao in ("Principais problemas", "Regras de negócio inferidas",
+                  "Hierarquias", "O que explica cada medida"):
+        assert secao in md, f"{secao} sumiu do Markdown"
+        assert secao in html, f"{secao} falta no HTML"
+
+    assert len(re.findall(r"<h2>", html)) >= 8
+
+
+def test_aviso_de_amostragem_aparece_nos_dois_formatos(tmp_path):
+    """Regressão: o aviso existia só no Markdown, e o HTML virou o padrão.
+
+    Numa amostra a unicidade só pode ser subestimada, o que gera "chave
+    primária potencial" que não existe na base inteira — omitir isso do
+    formato padrão é o pior lugar para omitir.
+    """
+    payload = _payload()
+    payload["metadados_execucao"]["amostragem_aplicada"] = True
+
+    md, html = tmp_path / "a.md", tmp_path / "a.html"
+    exportar_markdown(payload, str(md))
+    exportar_html(payload, str(html))
+
+    assert "Amostragem aplicada" in md.read_text(encoding="utf-8")
+    assert "Amostragem aplicada" in html.read_text(encoding="utf-8")

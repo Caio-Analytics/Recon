@@ -2,8 +2,8 @@
 import pandas as pd
 import pytest
 
-from datascope import __version__, config
-from datascope.pipeline import DataProfiler
+from recon import __version__, config
+from recon.pipeline import DataProfiler
 
 from .conftest import gerar_cpfs
 

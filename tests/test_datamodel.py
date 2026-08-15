@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from datascope import datamodel
-from datascope.pipeline import DataProfiler
+from recon import datamodel
+from recon.pipeline import DataProfiler
 
 
 def _tabela(nome: str, df: pd.DataFrame, origem: str = "") -> datamodel.TabelaCarregada:

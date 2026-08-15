@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 from openpyxl import Workbook
 
-from datascope import ingestion, layout
-from datascope.pipeline import DataProfiler
+from recon import ingestion, layout
+from recon.pipeline import DataProfiler
 
 
 def _planilha_com_preambulo(caminho, com_total=True, n=200):

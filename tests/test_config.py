@@ -1,7 +1,7 @@
 """Invariantes da configuração — protege contra renomeação silenciosa."""
 import re
 
-from datascope import config
+from recon import config
 
 
 def test_padrao_email_aceita_dominio_com_multiplos_pontos():
@@ -55,10 +55,15 @@ def test_thresholds_testes_hipotese_existem():
     assert config.ALPHA_SIGNIFICANCIA == 0.05
 
 
-def test_pesos_do_score_somam_cem():
-    """Os pesos são o desconto máximo possível: se somarem mais que 100 o
-    score satura em zero antes de a última dimensão contar."""
-    assert sum(config.PESOS_SCORE_QUALIDADE.values()) == 100.0
+def test_dano_por_defeito_esta_entre_zero_e_um():
+    """O dano é por coluna, não fração do total — cada valor precisa ser
+    interpretável como 'quanto desta coluna está comprometido'."""
+    assert all(0 < v <= 1.0 for v in config.DANO_POR_DEFEITO.values())
+    assert config.DANO_POR_DEFEITO["coluna_vazia"] == 1.0
+
+
+def test_divisao_do_score_entre_coluna_e_tabela_soma_um():
+    assert config.PESO_DANO_COLUNAS + config.PESO_DANO_TABELA == 1.0
 
 
 def test_tipos_elegiveis_a_chave_excluem_decimal():
@@ -73,10 +78,7 @@ def test_sentinelas_de_texto_estao_normalizadas():
         assert valor == valor.lower().strip()
 
 
-def test_score_penaliza_abrangencia_alem_de_cada_defeito():
-    """Cada dimensão divide pelo total de colunas, então um defeito em 1 de 8
-    colunas nunca passa de 12,5% daquela dimensão. Sem uma dimensão de
-    abrangência, uma tabela com seis colunas problemáticas — cada uma com um
-    problema diferente — somava pouco em tudo e saía com nota alta."""
-    assert "colunas_com_defeito" in config.PESOS_SCORE_QUALIDADE
-    assert config.PESOS_SCORE_QUALIDADE["colunas_com_defeito"] >= 20
+def test_defeito_grave_pesa_mais_que_defeito_leve():
+    dano = config.DANO_POR_DEFEITO
+    assert dano["mojibake"] > dano["data_como_texto"]
+    assert dano["documento_invalido"] > dano["lgpd_estruturado"]

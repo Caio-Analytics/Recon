@@ -4,8 +4,8 @@ import math
 import numpy as np
 import pandas as pd
 
-from datascope import config
-from datascope.statistics import analisar_estatisticas, detectar_mistura_tipos, sugerir_dtype
+from recon import config
+from recon.statistics import analisar_estatisticas, detectar_mistura_tipos, sugerir_dtype
 
 from .conftest import gerar_cnpjs, gerar_cpfs
 
