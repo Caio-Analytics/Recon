@@ -1,27 +1,35 @@
 [project]
 name = "datascope"
-version = "2.0.0"
-description = "DataScope — profiler exploratório de dados para CSV/XLSX/XLS/XLSB com inferência semântica, testes estatísticos e recomendações de ETL."
-requires-python = ">=3.11"
+version = "3.0.0"
+description = "DataScope — profiler exploratório de dados para CSV/XLSX/XLS/XLSB com inferência semântica, testes estatísticos, detecção de sujeira de dados e recomendações de ETL."
+requires-python = ">=3.12"
 dependencies = [
     "pandas==3.0.5",
-    "numpy==2.4.6",
-    "pyarrow==25.0.0",
+    "numpy==2.5.2",
+    "pyarrow==25.0.1",
     "openpyxl==3.1.5",
     "xlrd==2.0.2",
     "pyxlsb==1.0.10",
-    "charset-normalizer==3.4.9",
+    "charset-normalizer==3.5.0",
     "rapidfuzz==3.14.5",
     "unidecode==1.4.0",
-    "scipy==1.17.1",
+    "scipy==1.18.0",
     "statsmodels==0.14.6",
+    "pyyaml==6.0.3",
     "loguru==0.7.3",
     "typer==0.27.1",
     "tqdm==4.70.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "pandas-stubs==3.0.5.260730"]
+dev = [
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "pandas-stubs==3.0.5.260730",
+    "types-PyYAML==6.0.12.20250915",
+    "mypy==1.19.1",
+    "ruff==0.15.4",
+]
 
 [project.scripts]
 datascope = "datascope.cli:app"
@@ -33,8 +41,28 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+datascope = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # comprimento de linha é responsabilidade do formatter
+    "B008",   # typer.Option no default é o idioma da biblioteca
+]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/datascope"]
+ignore_missing_imports = true
+warn_unused_ignores = true
