@@ -219,11 +219,11 @@ def gerar_script_limpeza(payload: dict[str, Any], caminho_origem: str) -> str:
     """
     meta = payload["metadados_execucao"]
     cabecalho = [
-        '"""Script de limpeza gerado pelo DataScope.',
+        '"""Script de limpeza gerado pelo Recon.',
         "",
         f"Tabela: {meta['tabela']}",
         f"Origem: {caminho_origem}",
-        f"Gerado em: {meta['timestamp_utc'][:19]} UTC (DataScope {meta['versao_profiler']})",
+        f"Gerado em: {meta['timestamp_utc'][:19]} UTC (Recon {meta['versao_profiler']})",
         "",
         "Cada passo abaixo veio de um achado do perfil e está comentado com o motivo.",
         "Revise antes de rodar: o profiler sugere, quem decide é você.",
