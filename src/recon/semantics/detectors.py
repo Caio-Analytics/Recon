@@ -45,6 +45,10 @@ for _categoria, _palavras in config.CATEGORIAS_FORTES.items():
 
 _DECAIMENTO_POSICIONAL = 0.03
 
+# Prefixo que cobre mais que isto da palavra-alvo continua sendo evidência
+# cheia; abaixo disso vira palpite proporcional ao que cobre.
+_COBERTURA_MINIMA_PREFIXO = 0.6
+
 
 @dataclass
 class PerfilConteudo:
@@ -114,42 +118,62 @@ def por_gazetteer(perfil: PerfilConteudo) -> list[Evidencia]:
     return achados
 
 
+def _qualificador_de_borda(token: str, posicao: str) -> Evidencia | None:
+    """Evidência de papel vinda do token na borda do nome da coluna.
+
+    A expansão da abreviatura conta: `vl_saque` só é reconhecido como valor
+    financeiro porque `vl` vira `valor`. Quando a expansão é ambígua, a posição
+    resolve — `des` em `REFUND_TYPE_DES` pode ser `desc`, `despesa` ou
+    `demissao`, e na ponta do nome só `desc` faz sentido como qualificador.
+    """
+    candidatos: list[tuple[str, float]] = [(token, 1.0)]
+    expansoes = expandir_abreviatura(token)
+    qualificadoras = [e for e in expansoes if e[0] in config.TOKENS_QUALIFICADORES]
+    if len(expansoes) == 1:
+        candidatos.append(expansoes[0])
+    elif len(qualificadoras) == 1:
+        candidatos.append(qualificadoras[0])
+
+    for palavra, confianca in candidatos:
+        if palavra not in config.TOKENS_QUALIFICADORES:
+            continue
+        categorias = _INDICE_TOKEN_FORTE.get(palavra, ())
+        if len(categorias) != 1:
+            continue
+        origem = (
+            f"qualificador {posicao} '{palavra}'" if palavra == token
+            else f"qualificador {posicao} '{token}' → '{palavra}'"
+        )
+        return Evidencia(categorias[0], EIXO_PAPEL, round(0.9 * confianca, 4), origem)
+    return None
+
+
 # ── 3. Nome: token forte (com abreviaturas expandidas) ──────────────────────
 
 def por_token_forte(tokens: list[str]) -> list[Evidencia]:
     """Casa os tokens do nome — e as expansões das abreviaturas — contra o
     dicionário curado.
 
-    A regra do qualificador posicional continua valendo: quando o primeiro
-    token é um qualificador conhecido (`id`, `cod`, `dt`, `nome`), ele define o
-    papel. É a convenção `<papel>_<entidade>` do português, e é o que faz
-    `id_funcionario` ser um identificador em vez de um nome de pessoa.
+    A regra do qualificador posicional continua valendo: o token na *borda* do
+    nome define o papel. As duas convenções que aparecem em sistema corporativo
+    põem o qualificador em pontas opostas — `id_funcionario`, `dt_movimento`,
+    `nome_departamento` no português; `EMPLOYEE_ID`, `SUPPLIER_CONTACT_CODE`,
+    `DEPARTMENT_NAME` no inglês. Olhar só o primeiro token classificava
+    `SUPPLIER_CONTACT_CODE` como valor financeiro, e alguém acabaria somando um
+    centro de custo.
     """
     if not tokens:
         return []
 
     evidencias: list[Evidencia] = []
 
-    # O primeiro token conta, e a sua expansão também: `vl_saque` só é
-    # reconhecido como valor financeiro porque `vl` expande para `valor`.
-    primeiro = tokens[0]
-    candidatos_primeiro = [(primeiro, 1.0)]
-    expansoes_primeiro = expandir_abreviatura(primeiro)
-    if len(expansoes_primeiro) == 1:
-        candidatos_primeiro.append(expansoes_primeiro[0])
-
-    for palavra, confianca in candidatos_primeiro:
-        if palavra not in config.TOKENS_QUALIFICADORES or palavra not in _INDICE_TOKEN_FORTE:
-            continue
-        categorias = _INDICE_TOKEN_FORTE[palavra]
-        if len(categorias) != 1:
-            continue
-        origem = (
-            f"qualificador posicional '{palavra}'" if palavra == primeiro
-            else f"qualificador posicional '{primeiro}' → '{palavra}'"
-        )
-        evidencias.append(Evidencia(categorias[0], EIXO_PAPEL, round(0.9 * confianca, 4), origem))
-        break
+    bordas = [(tokens[0], "inicial")]
+    if len(tokens) > 1:
+        bordas.append((tokens[-1], "final"))
+    for token, posicao in bordas:
+        evidencia = _qualificador_de_borda(token, posicao)
+        if evidencia is not None:
+            evidencias.append(evidencia)
 
     for indice, (palavra, confianca_expansao, original) in enumerate(tokens_expandidos(tokens)):
         for categoria in _INDICE_TOKEN_FORTE.get(palavra, ()):
@@ -168,6 +192,21 @@ def por_token_forte(tokens: list[str]) -> list[Evidencia]:
     return evidencias
 
 
+def _fator_truncagem(candidato: str, palavra: str) -> float:
+    """Desconto para o match fuzzy que é só um prefixo da palavra-alvo.
+
+    Jaro-Winkler bonifica prefixo comum de propósito, então `work` casa com
+    `workshop` a 0,9 — foi assim que `WORK_EMAIL_ADDRESS` ganhou o domínio
+    "Curso / Treinamento". Quando o candidato é prefixo estrito e cobre pouco
+    da palavra, a evidência vale o que ela cobre, exatamente como já acontece
+    na reconstrução de abreviatura por subsequência.
+    """
+    if len(candidato) >= len(palavra) or not palavra.startswith(candidato):
+        return 1.0
+    cobertura = len(candidato) / len(palavra)
+    return 1.0 if cobertura > _COBERTURA_MINIMA_PREFIXO else cobertura
+
+
 # ── 4. Nome: fuzzy contra as categorias de domínio ──────────────────────────
 
 def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
@@ -180,7 +219,15 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
     """
     melhores: dict[str, tuple[float, str]] = {}
 
-    candidatos_nome = [(nome_limpo, 1.0, nome_limpo)] + tokens_expandidos(tokens)
+    # Token que já é palavra conhecida com papel definido não entra no fuzzy de
+    # domínio: a semelhança que sobra é homógrafo, não evidência. `time` é
+    # "equipe" em português e está no vocabulário de estrutura organizacional —
+    # por isso `RECORD_UPDATE_TIME` ganhava domínio "Estrutura Organizacional"
+    # tendo papel de data com 0,96 de confiança vindo do *mesmo* token.
+    candidatos_nome = [(nome_limpo, 1.0, nome_limpo)] + [
+        c for c in tokens_expandidos(tokens)
+        if not (c[0] == c[2] and c[0] in _INDICE_TOKEN_FORTE)
+    ]
     for categoria, palavras_chave in config.CATEGORIAS_FUZZY.items():
         for palavra in palavras_chave:
             palavra_norm = normalizar(palavra)
@@ -189,9 +236,11 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
                 else config.THRESHOLD_FUZZY_PADRAO
             )
             for indice, (candidato, confianca, original) in enumerate(candidatos_nome):
-                similaridade = JaroWinkler.similarity(normalizar(candidato), palavra_norm)
+                candidato_norm = normalizar(candidato)
+                similaridade = JaroWinkler.similarity(candidato_norm, palavra_norm)
                 if similaridade < threshold:
                     continue
+                similaridade *= _fator_truncagem(candidato_norm, palavra_norm)
                 peso = 0.8 * similaridade * confianca * _peso_posicional(max(indice - 1, 0))
                 atual = melhores.get(categoria)
                 if atual is None or peso > atual[0]:

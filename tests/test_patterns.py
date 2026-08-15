@@ -224,3 +224,31 @@ def test_pii_embutida_em_frase_continua_sendo_detectada():
     cpf = gerar_cpfs(1)[0]
     amostra = [f"Cliente reclamou, CPF {cpf}"] * 5
     assert patterns.detectar_pii_em_texto_livre(amostra)["tem_pii"] is True
+
+
+def test_matricula_alfanumerica_nao_vira_telefone():
+    """Regressão real (base MDM): a regex de telefone não exigia fronteira no
+    início, então casava o trecho `9988776655` dentro da matrícula
+    `CD9988776655`. Telefone não tem letra ao lado."""
+    matriculas = ["AB000123456", "CD9988776655", "AB772104537", "EF14290712"] * 5
+    assert patterns.detectar_pii_em_texto_livre(matriculas)["tem_pii"] is False
+
+
+def test_coluna_de_codigo_sem_espaco_nao_e_texto_livre():
+    """Texto livre tem espaço; coluna de código não. Rodar a busca de PII
+    embutida num código só produz falso positivo."""
+    codigos = [f"AB{i:08d}CD" for i in range(40)]
+    assert patterns.detectar_pii_em_texto_livre(codigos)["tem_pii"] is False
+
+
+def test_telefone_em_frase_continua_sendo_detectado():
+    frases = ["Cliente ligou do 11 99999-8888 ontem", "retornar no (21) 98888-7777"] * 10
+    assert patterns.detectar_pii_em_texto_livre(frases)["tem_pii"] is True
+
+
+def test_nome_de_pessoa_e_mascarado_preservando_a_forma():
+    """Nome completo é dado pessoal sob a LGPD e não casa com nenhum padrão
+    estruturado — ia para o relatório em claro."""
+    mascarado = patterns.mascarar_nome_pessoa("MARIANA OLIVEIRA DOS SANTOS")
+    assert mascarado == "M****** O******* D** S*****"
+    assert "AMANDA" not in mascarado

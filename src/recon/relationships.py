@@ -156,11 +156,12 @@ def analisar_duplicatas(df: pd.DataFrame) -> dict[str, Any]:
 # ── Colunas redundantes ─────────────────────────────────────────────────────
 
 def detectar_colunas_redundantes(df: pd.DataFrame) -> list[dict[str, Any]]:
-    """Encontra colunas com conteúdo idêntico linha a linha.
+    """Encontra colunas com conteúdo idêntico — e quase idêntico — linha a linha.
 
     Compara primeiro por hash agregado (O(n) por coluna) e só confirma com
     igualdade elemento a elemento dentro de cada balde — evita o O(k²) de
-    comparar todos os pares.
+    comparar todos os pares. O quase-idêntico, que o hash não pega, sai da
+    varredura podada em `_detectar_redundancia_parcial`.
     """
     if df.shape[1] < 2:
         return []
@@ -173,18 +174,83 @@ def detectar_colunas_redundantes(df: pd.DataFrame) -> list[dict[str, Any]]:
         baldes.setdefault(assinatura, []).append(str(coluna))
 
     redundantes: list[dict[str, Any]] = []
+    exatas: set[frozenset[str]] = set()
     for colunas in baldes.values():
         if len(colunas) < 2:
             continue
         principal = colunas[0]
         for outra in colunas[1:]:
             if df[principal].equals(df[outra]):
+                exatas.add(frozenset((principal, outra)))
                 redundantes.append({
                     "coluna": principal,
                     "coluna_redundante": outra,
+                    "tipo": "idêntica",
+                    "concordancia": 1.0,
                     "descricao": f"'{outra}' é idêntica a '{principal}' — candidata a remoção.",
                 })
-    return redundantes
+
+    return redundantes + _detectar_redundancia_parcial(df, exatas)
+
+
+def _detectar_redundancia_parcial(
+    df: pd.DataFrame, exatas: set[frozenset[str]]
+) -> list[dict[str, Any]]:
+    """Colunas que carregam o mesmo dado mas divergem em algumas linhas.
+
+    Numa base consolidada de vários sistemas, o par 93% igual vale mais que o
+    par 100% igual: o idêntico é só uma coluna sobrando, o quase-idêntico é o
+    mesmo campo vindo de duas origens — e as linhas divergentes são a lista de
+    reconciliação que a pessoa ia ter que montar na mão.
+
+    O par a par é podado antes de tocar no dado: só entram colunas do mesmo
+    tipo e com cardinalidade parecida, porque duas colunas que representam o
+    mesmo campo não podem ter contagens de distintos muito diferentes.
+    """
+    candidatas = [
+        (str(c), int(df[c].nunique(dropna=True)), str(df[c].dtype))
+        for c in df.columns
+    ]
+    candidatas = [c for c in candidatas if c[1] > 1]
+
+    pares: list[tuple[str, str]] = []
+    for i, (nome_a, unicos_a, dtype_a) in enumerate(candidatas):
+        for nome_b, unicos_b, dtype_b in candidatas[i + 1:]:
+            if dtype_a != dtype_b or frozenset((nome_a, nome_b)) in exatas:
+                continue
+            if min(unicos_a, unicos_b) / max(unicos_a, unicos_b) < config.REDUNDANCIA_PARCIAL_MINIMA:
+                continue
+            pares.append((nome_a, nome_b))
+
+    if len(pares) > config.REDUNDANCIA_PARCIAL_MAX_PARES:
+        return []
+
+    achados: list[dict[str, Any]] = []
+    for nome_a, nome_b in pares:
+        ambos_preenchidos = df[nome_a].notna() & df[nome_b].notna()
+        n_comparaveis = int(ambos_preenchidos.sum())
+        if n_comparaveis == 0:
+            continue
+        iguais = int((df.loc[ambos_preenchidos, nome_a] == df.loc[ambos_preenchidos, nome_b]).sum())
+        concordancia = iguais / n_comparaveis
+        if concordancia < config.REDUNDANCIA_PARCIAL_MINIMA:
+            continue
+        divergentes = n_comparaveis - iguais
+        achados.append({
+            "coluna": nome_a,
+            "coluna_redundante": nome_b,
+            "tipo": "quase idêntica",
+            "concordancia": round(concordancia, 4),
+            "linhas_comparadas": n_comparaveis,
+            "linhas_divergentes": divergentes,
+            "descricao": (
+                f"'{nome_b}' concorda com '{nome_a}' em {concordancia:.1%} das "
+                f"{n_comparaveis:,} linhas com ambos preenchidos — provável mesmo dado "
+                f"de origens diferentes. As {divergentes:,} linhas divergentes são o "
+                f"trabalho de reconciliação."
+            ),
+        })
+    return sorted(achados, key=lambda a: -a["concordancia"])
 
 
 # ── Chave composta ──────────────────────────────────────────────────────────

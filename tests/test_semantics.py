@@ -235,3 +235,73 @@ def test_coluna_com_apenas_dominio_entra_no_contexto():
     """`diretoria` não tem papel nenhum — ausência de evidência não é
     ambiguidade, e ela precisa contar como contexto resolvido."""
     assert inferir_semantica("diretoria")["conclusiva"] is True
+
+
+def test_token_conhecido_nao_e_expandido_como_abreviatura():
+    """Regressão real (base MDM): `name` é subsequência de `nascimento`
+    (n-a-s-c-i-M-E-n-t-o), então a coluna `FULL_NAME` era classificada como
+    "Data / Calendário" — a expansão especulativa (0,39) vencia o match
+    literal do mesmo token (0,37).
+
+    Um token que já é palavra conhecida do vocabulário não abrevia nada.
+    """
+    assert expandir_abreviatura("name") == ()
+    assert inferir_semantica("FULL_NAME")["semantica"] == "Nome / Identificação Pessoal"
+
+
+def test_abreviatura_de_verdade_continua_expandindo():
+    """A guarda acima não pode desligar a expansão útil."""
+    for abreviatura, esperado in (("dpto", "departamento"), ("mvto", "movimento"),
+                                  ("nasc", "nascimento"), ("vl", "valor")):
+        assert esperado in [p for p, _ in expandir_abreviatura(abreviatura)]
+
+
+def test_qualificador_na_ponta_final_define_o_papel():
+    """Nomenclatura inglesa põe o qualificador no fim (`SUPPLIER_CONTACT_CODE`),
+    a portuguesa no início (`id_funcionario`). Olhar só o início classificava
+    `SUPPLIER_CONTACT_CODE` como valor financeiro — dá para somar centro de custo.
+    """
+    for coluna in ("SUPPLIER_CONTACT_CODE", "WAREHOUSE_ACCESS_IDENTIFIER",
+                   "SHIPPING_MANAGER_IDEN", "PROJECT_BUDGET_CODE"):
+        assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_CHAVE_ID, coluna
+    assert inferir_semantica("id_funcionario")["papel"] == config.SEMANTICA_CHAVE_ID
+
+
+def test_expansao_ambigua_na_borda_resolve_pelo_papel():
+    """`des` expande para desc/despesa/demissao. Na ponta do nome só `desc`
+    faz sentido: `REFUND_TYPE_DES` não é uma despesa."""
+    assert inferir_semantica("REFUND_TYPE_DES")["papel"] != "Valor Financeiro"
+
+
+def test_nome_de_coisa_nao_e_nome_de_pessoa():
+    """O domínio separa `FULL_NAME` de `DEPARTMENT_NAME` — ambos terminam no
+    mesmo qualificador, mas nome de departamento não é dado pessoal."""
+    assert inferir_semantica("FULL_NAME")["papel"] == config.SEMANTICA_NOME_PESSOA
+    for coluna in ("DEPARTMENT_NAME", "POSITION_NAME"):
+        assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_ROTULO_ENTIDADE, coluna
+
+
+def test_descricao_com_poucos_valores_vira_categoria():
+    """`JOB_DESCRIPTION` com milhares de valores é texto; `TYPE_DESC` com 4
+    valores em 79 mil linhas é dimensão, e quem modela precisa da diferença."""
+    poucos = PerfilConteudo(tipo_dados="Texto", n_unicos=4, ratio_unicidade=0.00005)
+    muitos = PerfilConteudo(tipo_dados="Texto", n_unicos=9000, ratio_unicidade=0.7)
+    assert inferir_semantica("SHIFT_TYPE_DESC", perfil=poucos)["papel"] == \
+        config.SEMANTICA_CATEGORIA
+    assert inferir_semantica("JOB_DESCRIPTION", perfil=muitos)["papel"] == \
+        config.SEMANTICA_TEXTO_LIVRE
+
+
+def test_homografo_com_papel_forte_nao_gera_dominio():
+    """`time` é "equipe" em português e está no vocabulário de estrutura
+    organizacional. Em `RECORD_UPDATE_TIME` o mesmo token já resolveu o papel
+    como data com alta confiança — a semelhança que sobra é homógrafo."""
+    resultado = inferir_semantica("RECORD_UPDATE_TIME")
+    assert resultado["papel"] == config.SEMANTICA_DATA_CALENDARIO
+    assert resultado["dominio"] != "Estrutura Organizacional"
+
+
+def test_prefixo_curto_nao_casa_com_palavra_longa():
+    """Jaro-Winkler bonifica prefixo comum, então `work` casava com `workshop`
+    a 0,9 e `WORK_EMAIL_ADDRESS` ganhava domínio "Curso / Treinamento"."""
+    assert inferir_semantica("WORK_EMAIL_ADDRESS")["dominio"] != "Curso / Treinamento"

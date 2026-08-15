@@ -83,7 +83,37 @@ def _coletar_evidencias(
     return evidencias
 
 
-def _montar_resultado(evidencias: list[Evidencia]) -> dict[str, Any]:
+def _refinar_papel(papel: str | None, dominio: str | None, perfil: PerfilConteudo | None) -> str | None:
+    """Ajusta o papel com o que os outros dois sinais já sabem.
+
+    O eixo de domínio e a cardinalidade da coluna carregam informação que o
+    nome sozinho não dá, e são eles que separam dois pares que o motor
+    confundia:
+
+    - **nome de gente × nome de coisa** — `FULL_NAME` e `DEPARTMENT_NAME` têm o
+      mesmo qualificador. O que os separa é o domínio: departamento é estrutura
+      organizacional, e nome de departamento não é dado pessoal.
+    - **descrição × categoria** — `JOB_DESCRIPTION` (milhares de valores) é
+      texto livre; `SHIFT_TYPE_DESC` (4 valores em 79 mil linhas) é uma
+      dimensão. Quem vai modelar precisa dessa diferença, e ela está no dado,
+      não no nome.
+    """
+    if papel == config.SEMANTICA_NOME_PESSOA:
+        if dominio is not None and dominio not in config.DOMINIOS_DE_PESSOA:
+            return config.SEMANTICA_ROTULO_ENTIDADE
+    elif papel == config.SEMANTICA_TEXTO_LIVRE and perfil is not None:
+        cardinalidade_de_dimensao = (
+            1 < perfil.n_unicos <= config.CARDINALIDADE_MAX_CATEGORIA
+            and perfil.ratio_unicidade < 0.5
+        )
+        if cardinalidade_de_dimensao:
+            return config.SEMANTICA_CATEGORIA
+    return papel
+
+
+def _montar_resultado(
+    evidencias: list[Evidencia], perfil: PerfilConteudo | None = None
+) -> dict[str, Any]:
     ranking_papel = ranquear(evidencias, EIXO_PAPEL)
     ranking_dominio = ranquear(evidencias, EIXO_DOMINIO)
 
@@ -98,6 +128,8 @@ def _montar_resultado(evidencias: list[Evidencia]) -> dict[str, Any]:
     dominio_incerto = dominio is not None and conf_dominio < _CONFIANCA_MINIMA_DOMINIO
     if dominio_incerto:
         dominio, conf_dominio, origem_dominio = None, 0.0, "Sem evidência"
+
+    papel = _refinar_papel(papel, dominio, perfil)
 
     # O papel estrutural manda porque é ele que decide o tratamento no
     # pipeline. Papel "fraco" (Nome, Texto Descritivo) descreve a forma e não
@@ -144,7 +176,7 @@ def inferir_semantica(
     `perfil` habilita os detectores de conteúdo (gazetteer e assinatura
     estrutural) — sem ele a inferência é só pelo nome, como antes.
     """
-    return _montar_resultado(_coletar_evidencias(nome_col, detectado_padrao, perfil))
+    return _montar_resultado(_coletar_evidencias(nome_col, detectado_padrao, perfil), perfil)
 
 
 def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -164,7 +196,7 @@ def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[st
             str(entrada["nome"]), entrada.get("padrao", "Nenhum"), entrada.get("perfil")
         )
         evidencias_por_coluna.append(evidencias)
-        resultados.append(_montar_resultado(evidencias))
+        resultados.append(_montar_resultado(evidencias, entrada.get("perfil")))
 
     contexto = _perfil_de_assunto(resultados)
     if not contexto:
@@ -176,7 +208,9 @@ def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[st
         extras = por_contexto_da_tabela(tokenizar(str(entrada["nome"])), contexto)
         if not extras:
             continue
-        resultados[indice] = _montar_resultado(evidencias_por_coluna[indice] + extras)
+        resultados[indice] = _montar_resultado(
+            evidencias_por_coluna[indice] + extras, entrada.get("perfil")
+        )
 
     return resultados
 

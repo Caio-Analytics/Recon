@@ -19,6 +19,15 @@ SCHEMA_VERSION: str = "3.0"
 SEMANTICA_GENERICA: str = "Genérico / Não mapeado"
 SEMANTICA_DATA_CALENDARIO: str = "Data / Calendário"
 SEMANTICA_CHAVE_ID: str = "Chave Identificadora (ID)"
+SEMANTICA_TEXTO_LIVRE: str = "Texto Descritivo Livre"
+SEMANTICA_NOME_PESSOA: str = "Nome / Identificação Pessoal"
+# Nome *de coisa*: `DEPARTMENT_NAME`, `POSITION_NAME`. Sem este papel, tudo que
+# terminava em `_NAME` virava nome de pessoa e a coluna entrava no relatório
+# como candidata a dado pessoal LGPD sem ser.
+SEMANTICA_ROTULO_ENTIDADE: str = "Rótulo / Nome de Entidade"
+# Coluna de descrição com poucos valores distintos é categoria, não texto: quem
+# vai modelar precisa saber que aquilo vira dimensão, não campo livre.
+SEMANTICA_CATEGORIA: str = "Categoria / Classificação"
 TIPO_DATA_HORA: str = "Data / Hora"
 TIPO_VAZIO: str = "Vazio / Sem Tipo Definido"
 
@@ -160,6 +169,14 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
         "classe", "faixa", "perfil", "role", "position", "job",
         "title", "occupation",
     ],
+    # Domínio financeiro separado do *papel* "Valor Financeiro": `cost_center_code`
+    # é uma chave (papel) que fala de custo (domínio). Sem esta categoria, a
+    # evidência de `cost` só tinha o eixo de papel para disputar, e a coluna
+    # saía como valor monetário — pronta para alguém somar um centro de custo.
+    "Financeiro / Custo": [
+        "custo", "cost", "centro de custo", "despesa", "orcamento", "budget",
+        "financeiro", "finance", "contabil", "fiscal", "conta", "rateio",
+    ],
     "Curso / Treinamento": [
         "curso", "treinamento", "capacitacao", "formacao", "modulo",
         "trilha", "programa", "workshop", "disciplina", "tema",
@@ -186,6 +203,14 @@ TOKENS_QUALIFICADORES: frozenset[str] = frozenset({
 # quando as duas categorias competem.
 PESO_TOKEN_QUALIFICADOR: float = 0.45
 PESO_TOKEN_ENTIDADE: float = 1.0
+
+# Domínios que falam de gente. Só neles um papel "Nome" é nome de pessoa: em
+# `DEPARTMENT_NAME` (Estrutura Organizacional) o nome é de um departamento.
+DOMINIOS_DE_PESSOA: frozenset[str] = frozenset({"Perfil do Colaborador"})
+
+# Acima desta cardinalidade a coluna deixa de ser categoria e vira texto de
+# verdade. 79 mil linhas com 4 valores distintos são uma dimensão.
+CARDINALIDADE_MAX_CATEGORIA: int = 100
 
 # ── Padrões de data e estruturados ──────────────────────────────────────────
 PADROES_DATA: list[str] = [
@@ -226,6 +251,14 @@ TIPOS_ELEGIVEIS_CHAVE: frozenset[str] = frozenset({"Número Inteiro", "Texto", "
 
 # ── Correlação entre colunas ────────────────────────────────────────────────
 CORRELACAO_MIN_ABS: float = 0.7
+
+# ── Redundância parcial entre colunas ───────────────────────────────────────
+# Duas colunas iguais em 93% das linhas não são duplicata exata, e é
+# exatamente aí que mora a informação: são o mesmo dado vindo de dois sistemas,
+# e as 7% divergentes são o trabalho de reconciliação. O detector de igualdade
+# exata passava direto por elas.
+REDUNDANCIA_PARCIAL_MINIMA: float = 0.9
+REDUNDANCIA_PARCIAL_MAX_PARES: int = 400
 CORRELACAO_MAX_CARDINALIDADE_CAT: int = 50
 CORRELACAO_MIN_N: int = 30
 

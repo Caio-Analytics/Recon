@@ -153,3 +153,18 @@ def test_formato_invalido_levanta_value_error(tmp_path):
 
     with pytest.raises(ValueError, match="inválido"):
         DataProfiler().processar_arquivo(str(caminho), formatos=["pdf"])
+
+
+def test_coluna_de_nome_sai_do_relatorio_mascarada():
+    """Regressão real (base MDM): 79 mil nomes de funcionários saíam em claro
+    na amostra, com `Dado_Sensivel_LGPD: Nenhum`."""
+    df = pd.DataFrame({
+        "FULL_NAME": [f"MARIA SOUZA {i}" for i in range(60)],
+        "VALOR": range(60),
+    })
+    resultado = DataProfiler().processar_dataframe(df, "cadastro")
+    nome = next(c for c in resultado["colunas"] if c["Coluna"] == "FULL_NAME")
+
+    assert nome["Dado_Sensivel_LGPD"] == "Nome de pessoa"
+    assert "MARIA" not in nome["Amostra_Valores"]
+    assert "M****" in nome["Amostra_Valores"]
