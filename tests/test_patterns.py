@@ -1,6 +1,6 @@
 import pandas as pd
 
-from datascope import patterns
+from recon import patterns
 
 from .conftest import gerar_cnpjs, gerar_cpfs
 

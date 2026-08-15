@@ -1,6 +1,6 @@
 import re
 
-from datascope import config
+from recon import config
 
 
 def test_padrao_email_aceita_dominio_com_multiplos_pontos():
@@ -50,8 +50,13 @@ def test_thresholds_testes_hipotese_existem():
     assert config.ALPHA_SIGNIFICANCIA == 0.05
 
 
-def test_pesos_do_score_somam_cem():
-    assert sum(config.PESOS_SCORE_QUALIDADE.values()) == 100.0
+def test_dano_por_defeito_esta_entre_zero_e_um():
+    assert all(0 < v <= 1.0 for v in config.DANO_POR_DEFEITO.values())
+    assert config.DANO_POR_DEFEITO["coluna_vazia"] == 1.0
+
+
+def test_divisao_do_score_entre_coluna_e_tabela_soma_um():
+    assert config.PESO_DANO_COLUNAS + config.PESO_DANO_TABELA == 1.0
 
 
 def test_tipos_elegiveis_a_chave_excluem_decimal():
@@ -64,6 +69,7 @@ def test_sentinelas_de_texto_estao_normalizadas():
         assert valor == valor.lower().strip()
 
 
-def test_score_penaliza_abrangencia_alem_de_cada_defeito():
-    assert "colunas_com_defeito" in config.PESOS_SCORE_QUALIDADE
-    assert config.PESOS_SCORE_QUALIDADE["colunas_com_defeito"] >= 20
+def test_defeito_grave_pesa_mais_que_defeito_leve():
+    dano = config.DANO_POR_DEFEITO
+    assert dano["mojibake"] > dano["data_como_texto"]
+    assert dano["documento_invalido"] > dano["lgpd_estruturado"]

@@ -1,7 +1,7 @@
 import pytest
 
-from datascope import config
-from datascope.semantics import (
+from recon import config
+from recon.semantics import (
     PerfilConteudo,
     expandir_abreviatura,
     inferir_semantica,
