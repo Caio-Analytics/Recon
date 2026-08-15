@@ -1,5 +1,12 @@
 # Data Profiler v2 — Fase 1: Estabilização, Consolidação e Upgrade
 
+> ⚠️ **DOCUMENTO HISTÓRICO — SUPERADO.**
+> Este spec descreve a Fase 1 (v2.0), concluída. A arquitetura, os
+> módulos e as decisões descritas aqui **não refletem mais o código**.
+> Para o estado atual, veja `docs/superpowers/specs/2026-08-15-datascope-v3-design.md`.
+> Mantido como registro do que foi decidido e por quê.
+
+
 Data: 2026-08-05
 Status: Aprovado para planejamento de implementação
 

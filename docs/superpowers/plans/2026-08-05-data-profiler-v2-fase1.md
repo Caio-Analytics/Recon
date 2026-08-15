@@ -1,5 +1,12 @@
 # Data Profiler v2 — Fase 1 Implementation Plan
 
+> ⚠️ **DOCUMENTO HISTÓRICO — SUPERADO.**
+> Este plano descreve a Fase 1 (v2.0), concluída. A arquitetura, os
+> módulos e as decisões descritas aqui **não refletem mais o código**.
+> Para o estado atual, veja `docs/superpowers/specs/2026-08-15-datascope-v3-design.md`.
+> Mantido como registro do que foi decidido e por quê.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Substituir os 5 scripts soltos e duplicados (`Profiller.py`, `statistical_profiler.py`, `semantic_engine.py`, `profiling_orchestrator.py`, `batch_profiler.py`) por um único pacote Python instalável (`data_profiler/`), correto, testado, com dependências modernas e com os testes estatísticos que hoje só existem no docstring.
