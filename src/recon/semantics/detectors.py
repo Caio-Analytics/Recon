@@ -39,7 +39,9 @@ _DECAIMENTO_POSICIONAL = 0.03
 
 
 
-_COBERTURA_MINIMA_PREFIXO = 0.6
+
+
+_COBERTURA_MINIMA_PREFIXO = 0.7
 
 
 @dataclass
@@ -187,7 +189,20 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
                 if similaridade < threshold:
                     continue
                 similaridade *= _fator_truncagem(candidato_norm, palavra_norm)
-                peso = 0.8 * similaridade * confianca * _peso_posicional(max(indice - 1, 0))
+                
+                
+                
+                
+                
+                
+                peso_qualificador = (
+                    config.PESO_TOKEN_QUALIFICADOR if original in config.TOKENS_QUALIFICADORES
+                    else 1.0
+                )
+                peso = (
+                    0.8 * similaridade * confianca * peso_qualificador
+                    * _peso_posicional(max(indice - 1, 0))
+                )
                 atual = melhores.get(categoria)
                 if atual is None or peso > atual[0]:
                     origem = (

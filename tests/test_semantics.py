@@ -263,3 +263,17 @@ def test_prefixo_curto_nao_casa_com_palavra_longa():
 def test_nome_de_produto_nao_e_nome_de_pessoa():
     assert inferir_semantica("NOME_PRODUTO")["papel"] == config.SEMANTICA_ROTULO_ENTIDADE
     assert inferir_semantica("NOME_CLIENTE")["papel"] == config.SEMANTICA_NOME_PESSOA
+
+
+def test_marca_de_produto_nao_vira_matricula():
+    resultado = inferir_semantica("MARCA_PRODUTO")
+    assert resultado["papel"] != config.SEMANTICA_CHAVE_ID
+    assert resultado["dominio"] == "Produto / Item"
+
+
+def test_qualificador_generico_perde_para_palavra_de_dominio_no_fuzzy():
+    assert inferir_semantica("CATEGORIA_PRODUTO")["dominio"] == "Produto / Item"
+
+
+def test_sufixo_de_unidade_de_duracao_vence_palavra_ambigua():
+    assert inferir_semantica("PRAZO_ENTREGA_DIAS")["papel"] == "Quantidade / Métrica"

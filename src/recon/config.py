@@ -115,7 +115,7 @@ CATEGORIAS_FORTES: dict[str, list[str]] = {
         "comissao", "honorario", "verba", "provisao", "encargo",
     ],
     "Quantidade / Métrica": [
-        "qtd", "quantidade", "count", "total", "volume", "horas", "carga",
+        "qtd", "quantidade", "count", "total", "volume", "horas", "dias", "carga",
         "duracao", "frequencia", "score", "nota", "percentual", "pct",
         "indice", "taxa", "ratio", "proporcao", "media",
     ],
@@ -166,6 +166,7 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
     "Produto / Item": [
         "product", "item", "sku", "merchandise", "produto", "mercadoria",
         "insumo", "material", "ativo", "equipamento", "veiculo", "artigo",
+        "marca", "brand", "modelo", "model",
     ],
     "Cargo / Função": [
         "cargo", "funcao", "nivel", "grade", "posicao", "categoria",
@@ -199,6 +200,11 @@ TOKENS_QUALIFICADORES: frozenset[str] = frozenset({
     "tipo", "type", "categoria", "class", "flag", "flg", "status",
     "qtd", "quantidade", "total", "vlr", "valor", "pct", "percentual",
     "dt", "date", "data", "hora", "time", "timestamp",
+    
+    
+    
+    
+    "dias",
 })
 
 
