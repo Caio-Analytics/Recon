@@ -315,3 +315,27 @@ def test_nome_de_produto_nao_e_nome_de_pessoa():
     """
     assert inferir_semantica("NOME_PRODUTO")["papel"] == config.SEMANTICA_ROTULO_ENTIDADE
     assert inferir_semantica("NOME_CLIENTE")["papel"] == config.SEMANTICA_NOME_PESSOA
+
+
+def test_marca_de_produto_nao_vira_matricula():
+    """`marca` é subsequência de `matricula` (m-a-t-r-i-c-u-l-a) e não tinha
+    domínio cadastrado, então a mesma classe de bug do `NOME_PRODUTO` fazia
+    `MARCA_PRODUTO` virar Chave Identificadora via abreviatura especulativa."""
+    resultado = inferir_semantica("MARCA_PRODUTO")
+    assert resultado["papel"] != config.SEMANTICA_CHAVE_ID
+    assert resultado["dominio"] == "Produto / Item"
+
+
+def test_qualificador_generico_perde_para_palavra_de_dominio_no_fuzzy():
+    """`categoria` está cadastrado como palavra-chave de "Cargo / Função", mas
+    também é qualificador estrutural genérico (aparece em toda tabela).
+    `CATEGORIA_PRODUTO` empatava os dois domínios por match exato de nome —
+    o qualificador não pode competir em pé de igualdade com a palavra que
+    nomeia a entidade de verdade."""
+    assert inferir_semantica("CATEGORIA_PRODUTO")["dominio"] == "Produto / Item"
+
+
+def test_sufixo_de_unidade_de_duracao_vence_palavra_ambigua():
+    """`prazo` é data em muitos contextos (`data de prazo`), mas
+    `PRAZO_ENTREGA_DIAS` termina em `dias` — unidade de contagem, não data."""
+    assert inferir_semantica("PRAZO_ENTREGA_DIAS")["papel"] == "Quantidade / Métrica"
