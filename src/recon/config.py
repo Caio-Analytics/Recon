@@ -164,6 +164,16 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
         "genero", "nacionalidade", "idade", "raca", "escolaridade",
         "deficiencia", "etnia",
     ],
+    # Sem este domínio, `NOME_PRODUTO` não tinha nenhuma categoria de domínio
+    # para competir com "Perfil do Colaborador" vazio, e o papel "Nome" caía
+    # no default de nome de pessoa — mesmo bug de `DEPARTMENT_NAME`, só que
+    # sem um domínio já cadastrado para resolvê-lo. Qualquer "nome de coisa"
+    # que caia fora dos domínios já cadastrados ainda tem esse risco; este é o
+    # caso mais comum (produto/item/SKU), não uma cobertura exaustiva.
+    "Produto / Item": [
+        "product", "item", "sku", "merchandise", "produto", "mercadoria",
+        "insumo", "material", "ativo", "equipamento", "veiculo", "artigo",
+    ],
     "Cargo / Função": [
         "cargo", "funcao", "nivel", "grade", "posicao", "categoria",
         "classe", "faixa", "perfil", "role", "position", "job",
@@ -279,7 +289,8 @@ DANO_POR_DEFEITO: dict[str, float] = {
     "pii_texto_livre": 0.60,       # bloqueia o uso da coluna até anonimizar
     "inconsistencia_texto": 0.50,  # qualquer GROUP BY divide o mesmo grupo
     "data_como_texto": 0.40,       # utilizável, mas sem filtro nem JOIN temporal
-    "lgpd_estruturado": 0.20,      # tratável, é risco e não erro
+    # `lgpd_estruturado` saiu daqui: exposição de dado pessoal é risco, não
+    # defeito de qualidade, e virou score próprio (`calcular_risco_lgpd`).
 }
 
 # Nulo é contínuo: entra proporcional ao percentual da coluna.

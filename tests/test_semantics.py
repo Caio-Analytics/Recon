@@ -305,3 +305,13 @@ def test_prefixo_curto_nao_casa_com_palavra_longa():
     """Jaro-Winkler bonifica prefixo comum, então `work` casava com `workshop`
     a 0,9 e `WORK_EMAIL_ADDRESS` ganhava domínio "Curso / Treinamento"."""
     assert inferir_semantica("WORK_EMAIL_ADDRESS")["dominio"] != "Curso / Treinamento"
+
+
+def test_nome_de_produto_nao_e_nome_de_pessoa():
+    """Regressão real: `NOME_PRODUTO` não tinha domínio cadastrado para
+    competir com o default, e caía no mesmo bug que `DEPARTMENT_NAME` — só
+    que sem um domínio pronto para resolvê-lo. Apareceria como "Nome de
+    pessoa" no alerta de exposição LGPD sendo o nome de um item de catálogo.
+    """
+    assert inferir_semantica("NOME_PRODUTO")["papel"] == config.SEMANTICA_ROTULO_ENTIDADE
+    assert inferir_semantica("NOME_CLIENTE")["papel"] == config.SEMANTICA_NOME_PESSOA
