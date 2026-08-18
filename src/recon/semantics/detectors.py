@@ -46,8 +46,10 @@ for _categoria, _palavras in config.CATEGORIAS_FORTES.items():
 _DECAIMENTO_POSICIONAL = 0.03
 
 # Prefixo que cobre mais que isto da palavra-alvo continua sendo evidência
-# cheia; abaixo disso vira palpite proporcional ao que cobre.
-_COBERTURA_MINIMA_PREFIXO = 0.6
+# cheia; abaixo disso vira palpite proporcional ao que cobre. 0,7 é o piso —
+# `forma` cobre 0,625 de `formacao` e ainda assim é uma palavra comum demais
+# para valer como evidência plena de "Curso / Treinamento".
+_COBERTURA_MINIMA_PREFIXO = 0.7
 
 
 @dataclass
@@ -241,7 +243,20 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
                 if similaridade < threshold:
                     continue
                 similaridade *= _fator_truncagem(candidato_norm, palavra_norm)
-                peso = 0.8 * similaridade * confianca * _peso_posicional(max(indice - 1, 0))
+                # Token que já é qualificador estrutural (`categoria`, `tipo`,
+                # `status`) pesa menos como evidência de domínio, do mesmo jeito
+                # que já pesa menos como evidência de papel: é genérico demais
+                # para decidir sozinho. Sem isso, `CATEGORIA_PRODUTO` empatava
+                # "Cargo / Função" (de `categoria`) com "Produto / Item" (de
+                # `produto`) e o desempate virava sorte de posição.
+                peso_qualificador = (
+                    config.PESO_TOKEN_QUALIFICADOR if original in config.TOKENS_QUALIFICADORES
+                    else 1.0
+                )
+                peso = (
+                    0.8 * similaridade * confianca * peso_qualificador
+                    * _peso_posicional(max(indice - 1, 0))
+                )
                 atual = melhores.get(categoria)
                 if atual is None or peso > atual[0]:
                     origem = (
