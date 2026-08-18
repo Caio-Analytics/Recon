@@ -258,3 +258,8 @@ def test_homografo_com_papel_forte_nao_gera_dominio():
 
 def test_prefixo_curto_nao_casa_com_palavra_longa():
     assert inferir_semantica("WORK_EMAIL_ADDRESS")["dominio"] != "Curso / Treinamento"
+
+
+def test_nome_de_produto_nao_e_nome_de_pessoa():
+    assert inferir_semantica("NOME_PRODUTO")["papel"] == config.SEMANTICA_ROTULO_ENTIDADE
+    assert inferir_semantica("NOME_CLIENTE")["papel"] == config.SEMANTICA_NOME_PESSOA

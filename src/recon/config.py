@@ -157,6 +157,16 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
         "genero", "nacionalidade", "idade", "raca", "escolaridade",
         "deficiencia", "etnia",
     ],
+    
+    
+    
+    
+    
+    
+    "Produto / Item": [
+        "product", "item", "sku", "merchandise", "produto", "mercadoria",
+        "insumo", "material", "ativo", "equipamento", "veiculo", "artigo",
+    ],
     "Cargo / Função": [
         "cargo", "funcao", "nivel", "grade", "posicao", "categoria",
         "classe", "faixa", "perfil", "role", "position", "job",
@@ -272,7 +282,8 @@ DANO_POR_DEFEITO: dict[str, float] = {
     "pii_texto_livre": 0.60,       
     "inconsistencia_texto": 0.50,  
     "data_como_texto": 0.40,       
-    "lgpd_estruturado": 0.20,      
+    
+    
 }
 
 
