@@ -15,17 +15,18 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__
+from .ingestion import EXTENSOES_DESCOBERTAS
 
 console = Console()
 
-_EXTENSOES = frozenset({".csv", ".xlsx", ".xls", ".xlsb"})
+_EXTENSOES = frozenset(EXTENSOES_DESCOBERTAS)
 _MAX_LISTADOS = 12
 
 
 def _achar_arquivos(pasta: Path) -> list[Path]:
     return sorted(
         p for p in pasta.iterdir()
-        if p.is_file() and p.suffix.lower() in _EXTENSOES
+        if p.is_file() and str(p).lower().endswith(tuple(_EXTENSOES))
     )
 
 
