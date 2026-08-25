@@ -107,10 +107,16 @@ def sugerir_dtype(
         numericos = pd.to_numeric(serie.dropna(), errors="coerce").dropna()
         if not numericos.empty:
             minimo, maximo = float(numericos.min()), float(numericos.max())
+            # Com um nulo que seja, o pandas guarda inteiros como float64 e o
+            # `astype("int16")` estoura no NaN — a sugestão morria no `except` e
+            # a coluna ficava sem recomendação nenhuma. O dtype nullable do
+            # pandas (`Int16`) tem o mesmo intervalo e aceita ausência, e coluna
+            # inteira com nulo é a regra, não a exceção.
+            tem_nulo = bool(serie.isna().any())
             for nome_tipo in ("int8", "int16", "int32"):
                 info = np.iinfo(nome_tipo)
                 if minimo >= info.min and maximo <= info.max:
-                    sugerido = nome_tipo
+                    sugerido = nome_tipo.capitalize() if tem_nulo else nome_tipo
                     break
     elif tipo_amigavel == "Número Decimal":
         if dtype_atual == "float64":
@@ -490,6 +496,11 @@ def analisar_estatisticas(
                 qualidade["inconsistencia_normalizacao"] = (
                     patterns.detectar_inconsistencia_normalizacao(contagens)
                 )
+            # Formato dominante: cobre a família de códigos que não é CPF nem
+            # CNPJ — matrícula, código de produto, número de contrato — em que
+            # o achado não é o formato, é a lista de quem foge dele.
+            if not sensivel and not flag_data_como_texto:
+                qualidade["formato"] = patterns.inferir_formato(amostra_str)
 
     # ── Consolidação ────────────────────────────────────────────────────
     ratio_unicidade = n_unicos / total_linhas if total_linhas > 0 else 0.0
