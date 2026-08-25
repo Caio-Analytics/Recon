@@ -72,4 +72,8 @@ def test_sentinelas_de_texto_estao_normalizadas():
 def test_defeito_grave_pesa_mais_que_defeito_leve():
     dano = config.DANO_POR_DEFEITO
     assert dano["mojibake"] > dano["data_como_texto"]
-    assert dano["documento_invalido"] > dano["lgpd_estruturado"]
+    assert dano["documento_invalido"] > dano["inconsistencia_texto"]
+
+
+def test_exposicao_de_dado_pessoal_nao_e_defeito_de_qualidade():
+    assert "lgpd_estruturado" not in config.DANO_POR_DEFEITO
