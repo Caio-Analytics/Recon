@@ -15,6 +15,18 @@ Sem argumento nenhum, abre um menu que pergunta onde estão os arquivos, o que
 você quer fazer e onde salvar. Dar Enter em tudo funciona. É o caminho
 recomendado para quem usa a ferramenta esporadicamente.
 
+E se nem o terminal você quiser:
+
+```bash
+recon janela
+```
+
+Abre a versão em janela — os modos numa lista à esquerda, "Procurar…" abrindo
+o Explorer, seletor de formato (HTML, JSON, Markdown) e barra de progresso. No Windows, dois cliques no `Recon.pyw` chegam
+na mesma janela sem passar pelo terminal; no Linux e no macOS, rode
+`./instalar-atalho.sh` uma vez para ganhar o ícone no menu de aplicativos.
+Ver [GUIA.md](GUIA.md), Passo 4.
+
 O resto deste documento é para quem prefere digitar o comando direto.
 
 ---
@@ -23,6 +35,7 @@ O resto deste documento é para quem prefere digitar o comando direto.
 
 | Sua situação | Comando |
 |---|---|
+| Não quero abrir terminal | `Recon.pyw` (Windows), `./instalar-atalho.sh` (Linux/macOS) ou `recon janela` |
 | Não quero pensar em nada | `recon` (menu interativo) |
 | Tenho **uma pasta** e quero direto | `recon pasta ./dados` |
 | Tenho **um arquivo** e quero tudo sobre ele | `recon perfilar arquivo.csv` |
@@ -132,7 +145,14 @@ recon modelar *.csv --sem-perfis      # só o relatório do conjunto
 | `--linha-cabecalho` | detecta | força a linha do cabeçalho (0 = primeira) |
 | `--sem-deteccao-layout` | desligado | lê o arquivo cru, sem ajustar layout |
 
+Da lista acima, a janela expõe só `--formatos` (como três caixas: HTML, JSON,
+Markdown) e a pasta de saída. O resto fica de fora porque cada opção a mais é
+uma decisão a mais para quem só quer o relatório — precisou de
+`--limite-amostra` ou `--kpis`, é caso de linha de comando. E o padrão difere:
+a janela marca só HTML, a CLI gera `json,html`.
+
 `recon versao` mostra a versão instalada.
+`recon janela` abre a versão gráfica.
 `recon <comando> --help` mostra a ajuda de cada um.
 
 ---

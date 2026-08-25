@@ -45,6 +45,20 @@ pip install --user -e .
 recon
 ```
 
+**Não gosta de terminal?** Depois de instalado, dê **dois cliques no
+`Recon.pyw`** — abre uma janela, sem tela preta nenhuma. Os três modos ficam
+numa lista à esquerda, o botão "Procurar…" abre o Explorer, e os relatórios
+são salvos na mesma pasta do arquivo se você não escolher outra. O formato
+padrão é HTML; JSON e Markdown saem juntos se você marcar. Pelo terminal, a
+mesma janela abre com `recon janela`.
+
+<img src="docs/imagens/janela.png" alt="A janela do Recon" width="620">
+
+**No Linux**, o gerenciador de arquivos não executa `.pyw`. Rode uma vez
+`./instalar-atalho.sh` e o Recon aparece no menu de aplicativos, com ícone —
+tecla Super, digite "Recon". No macOS, o mesmo script cria um `Recon.command`
+que abre com dois cliques no Finder.
+
 Digitar `recon` sozinho abre um menu que pergunta o que você quer. Dar Enter
 em tudo funciona.
 
@@ -198,6 +212,18 @@ recon perfilar dados/vendas.csv                # relativo: a partir da pasta ond
 recon perfilar /home/usuario/dados/vendas.csv  # absoluto: funciona de qualquer diretório
 ```
 
+### A janela
+
+```bash
+recon janela
+```
+
+Mesma análise, sem terminal: abas para o tipo de ação, "Procurar…" abrindo o
+Explorer, barra de progresso e as mensagens do pipeline na própria janela.
+Ela expõe só as três ações e a pasta de saída — quem precisa de
+`--limite-amostra`, `--kpis` ou `--formatos` está melhor servido pelos
+comandos acima.
+
 ### Ajuda
 
 ```bash
@@ -261,7 +287,9 @@ Recon/
 │   ├── reporting/            exporta JSON, Markdown, HTML e Parquet
 │   ├── pipeline.py           `DataProfiler` — orquestra tudo acima
 │   ├── interativo.py         menu no terminal para quem não decora comando
-│   └── cli.py                comandos `perfilar`, `lote`, `modelar`, `pasta`, `versao`
+│   ├── gui.py                janela tkinter para quem não abre terminal
+│   └── cli.py                comandos `perfilar`, `lote`, `modelar`, `pasta`, `janela`, `versao`
+├── Recon.pyw                 dois cliques aqui abrem a janela, sem terminal
 └── tests/                    suíte pytest (um arquivo por módulo)
 ```
 
