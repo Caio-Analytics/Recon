@@ -192,19 +192,90 @@ aviso do `pip` (algo como
 `C:\Users\seu.nome\AppData\Roaming\Python\Python312\Scripts`). Feche e reabra
 o terminal.
 
-**B) Chamar pelo Python (funciona sempre).** Em vez de `recon`, use:
+**B) Chamar pelo Python (funciona sempre, em qualquer instalação).** Em vez de `recon`, use:
 
 ```bash
-python -m recon.cli
+python -m recon
 ```
+
+Guarde essa alternativa — ela reaparece nos próximos passos toda vez que o guia pede pra digitar `recon`.
 
 ---
 
 ## Passo 4 — Usar
 
-Há dois caminhos. Escolha o que combina com você.
+Há três caminhos. Escolha o que combina com você — o **A** é o mais simples e
+não exige digitar comando nenhum depois de instalado.
 
-### Caminho A — Com VS Code (recomendado se você já usa)
+### Caminho A — A janela (não precisa de terminal) ⭐
+
+**No Windows**, abra a pasta onde você baixou o Recon
+(`C:\Usuários\seu.nome\Programas\Recon`) e dê **dois cliques** no arquivo:
+
+```
+Recon.pyw
+```
+
+Uma janela abre. Não aparece nenhuma tela preta de terminal — é um programa
+como qualquer outro.
+
+<img src="docs/imagens/janela.png" alt="A janela do Recon" width="620">
+
+**No Linux**, dois cliques não funcionam: o gerenciador de arquivos do Ubuntu
+não executa esse tipo de arquivo, ele abre no editor de texto. Rode **uma
+única vez**, dentro da pasta do Recon:
+
+```bash
+./instalar-atalho.sh
+```
+
+Daí em diante o Recon está no menu de aplicativos: aperte a tecla **Super**
+(a do losango do Windows) e digite "Recon". Botão direito no ícone →
+*Adicionar aos favoritos* fixa ele na barra lateral. Para tirar,
+`./instalar-atalho.sh --remover`.
+
+**No macOS**, rode o mesmo `./instalar-atalho.sh`. Ele cria um arquivo
+`Recon.command` na pasta do projeto, que abre com dois cliques no Finder.
+
+> **Dica:** clique com o botão direito no `Recon.pyw` → **Enviar para** →
+> **Área de trabalho (criar atalho)**. Daí em diante é só clicar no atalho.
+>
+> Se os dois cliques abrirem o Bloco de Notas com o texto do arquivo em vez de
+> abrir a janela, o Windows associou `.pyw` ao programa errado: botão direito →
+> **Abrir com** → **Escolher outro aplicativo** → procure `pythonw.exe` (fica em
+> `C:\Users\seu.nome\AppData\Local\Programs\Python\Python312\`) e marque
+> "Sempre usar este aplicativo".
+
+Na janela:
+
+1. **Escolha o modo na lista da esquerda** — *Um arquivo*, *Comparar vários*
+   ou *Como se ligam*. Cada um traz uma linha dizendo para que serve. O item
+   **Ajuda**, no fim da lista, responde as dúvidas mais comuns sem precisar
+   deste guia.
+2. **Clique em "Procurar…"** e escolha o arquivo pelo Explorer normal, do jeito
+   que você abre qualquer planilha. Dá para escolher a pasta inteira também.
+3. Se quiser, escolha **onde salvar** os relatórios. Deixando em branco, eles
+   são salvos na **mesma pasta do arquivo** que você selecionou.
+4. Se quiser, escolha o **formato**. O HTML já vem marcado e é o que a maioria
+   das pessoas quer: abre no navegador com dois cliques. JSON e Markdown são
+   extras — pode marcar os três, cada um vira um arquivo.
+5. **Clique em "Analisar agora"** e espere.
+
+> **A janela vai parecer travada. Isso é normal.** Enquanto analisa, o botão
+> fica cinza e a barra fica correndo; em arquivo grande isso leva alguns
+> minutos, e o Windows às vezes escreve "Não Responde" na barra de título mesmo
+> com tudo funcionando. Espere, não feche e não clique várias vezes no botão.
+
+No fim, clique em **"Abrir a pasta dos relatórios"** e dê dois cliques no
+arquivo `.html`.
+
+Se você já tem o `recon` funcionando no terminal, a mesma janela abre com:
+
+```bash
+recon janela
+```
+
+### Caminho B — Com VS Code (recomendado se você já usa)
 
 1. Baixe em **https://code.visualstudio.com/**. Na página de download do
    Windows, escolha a opção **"User Installer"** — não a "System Installer".
@@ -231,12 +302,16 @@ Há dois caminhos. Escolha o que combina com você.
 recon
 ```
 
+   Se aparecer "comando não encontrado" ou "not recognized", use
+   `python -m recon` no lugar — funciona sempre, mesmo sem o PATH configurado
+   (veja o Passo 3).
+
 5. Responda as perguntas. No fim, os relatórios aparecem na barra lateral
    esquerda — clique com o botão direito no arquivo `.html` →
    **Revelar no Explorador de Arquivos** → clique duas vezes para abrir no
    navegador.
 
-### Caminho B — Direto no terminal (sem instalar mais nada)
+### Caminho C — Direto no terminal (sem instalar mais nada)
 
 **Windows:** aperte a tecla `Windows`, digite `powershell`, dê Enter.
 
@@ -251,12 +326,19 @@ cd Documentos\MinhasPlanilhas
 recon
 ```
 
+> Se `recon` não for reconhecido, troque por `python -m recon` — funciona
+> sempre, independente de PATH.
+
 > Dica no Windows: você pode arrastar a pasta para dentro da janela do
 > terminal depois de digitar `cd ` — o caminho é preenchido sozinho.
 
 ---
 
-## Passo 5 — O menu
+## Passo 5 — O menu do terminal
+
+> Se você escolheu o **Caminho A** (a janela), pode pular este passo: as
+> perguntas são as mesmas, só que em botões. Ele interessa a quem usa os
+> caminhos B e C.
 
 Digitando `recon` sozinho, aparece isto:
 
@@ -327,7 +409,22 @@ O Python não foi adicionado ao PATH. Reinstale marcando
 
 **"recon não é reconhecido como um comando"**
 Veja a seção "Se o comando `recon` não for reconhecido" no Passo 3. A
-alternativa `python -m recon.cli` sempre funciona.
+alternativa `python -m recon` sempre funciona, em qualquer instalação.
+
+**A janela "Não Responde" enquanto analisa**
+É o comportamento normal do Windows enquanto um programa trabalha. A barra
+correndo mostra que está tudo certo. Espere: arquivo grande leva minutos. Só
+desconfie se passar de dez minutos com um arquivo pequeno.
+
+**Dois cliques no `Recon.pyw` abrem o Bloco de Notas**
+O Windows associou a extensão ao programa errado. Botão direito no arquivo →
+**Abrir com** → **Escolher outro aplicativo** → procure o `pythonw.exe` e
+marque "Sempre usar este aplicativo". Enquanto isso, `recon janela` no
+terminal abre a mesma janela.
+
+**A janela abriu e sumiu na hora / apareceu erro dizendo que não está instalado**
+Faltou o `pip install --user -e .` do Passo 3, ou ele foi feito com outro
+Python. Refaça o Passo 3 e tente de novo.
 
 **Pediu senha de administrador**
 Três causas possíveis, em ordem de frequência:
