@@ -5,6 +5,7 @@ Tudo aqui olha para pares (ou conjuntos) de colunas — por isso saiu de
 `quality`, que ficou responsável só por transformar achados em recomendação.
 """
 from collections.abc import Sequence
+from itertools import combinations
 from typing import Any
 
 import numpy as np
@@ -16,6 +17,10 @@ from . import config, hypothesis
 _CARACTERISTICAS_SEM_DADO = ("⚠️ Coluna 100% Vazia", "⚠️ Sem Valores Válidos")
 _CORRELACAO_MAX_LINHAS = 50_000
 _MAX_COLUNAS_CHAVE_COMPOSTA = 8
+# Trincas custam C(n,3) testes de duplicidade; com 6 colunas são 20, o que é
+# barato. Com as 8 do teto de pares seriam 56, e o ganho não paga.
+_MAX_COLUNAS_TRINCA = 6
+_PAPEIS_DE_MEDIDA = frozenset({"Valor Financeiro", "Quantidade / Métrica"})
 
 
 # ── Dependências funcionais ─────────────────────────────────────────────────
@@ -153,6 +158,134 @@ def analisar_duplicatas(df: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+# ── Duplicata aproximada ────────────────────────────────────────────────────
+
+_MAX_VALORES_FUZZY = 20_000
+_LIMIAR_SIMILARIDADE = 92.0
+_MAX_GRUPOS_REPORTADOS = 8
+# Nome curto demais casa por acaso: "Ana" e "Ane" ficam acima de qualquer
+# limiar razoável. Dois tokens e oito caracteres é o piso de um nome real.
+_MIN_TAMANHO_FUZZY = 8
+_MIN_TOKENS_FUZZY = 2
+
+
+def _so_letras(valor: str) -> str:
+    return "".join(c for c in valor if not c.isdigit())
+
+
+def _difere_so_em_digito(a: str, b: str) -> bool:
+    """`Fulano 1` e `Fulano 10` não são a mesma pessoa escrita de dois jeitos.
+
+    Cadastro numerado é comum (`SALA 1`, `TURMA 2`, `JOSE SILVA 3`) e cai em
+    qualquer limiar de similaridade textual — o dígito é justamente o que
+    distingue os registros.
+    """
+    return _so_letras(a) == _so_letras(b) and a != b
+
+
+def _canonico(valor: str) -> str:
+    """Forma canônica de um nome: sem acento, sem pontuação, tokens ordenados.
+
+    `ANA M. SOUZA` e `Souza, Ana M` colapsam no mesmo texto — é a duplicata
+    que a comparação exata nunca acha, porque nenhum caractere é igual.
+    """
+    from unidecode import unidecode
+
+    limpo = "".join(c if c.isalnum() or c.isspace() else " " for c in unidecode(str(valor)).lower())
+    return " ".join(sorted(limpo.split()))
+
+
+def detectar_duplicatas_aproximadas(
+    df: pd.DataFrame, colunas_meta: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Registros que parecem a mesma pessoa escrita de formas diferentes.
+
+    `analisar_duplicatas` conta a linha integralmente repetida, que é o caso
+    fácil. O problema de cadastro é o outro: "ANA M SOUZA" e "Ana Maria Souza"
+    são duas linhas diferentes para o sistema e a mesma pessoa para o negócio —
+    e é isso que infla headcount, duplica pagamento e quebra qualquer contagem
+    por pessoa.
+
+    Dois passos: colapsar pela forma canônica (pega abreviação, acento,
+    pontuação e ordem invertida) e, dentro de blocos pequenos, comparar por
+    similaridade (pega erro de digitação).
+    """
+    alvos = [
+        m["Coluna"] for m in colunas_meta
+        if m.get("Papel") == config.SEMANTICA_NOME_PESSOA
+        and m["Coluna"] in df.columns
+        and 1 < m.get("Qtd_Unicos", 0) <= _MAX_VALORES_FUZZY
+    ]
+    if not alvos:
+        return []
+
+    from rapidfuzz import fuzz, process
+
+    achados: list[dict[str, Any]] = []
+    for coluna in alvos[:2]:
+        valores = df[coluna].dropna().astype(str)
+        if valores.empty:
+            continue
+        distintos = valores.unique().tolist()
+        contagem = valores.value_counts()
+
+        grupos: dict[str, list[str]] = {}
+        for valor in distintos:
+            chave = _canonico(valor)
+            if chave:
+                grupos.setdefault(chave, []).append(valor)
+        colapsaveis = [g for g in grupos.values() if len(g) > 1]
+
+        # Erro de digitação não colapsa na forma canônica. O bloco por primeira
+        # letra + comprimento aproximado mantém a comparação viável: sem ele
+        # seria n² sobre a coluna inteira.
+        vistos = {v for grupo in colapsaveis for v in grupo}
+        blocos: dict[tuple[str, int], list[str]] = {}
+        for valor in distintos:
+            chave = _canonico(valor)
+            if not chave or valor in vistos:
+                continue
+            if len(chave) < _MIN_TAMANHO_FUZZY or len(chave.split()) < _MIN_TOKENS_FUZZY:
+                continue
+            blocos.setdefault((chave[:1], len(chave) // 4), []).append(valor)
+
+        for bloco in blocos.values():
+            if not (1 < len(bloco) <= 400):
+                continue
+            pares = process.cdist(bloco, bloco, scorer=fuzz.token_sort_ratio, workers=-1)
+            for i in range(len(bloco)):
+                parecidos = [
+                    bloco[j] for j in range(i + 1, len(bloco))
+                    if pares[i][j] >= _LIMIAR_SIMILARIDADE
+                    and not _difere_so_em_digito(_canonico(bloco[i]), _canonico(bloco[j]))
+                ]
+                if parecidos:
+                    colapsaveis.append([bloco[i], *parecidos])
+
+        if not colapsaveis:
+            continue
+        colapsaveis.sort(key=lambda g: -sum(int(contagem.get(v, 0)) for v in g))
+        linhas_afetadas = sum(
+            sum(int(contagem.get(v, 0)) for v in grupo) for grupo in colapsaveis
+        )
+        achados.append({
+            "coluna": coluna,
+            "qtd_grupos": len(colapsaveis),
+            "linhas_afetadas": linhas_afetadas,
+            "exemplos": [
+                {"variantes": grupo[:4],
+                 "linhas": sum(int(contagem.get(v, 0)) for v in grupo)}
+                for grupo in colapsaveis[:_MAX_GRUPOS_REPORTADOS]
+            ],
+            "descricao": (
+                f"{len(colapsaveis)} grupo(s) de valores diferentes em '{coluna}' apontam "
+                f"para o mesmo registro ({linhas_afetadas:,} linhas). Comparação exata não "
+                "acha esses casos: para o sistema são pessoas distintas."
+            ),
+        })
+    return achados
+
+
 # ── Colunas redundantes ─────────────────────────────────────────────────────
 
 def detectar_colunas_redundantes(df: pd.DataFrame) -> list[dict[str, Any]]:
@@ -269,32 +402,64 @@ def detectar_chaves_compostas(
     if total < 2:
         return []
 
+    # Medida fora: `salario + id_filial` sendo único é acidente aritmético, não
+    # chave. Como a ordenação é por unicidade, a medida quase-única encabeçava a
+    # lista e as chaves reais ficavam atrás — inclusive fora do corte.
     ordenadas = sorted(
         (m for m in colunas_meta
          if m["Coluna"] in df.columns
          and m.get("Caracteristica", "") not in _CARACTERISTICAS_SEM_DADO
-         and m.get("Qtd_Unicos", 0) > 1),
-        key=lambda m: -m.get("Ratio_Unicidade", 0.0),
+         and m.get("Qtd_Unicos", 0) > 1
+         and m.get("Papel") not in _PAPEIS_DE_MEDIDA),
+        key=lambda m: (
+            0 if m.get("Papel") == config.SEMANTICA_CHAVE_ID else 1,
+            -m.get("Ratio_Unicidade", 0.0),
+        ),
     )[:_MAX_COLUNAS_CHAVE_COMPOSTA]
 
     achados: list[dict[str, Any]] = []
-    for i, meta_a in enumerate(ordenadas):
-        for meta_b in ordenadas[i + 1:]:
-            col_a, col_b = meta_a["Coluna"], meta_b["Coluna"]
-            # Condição necessária: o produto das cardinalidades precisa
-            # comportar todas as linhas.
-            if meta_a.get("Qtd_Unicos", 0) * meta_b.get("Qtd_Unicos", 0) < total:
-                continue
-            if not df.duplicated(subset=[col_a, col_b]).any():
-                achados.append({
-                    "colunas": [col_a, col_b],
-                    "descricao": (
-                        f"'{col_a}' + '{col_b}' identificam unicamente cada linha — "
-                        "candidata a chave primária composta."
-                    ),
-                })
-                if len(achados) >= max_pares:
-                    return achados
+    usadas: list[set[str]] = []
+
+    def testar(combinacao: Sequence[dict[str, Any]]) -> bool:
+        colunas = [m["Coluna"] for m in combinacao]
+        # Condição necessária: o produto das cardinalidades precisa comportar
+        # todas as linhas. É comparação de inteiros já calculados.
+        produto = 1
+        for meta in combinacao:
+            produto *= max(int(meta.get("Qtd_Unicos", 0)), 1)
+            if produto >= total:
+                break
+        if produto < total:
+            return False
+        # Uma trinca que contém um par já reportado não acrescenta nada.
+        if any(anterior <= set(colunas) for anterior in usadas):
+            return False
+        if df.duplicated(subset=colunas).any():
+            return False
+        usadas.append(set(colunas))
+        rotulo = " + ".join(f"'{c}'" for c in colunas)
+        achados.append({
+            "colunas": colunas,
+            "descricao": (
+                f"{rotulo} identificam unicamente cada linha — candidata a chave "
+                "primária composta."
+            ),
+        })
+        return True
+
+    for par in combinations(ordenadas, 2):
+        testar(list(par))
+        if len(achados) >= max_pares:
+            return achados
+
+    # Grão de fato quase nunca cabe em duas colunas: `empregado + curso + data`
+    # é o formato normal de uma tabela de evento, e parar nos pares deixava
+    # essas tabelas sem chave nenhuma no relatório.
+    if not achados:
+        for trinca in combinations(ordenadas[:_MAX_COLUNAS_TRINCA], 3):
+            testar(list(trinca))
+            if len(achados) >= max_pares:
+                break
     return achados
 
 
@@ -401,10 +566,13 @@ def analisar_correlacoes(
                 continue
             if eta is None or eta < config.CORRELACAO_MIN_ABS:
                 continue
+            # Publicado em η², a mesma escala de `explicar_medidas`. Antes esta
+            # seção mostrava η e a outra η² — duas escalas para a mesma
+            # estatística, no mesmo relatório, sem nada avisando.
             resultados.append({
                 "coluna_a": col_cat, "coluna_b": col_num,
-                "metrica": "Razão de correlação (η)",
-                "valor": round(eta, 4),
+                "metrica": "Razão de correlação (η²)",
+                "valor": round(eta ** 2, 4),
                 "valor_secundario": None,
                 "forca": "forte" if eta >= 0.9 else "moderada",
             })
