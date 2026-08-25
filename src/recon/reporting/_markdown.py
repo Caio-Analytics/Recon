@@ -248,6 +248,13 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
 
     partes: list[str] = [f"# Relatório de Perfilamento — {meta['tabela']}", ""]
 
+    abas_ignoradas = meta.get("abas_ignoradas") or []
+    if abas_ignoradas:
+        partes.append(
+            f"> ⚠️ **Este arquivo tem outras {len(abas_ignoradas)} aba(s)** que não entraram "
+            f"nesta análise: {', '.join(f'`{a}`' for a in abas_ignoradas)}.\n"
+        )
+
     risco = meta.get("risco_lgpd") or {}
     if risco and risco.get("colunas_sensiveis"):
         colunas = ", ".join(

@@ -82,6 +82,7 @@ def exportar_modelo_markdown(payload: dict[str, Any], caminho: str) -> None:
     ))
 
     partes.append("\n## Relacionamentos\n")
+    compostos = payload.get("relacionamentos_compostos") or []
     if payload["relacionamentos"]:
         partes.append(_tabela_md(
             [[f"`{r['tabela_origem']}.{r['coluna_origem']}`",
@@ -96,6 +97,17 @@ def exportar_modelo_markdown(payload: dict[str, Any], caminho: str) -> None:
         ))
         partes.append("")
         partes.append(_mermaid(payload))
+
+    if compostos:
+        partes.append("\n## Ligações por chave composta\n")
+        partes.append(_tabela_md(
+            [[f"`{r['tabela_origem']}` ({', '.join(r['colunas_origem'])})",
+              f"`{r['tabela_destino']}` ({', '.join(r['colunas_destino'])})",
+              f"{r['contencao']:.1%}",
+              f"⚠️ {r['pct_orfaos']:.1%} órfãos" if r["pct_orfaos"] > 0 else "ok"]
+             for r in compostos],
+            ["De", "Para", "Combinações cobertas", "Observação"],
+        ))
     else:
         partes.append(
             "Nenhuma chave estrangeira detectada entre as tabelas. "
@@ -136,6 +148,29 @@ def exportar_modelo_markdown(payload: dict[str, Any], caminho: str) -> None:
 
 def _e(valor: Any) -> str:
     return escape(str(valor), quote=False)
+
+
+def _bloco_compostos_html(payload: dict[str, Any]) -> str:
+    compostos = payload.get("relacionamentos_compostos") or []
+    if not compostos:
+        return ""
+    linhas = "".join(
+        "<tr>"
+        f"<td><code>{_e(r['tabela_origem'])}</code> ({_e(', '.join(r['colunas_origem']))})</td>"
+        f"<td><code>{_e(r['tabela_destino'])}</code> ({_e(', '.join(r['colunas_destino']))})</td>"
+        f"<td>{r['contencao']:.1%}</td>"
+        f"<td>{'⚠️ ' + format(r['pct_orfaos'], '.1%') + ' órfãos' if r['pct_orfaos'] > 0 else 'ok'}</td>"
+        "</tr>"
+        for r in compostos
+    )
+    return (
+        "<h2>Ligações por chave composta</h2>"
+        "<p class='sub'>Tabela de evento costuma se ligar à dimensão por um par de colunas; "
+        "procurando só chave de uma coluna, essas ligações ficariam invisíveis.</p>"
+        '<div class="tabela-wrap"><table><thead><tr><th>De</th><th>Para</th>'
+        "<th>Combinações cobertas</th><th>Observação</th></tr></thead>"
+        f"<tbody>{linhas}</tbody></table></div>"
+    )
 
 
 def exportar_modelo_html(payload: dict[str, Any], caminho: str) -> None:
@@ -192,6 +227,8 @@ def exportar_modelo_html(payload: dict[str, Any], caminho: str) -> None:
         partes.append("</ul>")
 
     partes.append("<h2>Análises sugeridas</h2>")
+    partes.append(_bloco_compostos_html(payload))
+
     for i, analise in enumerate(payload["analises_sugeridas"], start=1):
         partes.append(
             f"<div class='coluna'><h3>{i}. {_e(analise['titulo'])}</h3>"

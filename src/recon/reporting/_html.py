@@ -258,6 +258,15 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
             'primária potencial" que não existe na base completa.</p>'
         )
 
+    abas_ignoradas = meta.get("abas_ignoradas") or []
+    if abas_ignoradas:
+        partes.append(
+            '<p class="sub"><b class="alerta">⚠️ Este arquivo tem outras '
+            f'{len(abas_ignoradas)} aba(s)</b> que não entraram nesta análise: '
+            f'{_e(", ".join(abas_ignoradas))}. Para um relatório por aba, marque '
+            "&quot;analisar todas as abas&quot; na janela ou use <code>--todas-abas</code>.</p>"
+        )
+
     risco = meta.get("risco_lgpd") or {}
     if risco.get("colunas_sensiveis"):
         colunas = ", ".join(
