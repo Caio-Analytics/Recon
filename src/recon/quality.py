@@ -196,6 +196,21 @@ def gerar_recomendacoes_etl(
             n_validos, pct_validos,
         ))
 
+    formato = qualidade.get("formato", {})
+    if formato.get("tem_formato") and formato.get("qtd_fora_do_padrao"):
+        fora = ", ".join(
+            f"{ex['valor']!r}" for ex in formato.get("exemplos_fora_do_padrao", [])[:3]
+        )
+        recomendacoes.append(_base(
+            nome_tabela, coluna, PRIORIDADE_MEDIA, "Bronze",
+            f"'{coluna}' segue o formato {formato['formato_dominante']} em "
+            f"{formato['cobertura']:.0%} dos valores (ex.: {formato['exemplo_conforme']!r}), "
+            f"mas {formato['qtd_fora_do_padrao']} valor(es) fogem dele: {fora}. "
+            "Em código de cadastro isso costuma ser digitação manual, campo truncado ou "
+            "registro de outro sistema — conferir antes de usar como chave.",
+            int(formato["qtd_fora_do_padrao"]),
+        ))
+
     inconsistencia = qualidade.get("inconsistencia_normalizacao", {})
     if inconsistencia.get("tem_inconsistencia"):
         exemplo = inconsistencia["exemplos"][0]["variantes"]
@@ -308,6 +323,7 @@ def gerar_recomendacoes_tabela(
     chaves_compostas: list[dict[str, Any]],
     linhas_analisadas: int,
     colunas: list[dict[str, Any]] | None = None,
+    duplicatas_aproximadas: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     recomendacoes: list[dict[str, Any]] = []
 
@@ -345,11 +361,38 @@ def gerar_recomendacoes_tabela(
         ))
 
     for red in redundantes:
+        # Idêntica e quase idêntica pedem ações opostas. A primeira é uma coluna
+        # sobrando: apaga-se uma das duas. A segunda é o mesmo campo vindo de
+        # dois sistemas, e as linhas divergentes são o achado — mandar remover
+        # uma delas joga fora exatamente a informação que justificou o alerta.
+        if red.get("tipo") == "quase idêntica":
+            recomendacoes.append(_base(
+                nome_tabela, red["coluna_redundante"], PRIORIDADE_ALTA, "Silver",
+                f"'{red['coluna_redundante']}' concorda com '{red['coluna']}' em "
+                f"{red['concordancia']:.1%} das {red.get('linhas_comparadas', 0):,} linhas "
+                f"comparáveis, e diverge em {red.get('linhas_divergentes', 0):,}. "
+                "Provável mesmo campo vindo de duas origens: reconciliar as divergências e "
+                "eleger a fonte de verdade — não remover antes de decidir qual vale.",
+                red.get("linhas_divergentes", 0),
+            ))
+            continue
         recomendacoes.append(_base(
             nome_tabela, red["coluna_redundante"], PRIORIDADE_MEDIA, "Silver",
             f"'{red['coluna_redundante']}' é idêntica a '{red['coluna']}'. Remover uma das "
             "duas elimina ambiguidade e reduz o volume.",
             linhas_analisadas,
+        ))
+
+    for aproximada in duplicatas_aproximadas or []:
+        exemplo = aproximada["exemplos"][0]["variantes"] if aproximada["exemplos"] else []
+        recomendacoes.append(_base(
+            nome_tabela, aproximada["coluna"], PRIORIDADE_ALTA, "Silver",
+            f"{aproximada['qtd_grupos']} grupo(s) de valores diferentes em "
+            f"'{aproximada['coluna']}' apontam para o mesmo registro"
+            + (f" (ex.: {' / '.join(exemplo[:3])})" if exemplo else "")
+            + f", somando {aproximada['linhas_afetadas']:,} linhas. Deduplicar por chave "
+            "canônica antes de contar pessoas — a comparação exata não pega esses casos.",
+            aproximada["linhas_afetadas"],
         ))
 
     for chave in chaves_compostas:
@@ -362,6 +405,68 @@ def gerar_recomendacoes_tabela(
         ))
 
     return recomendacoes
+
+
+# ── Risco LGPD ──────────────────────────────────────────────────────────────
+
+# Quanto cada tipo de dado pessoal pesa na exposição da tabela. CPF identifica
+# uma pessoa sozinho; CEP e telefone precisam de companhia.
+_PESO_EXPOSICAO: dict[str, float] = {
+    "CPF": 1.0, "Nome de pessoa": 0.9, "E-mail": 0.8, "CNPJ": 0.4,
+    "Telefone": 0.7, "CEP": 0.5, "UUID": 0.2,
+}
+_PESO_EXPOSICAO_PADRAO = 0.6
+
+
+def calcular_risco_lgpd(colunas: list[dict[str, Any]]) -> dict[str, Any]:
+    """Exposição de dado pessoal, num número separado da qualidade.
+
+    Misturar as duas coisas num score só respondia mal às duas perguntas: uma
+    base impecável cheia de CPF tirava nota baixa como se estivesse suja, e uma
+    base suja sem dado pessoal parecia tão arriscada quanto. Aqui a pergunta é
+    outra — *o que vaza se este arquivo for para o lugar errado?*
+    """
+    sensiveis = [
+        {"coluna": c["Coluna"], "tipo": c["Dado_Sensivel_LGPD"]}
+        for c in colunas if c.get("Dado_Sensivel_LGPD", "Nenhum") != "Nenhum"
+    ]
+    embutidas = [
+        {"coluna": c["Coluna"],
+         "tipo": ", ".join(sorted(c.get("Qualidade", {}).get("pii_texto_livre", {}).get("tipos", {})))}
+        for c in colunas
+        if c.get("Qualidade", {}).get("pii_texto_livre", {}).get("tem_pii")
+    ]
+    if not sensiveis and not embutidas:
+        return {
+            "nivel": "🟢 Sem dado pessoal identificado",
+            "exposicao": 0.0,
+            "colunas_sensiveis": [],
+            "pii_em_texto_livre": [],
+            "recomendacao": "Nada a mascarar: nenhuma coluna com dado pessoal reconhecido.",
+        }
+
+    exposicao = max(
+        [_PESO_EXPOSICAO.get(s["tipo"], _PESO_EXPOSICAO_PADRAO) for s in sensiveis]
+        + [1.0 for _ in embutidas],  # PII solta em texto livre é o pior caso
+        default=0.0,
+    )
+    # Várias colunas sensíveis juntas aumentam a exposição: nome + CPF + e-mail
+    # identifica muito mais do que qualquer um deles sozinho.
+    exposicao = min(1.0, exposicao + 0.05 * max(len(sensiveis) + len(embutidas) - 1, 0))
+    nivel = (
+        "🔴 Alta" if exposicao >= 0.8 else "🟡 Média" if exposicao >= 0.5 else "🟢 Baixa"
+    )
+    return {
+        "nivel": nivel,
+        "exposicao": round(exposicao, 3),
+        "colunas_sensiveis": sensiveis,
+        "pii_em_texto_livre": embutidas,
+        "recomendacao": (
+            f"{len(sensiveis) + len(embutidas)} coluna(s) com dado pessoal. Mascarar ou "
+            "hashear antes de compartilhar o arquivo, e restringir quem acessa a camada "
+            "que guarda o valor original."
+        ),
+    }
 
 
 # ── Score de qualidade ──────────────────────────────────────────────────────
@@ -410,8 +515,9 @@ def dano_da_coluna(coluna: dict[str, Any]) -> tuple[float, list[str]]:
         achados.append((dano["inconsistencia_texto"], "grafias divergentes"))
     if alertas.get("data_como_texto"):
         achados.append((dano["data_como_texto"], "data como texto"))
-    if coluna.get("Dado_Sensivel_LGPD", "Nenhum") != "Nenhum":
-        achados.append((dano["lgpd_estruturado"], "dado pessoal estruturado"))
+    # Dado pessoal estruturado *não* entra aqui. Uma base de RH limpa perdia
+    # nota por ter CPF — que é o dado dela. Exposição é risco, não defeito, e
+    # agora tem número próprio em `calcular_risco_lgpd`.
 
     total = min(1.0, sum(peso for peso, _ in achados))
     motivos = [motivo for _, motivo in sorted(achados, key=lambda a: -a[0])]
@@ -442,7 +548,11 @@ def calcular_score_qualidade(
     dano_colunas = sum(d for _, d, _ in danos) / total
 
     pct_duplicadas = float(duplicatas.get("pct_linhas_duplicadas", 0.0))
-    fracao_redundante = min(len(redundantes) / total, 1.0)
+    # Só coluna *idêntica* é redundância. A quase idêntica é divergência entre
+    # origens — problema real, mas de outra natureza, e contá-la aqui derrubava
+    # a nota de uma tabela cujo defeito é reconciliação, não duplicação.
+    exatas = [r for r in redundantes if r.get("tipo") != "quase idêntica"]
+    fracao_redundante = min(len(exatas) / total, 1.0)
     dano_tabela = min(1.0, pct_duplicadas + fracao_redundante * 0.5)
 
     dano_total = min(
