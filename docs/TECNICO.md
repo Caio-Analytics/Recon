@@ -68,7 +68,11 @@ src/recon/
 ├── codegen.py           script de limpeza
 ├── reporting/           JSON, Markdown, HTML, Parquet, modelo do conjunto
 ├── pipeline.py          DataProfiler — orquestração
-└── cli.py               perfilar · modelar · lote · versao
+├── interativo.py        menu do terminal (`recon` sem argumento)
+├── gui.py               janela tkinter (`recon janela`, `Recon.pyw`)
+│                        tema escuro (paleta GitHub em `CORES`, tema `clam`),
+│                        navegação lateral e seletor de formato
+└── cli.py               perfilar · modelar · lote · pasta · janela · versao
 ```
 
 **Invariantes de arquitetura:**
@@ -79,6 +83,16 @@ src/recon/
 3. Módulos e arquivos em inglês técnico; funções, campos e chaves de saída em
    português.
 4. Nenhum módulo de análise importa `reporting` ou `cli`.
+5. `interativo.py` e `gui.py` são cascas de apresentação sobre `DataProfiler`:
+   coletam as mesmas quatro respostas (arquivos, ação, saída, script de
+   limpeza) e chamam o pipeline. Regra de análise que aparecer neles está no
+   lugar errado — o teste disso é que a CLI, o menu e a janela produzem
+   exatamente o mesmo relatório para a mesma entrada.
+6. Na `gui.py`, o pipeline roda numa thread de trabalho e só se comunica com a
+   interface por uma `queue.Queue` drenada num `after` — o Tk é single-thread,
+   e widget tocado de fora da thread da interface trava ou corrompe a janela.
+   `processar_arquivo` leva minutos: chamado no callback do botão, congelaria
+   a janela em "Não Responde", e o usuário mataria o processo no meio.
 
 ---
 
@@ -437,10 +451,18 @@ relatórios sinalizam quando houve amostragem.
 ## 9. Testes
 
 ```bash
-pytest -q                        # 306 testes
+pytest -q                        # 381 testes
 pytest --cov=recon           # ~91% de cobertura
 ruff check src tests && mypy     # ambos limpos
 ```
+
+Os testes da janela (`test_gui.py`) se dividem em dois grupos: as regras puras
+— resolução da pasta de saída, validação da seleção, tradução de exceção —
+rodam em qualquer lugar, e é para poder testá-las sem display que elas ficam
+fora da classe `JanelaRecon`. Os que abrem janela de verdade pulam sozinhos
+onde não há ambiente gráfico (`pytest.skip`), e cobrem o que só quebra na
+integração: o clique devolver o controle na hora, o log do pipeline chegar na
+área de mensagens e os controles continuarem alcançáveis em tela baixa.
 
 Organização: um arquivo por módulo, mais `test_cenarios.py` com três
 situações de ponta a ponta — base com 60% das linhas contaminadas em várias
