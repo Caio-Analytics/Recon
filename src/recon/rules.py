@@ -168,11 +168,53 @@ def detectar_nulidade_condicional(
 
 # ── Derivação aritmética ────────────────────────────────────────────────────
 
+def _sem_zero(serie: pd.Series) -> pd.Series:
+    """Divisor com zero vira NaN: a linha não confirma nem viola a regra."""
+    return serie.where(serie != 0)
+
+
+# (símbolo, cálculo, como escrever a regra). Divisão e percentual entraram
+# porque `vl_unitario = vl_total / qtd` e `vl_liquido = vl_bruto × (1 − pct)`
+# são o par mais comum em base financeira e de RH, e ficavam de fora.
 _OPERACOES = (
-    ("+", lambda a, b: a + b),
-    ("-", lambda a, b: a - b),
-    ("*", lambda a, b: a * b),
+    ("+", lambda a, b: a + b, "`{a}` + `{b}`"),
+    ("-", lambda a, b: a - b, "`{a}` - `{b}`"),
+    ("*", lambda a, b: a * b, "`{a}` × `{b}`"),
+    ("/", lambda a, b: a / _sem_zero(b), "`{a}` ÷ `{b}`"),
+    ("%", lambda a, b: a * b / 100.0, "`{a}` × `{b}`% (percentual em escala 0-100)"),
+    ("1-", lambda a, b: a * (1 - b), "`{a}` × (1 − `{b}`)"),
+    ("1-%", lambda a, b: a * (1 - b / 100.0), "`{a}` × (1 − `{b}`%), percentual em escala 0-100"),
 )
+_COMUTATIVAS = frozenset({"+", "*", "%"})
+
+# Quem costuma ser o resultado de uma conta, e quem costuma ser a parcela. Sem
+# esse desempate, a coluna reportada como derivada era a primeira do arquivo:
+# `vl_bruto = vl_desconto + vl_liquido` é aritmeticamente idêntico a
+# `vl_liquido = vl_bruto - vl_desconto` e completamente errado como leitura de
+# negócio — e ainda mandava tratar `vl_bruto` como coluna redundante.
+_TOKENS_DERIVADO = frozenset({
+    "liquido", "total", "final", "saldo", "resultado", "geral", "efetivo",
+    "acumulado", "subtotal", "devido", "pagar", "receber",
+})
+_TOKENS_PARCELA = frozenset({
+    "bruto", "base", "inicial", "taxa", "percentual", "pct", "aliquota",
+    "desconto", "acrescimo",
+})
+# Contagem quase nunca é o resultado de uma conta entre valores: `qtd` sair
+# como `vl_liquido ÷ vl_unitario` é a leitura invertida de
+# `vl_unitario = vl_liquido ÷ qtd`.
+_TOKENS_CONTAGEM = frozenset({"quantidade", "qtd", "qtde", "contagem", "num", "numero"})
+
+
+def _pontuacao_derivado(nome: str) -> int:
+    from .semantics import tokenizar
+
+    tokens = set(tokenizar(nome))
+    return (
+        (2 if tokens & _TOKENS_DERIVADO else 0)
+        - (1 if tokens & _TOKENS_PARCELA else 0)
+        - (2 if tokens & _TOKENS_CONTAGEM else 0)
+    )
 
 
 def detectar_derivacao_aritmetica(
@@ -188,64 +230,84 @@ def detectar_derivacao_aritmetica(
     if len(numericas) < 3:
         return []
 
-    amostra = _amostrar(df)[numericas].apply(pd.to_numeric, errors="coerce")
-    amostra = amostra.dropna()
-    if len(amostra) < MIN_LINHAS_REGRA:
-        return []
+    base = _amostrar(df)[numericas].apply(pd.to_numeric, errors="coerce")
 
     achados: list[dict[str, Any]] = []
-    ja_explicadas: set[str] = set()
-    # `a = b + c`, `b = a - c` e `c = a - b` são a mesma relação dita de três
-    # formas. Reportar as três é ruído: uma por trio de colunas basta.
-    trios_reportados: set[frozenset[str]] = set()
-    for alvo in numericas:
-        if alvo in ja_explicadas:
+    explicadas: set[str] = set()
+    for trio in combinations(numericas, 3):
+        # Uma coluna já explicada não vira alvo de novo (seria a mesma regra
+        # dita de outro jeito), mas continua disponível como *parcela*: é assim
+        # que `vl_liquido = vl_bruto - vl_desconto` e
+        # `vl_unitario = vl_liquido / qtd` aparecem os dois.
+        if all(c in explicadas for c in trio):
             continue
-        candidatas = [c for c in numericas if c != alvo]
-        for esquerda, direita in permutations(candidatas, 2):
-            for simbolo, operacao in _OPERACOES:
-                # `a + b` e `b + a` são a mesma regra: só testa uma ordem.
-                if simbolo in "+*" and esquerda > direita:
-                    continue
-                previsto = operacao(amostra[esquerda], amostra[direita])
-                bate = np.isclose(
-                    amostra[alvo], previsto, rtol=_TOLERANCIA_RELATIVA, atol=1e-9
-                )
-                taxa = float(bate.mean())
-                if taxa < CONFORMIDADE_MINIMA:
-                    continue
-                # Regra trivial: se a operação é sempre com zero, não informa nada.
-                if simbolo in "+-" and float(amostra[direita].abs().sum()) == 0.0:
-                    continue
-                trio = frozenset((alvo, esquerda, direita))
-                if trio in trios_reportados:
-                    continue
-                trios_reportados.add(trio)
-                violacoes = amostra[~bate]
-                achados.append({
-                    "tipo": "Derivação aritmética",
-                    "regra": f"`{alvo}` = `{esquerda}` {simbolo} `{direita}`",
-                    "descricao": (
-                        f"'{alvo}' é calculada a partir de '{esquerda}' e '{direita}' "
-                        + ("em todas as linhas — é coluna redundante."
-                           if violacoes.empty else
-                           f"em {taxa:.1%} das linhas; {len(violacoes)} não fecham a conta.")
-                    ),
-                    "conformidade": round(taxa, 4),
-                    "qtd_violacoes": int(len(violacoes)),
-                    "exemplos_violacao": [
+        # O descarte de nulos é por trio, e não sobre as dez colunas de uma vez:
+        # com 15% de nulos em cada, o `dropna` global deixava um terço das
+        # linhas; com 30%, deixava 3% — e a regra sumia por causa de colunas que
+        # ela nem usa.
+        dados = base[list(trio)].dropna()
+        if len(dados) < MIN_LINHAS_REGRA:
+            continue
+
+        candidatos: list[tuple[int, float, dict[str, Any]]] = []
+        for alvo in trio:
+            if alvo in explicadas:
+                continue
+            outros = [c for c in trio if c != alvo]
+            for esquerda, direita in permutations(outros, 2):
+                for simbolo, operacao, modelo in _OPERACOES:
+                    # `a + b` e `b + a` são a mesma regra: só testa uma ordem.
+                    if simbolo in _COMUTATIVAS and esquerda > direita:
+                        continue
+                    previsto = operacao(dados[esquerda], dados[direita]).to_numpy()
+                    aplicavel = np.isfinite(previsto)
+                    if aplicavel.sum() < MIN_LINHAS_REGRA:
+                        continue
+                    bate = np.isclose(
+                        dados[alvo].to_numpy(), previsto,
+                        rtol=_TOLERANCIA_RELATIVA, atol=1e-9,
+                    ) & aplicavel
+                    taxa = float(bate.sum() / aplicavel.sum())
+                    if taxa < CONFORMIDADE_MINIMA:
+                        continue
+                    # Regra trivial: operar sempre com zero não informa nada.
+                    if simbolo in "+-" and float(dados[direita].abs().sum()) == 0.0:
+                        continue
+                    expressao = modelo.format(a=esquerda, b=direita)
+                    violacoes = dados[aplicavel & ~bate]
+                    candidatos.append((
+                        _pontuacao_derivado(alvo), taxa,
                         {
-                            alvo: round(float(linha[alvo]), 4),
-                            esquerda: round(float(linha[esquerda]), 4),
-                            direita: round(float(linha[direita]), 4),
-                        }
-                        for _, linha in violacoes.head(_MAX_EXEMPLOS).iterrows()
-                    ],
-                })
-                ja_explicadas.add(alvo)
-                break
-            if alvo in ja_explicadas:
-                break
+                            "tipo": "Derivação aritmética",
+                            "regra": f"`{alvo}` = {expressao}",
+                            "descricao": (
+                                f"'{alvo}' é calculada a partir de '{esquerda}' e '{direita}' "
+                                + ("em todas as linhas — é coluna redundante."
+                                   if violacoes.empty else
+                                   f"em {taxa:.1%} das linhas; {len(violacoes)} não fecham a conta.")
+                            ),
+                            "conformidade": round(taxa, 4),
+                            "qtd_violacoes": int(len(violacoes)),
+                            "exemplos_violacao": [
+                                {
+                                    alvo: round(float(linha[alvo]), 4),
+                                    esquerda: round(float(linha[esquerda]), 4),
+                                    direita: round(float(linha[direita]), 4),
+                                }
+                                for _, linha in violacoes.head(_MAX_EXEMPLOS).iterrows()
+                            ],
+                            "_alvo": alvo,
+                        },
+                    ))
+        if not candidatos:
+            continue
+        # As três formas da mesma identidade são equivalentes para a conta e
+        # muito diferentes para quem lê: fica a que tem a coluna derivada do
+        # lado esquerdo, com a conformidade como desempate.
+        candidatos.sort(key=lambda c: (-c[0], -c[1]))
+        melhor = candidatos[0][2]
+        explicadas.add(melhor.pop("_alvo"))
+        achados.append(melhor)
     return achados
 
 
