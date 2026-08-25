@@ -4,8 +4,11 @@ from pathlib import Path
 import typer
 from loguru import logger
 
-from . import __version__
-from .ingestion import IngestionError, listar_abas
+from . import __version__, reporting
+from . import contrato as contrato_mod
+from .ingestion import EXTENSOES_DESCOBERTAS as _EXT
+from .ingestion import IngestionError
+from .ingestion import carregar_arquivo as _carregar
 from .pipeline import FORMATOS_VALIDOS, DataProfiler
 from .quality import carregar_regras_kpi
 
@@ -23,7 +26,7 @@ def principal(ctx: typer.Context) -> None:
         executar()
 
 _EXTENSOES_EXCEL = (".xlsx", ".xls", ".xlsb")
-_EXTENSOES_SUPORTADAS = frozenset({".csv", ".xlsx", ".xls", ".xlsb"})
+_EXTENSOES_SUPORTADAS = frozenset(_EXT)
 _MODOS_VALIDOS = ("auto", "individual", "lote", "modelo")
 
 
@@ -74,6 +77,10 @@ _OPCAO_LIMITE = typer.Option(
 _OPCAO_GERAR_LIMPEZA = typer.Option(
     False, "--gerar-limpeza",
     help="Gera um script pandas que aplica as recomendações do perfil.",
+)
+_OPCAO_LIMPEZA_M = typer.Option(
+    False, "--gerar-limpeza-powerquery",
+    help="Gera os mesmos passos em Power Query (M), para colar no Power BI.",
 )
 _OPCAO_SEM_LAYOUT = typer.Option(
     False, "--sem-deteccao-layout",
@@ -132,6 +139,7 @@ def perfilar(
     sem_deteccao_layout: bool = _OPCAO_SEM_LAYOUT,
     linha_cabecalho: int | None = _OPCAO_LINHA_CABECALHO,
     gerar_limpeza: bool = _OPCAO_GERAR_LIMPEZA,
+    gerar_limpeza_powerquery: bool = _OPCAO_LIMPEZA_M,
 ) -> None:
     setup_logging()
     escolhidos = _parsear_formatos(formatos)
@@ -143,15 +151,6 @@ def perfilar(
 
     
     
-    if extensao in _EXTENSOES_EXCEL and not todas_abas:
-        abas = listar_abas(caminho)
-        if len(abas) > 1 and aba == "0":
-            logger.warning(
-                f"'{os.path.basename(caminho)}' tem {len(abas)} abas e só "
-                f"'{abas[0]}' será analisada. Use --todas-abas para perfilar todas, "
-                "ou `recon modelar` para analisá-las juntas e descobrir como se ligam."
-            )
-
     aba_valor: str | int = int(aba) if aba.lstrip("-").isdigit() else aba
     try:
         profiler = _construir_profiler(limite_amostra, kpis)
@@ -160,7 +159,7 @@ def perfilar(
             saida_base=saida_base, tambem_parquet=tambem_parquet,
             formatos=escolhidos, json_compacto=json_compacto,
             detectar_layout=not sem_deteccao_layout, linha_cabecalho=linha_cabecalho,
-            gerar_limpeza=gerar_limpeza,
+            gerar_limpeza=gerar_limpeza, gerar_limpeza_powerquery=gerar_limpeza_powerquery,
         )
     except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
         typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
@@ -296,6 +295,110 @@ def pasta(
         raise typer.Exit(code=1) from None
 
     typer.secho(f"\nRelatórios em: {pasta_saida.resolve()}", fg=typer.colors.GREEN)
+
+
+@app.command()
+def conferir(
+    anterior: str = typer.Argument(..., help="A versão que você já conhece."),
+    nova: str = typer.Argument(..., help="A extração que acabou de chegar."),
+    saida_base: str = typer.Option("conferencia", "--saida-base",
+                                   help="Prefixo dos arquivos gerados."),
+    formatos: str = _OPCAO_FORMATOS,
+    json_compacto: bool = _OPCAO_JSON_COMPACTO,
+    limite_amostra: int = _OPCAO_LIMITE,
+    kpis: str | None = _OPCAO_KPIS,
+) -> None:
+    setup_logging()
+    escolhidos = _parsear_formatos(formatos)
+    try:
+        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler.conferir_versoes(
+            anterior, nova, saida_base=saida_base, formatos=escolhidos,
+            json_compacto=json_compacto,
+        )
+    except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
+        typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+
+@app.command()
+def contrato(
+    caminho: str = typer.Argument(..., help="Base que serve de referência."),
+    saida: str = typer.Option("contrato.yaml", "--saida", help="Arquivo YAML a gravar."),
+    limite_amostra: int = _OPCAO_LIMITE,
+    kpis: str | None = _OPCAO_KPIS,
+) -> None:
+    setup_logging()
+    try:
+        profiler = _construir_profiler(limite_amostra, kpis)
+        df, nome = _carregar(caminho)
+        payload = profiler.processar_dataframe(df, nome)
+        acordo = contrato_mod.gerar_contrato(payload)
+        contrato_mod.salvar_contrato(acordo, saida)
+    except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
+        typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    typer.secho(
+        f"Contrato de '{nome}' salvo em {saida}. "
+        "Revise antes de usar: apagar uma entrada é dizer que aquilo pode variar.",
+        fg=typer.colors.GREEN,
+    )
+
+
+@app.command()
+def validar(
+    caminho: str = typer.Argument(..., help="Extração nova a conferir."),
+    contrato_arquivo: str = typer.Option(..., "--contrato", help="YAML gerado por `recon contrato`."),
+    limite_amostra: int = _OPCAO_LIMITE,
+    kpis: str | None = _OPCAO_KPIS,
+) -> None:
+    setup_logging()
+    try:
+        acordo = contrato_mod.carregar_contrato(contrato_arquivo)
+        profiler = _construir_profiler(limite_amostra, kpis)
+        df, nome = _carregar(caminho)
+        payload = profiler.processar_dataframe(df, nome)
+        resultado = contrato_mod.conferir_contrato(payload, acordo)
+    except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
+        typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    for violacao in resultado["violacoes"]:
+        cor = typer.colors.RED if "ALTA" in violacao["severidade"] else typer.colors.YELLOW
+        typer.secho(f"{violacao['severidade']} [{violacao['tipo']}] {violacao['mensagem']}", fg=cor)
+    typer.secho(
+        resultado["resumo"],
+        fg=typer.colors.GREEN if resultado["aprovado"] else typer.colors.RED,
+    )
+    if not resultado["aprovado"]:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def dicionario(
+    caminhos: list[str] = typer.Argument(..., help="Arquivos a documentar."),
+    saida: str = typer.Option("dicionario.xlsx", "--saida", help="Arquivo XLSX a gravar."),
+    limite_amostra: int = _OPCAO_LIMITE,
+    kpis: str | None = _OPCAO_KPIS,
+) -> None:
+    setup_logging()
+    payloads = []
+    try:
+        profiler = _construir_profiler(limite_amostra, kpis)
+        for caminho in caminhos:
+            df, nome = _carregar(caminho)
+            payloads.append(profiler.processar_dataframe(df, nome))
+        reporting.exportar_dicionario_xlsx(payloads, saida)
+    except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
+        typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    typer.secho(f"Dicionário de {len(payloads)} tabela(s) salvo em {saida}.", fg=typer.colors.GREEN)
+
+
+@app.command()
+def janela() -> None:
+    from .gui import main
+    main()
 
 
 @app.command()

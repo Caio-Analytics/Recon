@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Recon</title>
+  <rect width="256" height="256" rx="56" fill="#1e293b"/>
+  <!-- as colunas: o dado que ainda não se sabe o que é -->
+  <rect x="46" y="150" width="30" height="60" rx="6" fill="#475569"/>
+  <rect x="88" y="120" width="30" height="90" rx="6" fill="#64748b"/>
+  <rect x="130" y="164" width="30" height="46" rx="6" fill="#475569"/>
+  <rect x="172" y="136" width="30" height="74" rx="6" fill="#64748b"/>
+  <!-- a lente: o reconhecimento -->
+  <circle cx="150" cy="92" r="52" fill="#0f172a" fill-opacity="0.55"/>
+  <circle cx="150" cy="92" r="52" fill="none" stroke="#22d3ee" stroke-width="14"/>
+  <path d="M186 128 L222 164" stroke="#22d3ee" stroke-width="18" stroke-linecap="round"/>
+  <path d="M126 92 h48 M150 68 v48" stroke="#22d3ee" stroke-width="8"
+        stroke-linecap="round" stroke-opacity="0.75"/>
+</svg>

@@ -27,8 +27,44 @@ from . import (
 
 FORMATOS_PADRAO = ("json", "html")
 FORMATOS_VALIDOS = ("json", "markdown", "html", "parquet")
+EXTENSOES_EXCEL = (".xlsx", ".xls", ".xlsb")
+
+
+def abas_fora_da_analise(caminho: str, aba_excel: str | int | None) -> list[str]:
+    if os.path.splitext(caminho)[1].lower() not in EXTENSOES_EXCEL:
+        return []
+    if aba_excel not in (0, None):
+        return []
+    abas = ingestion.listar_abas(caminho)
+    return [str(a) for a in abas[1:]] if len(abas) > 1 else []
 
 _SEMANTICAS_BENFORD = frozenset({"Valor Financeiro"})
+
+
+
+
+
+TRABALHO_MINIMO_PARALELO = 2_000_000
+
+
+def _perfilar_coluna(argumentos: tuple[pd.Series, int, bool]) -> dict[str, Any]:
+    serie, linhas, avaliar_benford = argumentos
+    return statistics.analisar_estatisticas(serie, linhas, avaliar_benford=avaliar_benford)
+
+
+def _processos_disponiveis(trabalho: int, colunas: int) -> int:
+    import multiprocessing
+
+    if trabalho < TRABALHO_MINIMO_PARALELO or colunas < 8:
+        return 0
+    
+    
+    if multiprocessing.get_start_method() not in ("fork", "forkserver"):
+        return 0
+    nucleos = os.cpu_count() or 1
+    if nucleos < 4:
+        return 0
+    return min(8, nucleos, colunas)
 
 
 def _mascarar_nomes(stats: dict[str, Any]) -> None:
@@ -60,22 +96,53 @@ class DataProfiler:
         stats_por_coluna: list[dict[str, Any]] = []
         entradas_semanticas: list[dict[str, Any]] = []
 
-        for coluna in tqdm(df_alvo.columns, desc=f"Profilando '{nome_tabela}'", unit="col"):
-            
-            
-            
+        
+        
+        
+        tarefas = []
+        for coluna in df_alvo.columns:
             preliminar = semantics.inferir_semantica(str(coluna))
             avaliar_benford = bool(
                 _SEMANTICAS_BENFORD & set(semantics.semanticas_para_gap_analysis(preliminar))
             )
-
-            stats = statistics.analisar_estatisticas(
-                df_alvo[coluna], linhas, avaliar_benford=avaliar_benford
-            )
             nomes.append(str(coluna))
-            stats_por_coluna.append(stats)
+            tarefas.append((df_alvo[coluna], linhas, avaliar_benford))
+
+        processos = _processos_disponiveis(linhas * len(tarefas), len(tarefas))
+        descricao = f"Profilando '{nome_tabela}'"
+        stats_por_coluna = []
+        if processos:
+            
+            
+            
+            from concurrent.futures import ProcessPoolExecutor
+
+            logger.info(f"Distribuindo {len(tarefas)} colunas entre {processos} processos...")
+            try:
+                with ProcessPoolExecutor(max_workers=processos) as executor:
+                    stats_por_coluna = list(tqdm(
+                        executor.map(_perfilar_coluna, tarefas, chunksize=2),
+                        total=len(tarefas), desc=descricao, unit="col",
+                    ))
+            except Exception as erro:  # noqa: BLE001
+                
+                
+                
+                logger.warning(
+                    f"Não consegui usar processos ({type(erro).__name__}); "
+                    "seguindo em sequencial."
+                )
+                stats_por_coluna = []
+
+        if not stats_por_coluna:
+            stats_por_coluna = [
+                _perfilar_coluna(tarefa)
+                for tarefa in tqdm(tarefas, desc=descricao, unit="col")
+            ]
+
+        for nome, stats in zip(nomes, stats_por_coluna, strict=True):
             entradas_semanticas.append({
-                "nome": str(coluna),
+                "nome": nome,
                 "padrao": stats["flags"]["detected_pattern"],
                 "perfil": semantics.perfil_de_registro(stats, stats["amostra_representativa"]),
             })
@@ -148,11 +215,15 @@ class DataProfiler:
             "linha_cabecalho": getattr(lay, "linha_cabecalho", 0),
             "linhas_rodape_removidas": getattr(lay, "linhas_rodape", 0),
             "colunas_vazias_removidas": getattr(lay, "colunas_vazias_removidas", []),
+            "separador": getattr(lay, "separador", None),
+            "encoding": getattr(lay, "encoding", None),
             "avisos": getattr(lay, "avisos", []),
         }
 
-        total_linhas = len(df)
-        amostrado = total_linhas > self.limite_amostra
+        
+        
+        total_linhas = int(df.attrs.get("linhas_originais") or len(df))
+        amostrado = total_linhas > len(df) or total_linhas > self.limite_amostra
         df_alvo = df.sample(n=self.limite_amostra, random_state=42) if amostrado else df
         linhas_analisadas = len(df_alvo)
 
@@ -171,6 +242,9 @@ class DataProfiler:
         logger.info("Procurando duplicatas, colunas redundantes e chaves compostas...")
         duplicatas = relationships.analisar_duplicatas(df_alvo)
         redundantes = relationships.detectar_colunas_redundantes(df_alvo)
+        duplicatas_aproximadas = relationships.detectar_duplicatas_aproximadas(
+            df_alvo, lista_colunas
+        )
         chaves_compostas = relationships.detectar_chaves_compostas(df_alvo, lista_colunas)
 
         logger.info("Medindo correlações entre colunas...")
@@ -189,10 +263,11 @@ class DataProfiler:
 
         recomendacoes.extend(quality.gerar_recomendacoes_tabela(
             nome_tabela, duplicatas, redundantes, chaves_compostas, linhas_analisadas,
-            colunas=lista_colunas,
+            colunas=lista_colunas, duplicatas_aproximadas=duplicatas_aproximadas,
         ))
 
         score = quality.calcular_score_qualidade(lista_colunas, duplicatas, redundantes)
+        risco_lgpd = quality.calcular_risco_lgpd(lista_colunas)
 
         if not recomendacoes:
             recomendacoes.append({
@@ -213,6 +288,7 @@ class DataProfiler:
                 "total_colunas": len(lista_colunas),
                 "layout": layout_info,
                 "score_qualidade": score,
+                "risco_lgpd": risco_lgpd,
                 "duplicatas": duplicatas,
                 "resumo_qualidade": {
                     "colunas_com_nulos": sum(1 for c in lista_colunas if c["Pct_Nulos"] > 0),
@@ -236,6 +312,7 @@ class DataProfiler:
             "recomendacoes_etl": recomendacoes,
             "dependencias_funcionais": dependencias,
             "colunas_redundantes": redundantes,
+            "duplicatas_aproximadas": duplicatas_aproximadas,
             "chaves_compostas": chaves_compostas,
             "correlacoes": correlacoes,
             "hierarquias": hierarquias,
@@ -258,6 +335,7 @@ class DataProfiler:
         detectar_layout: bool = True,
         linha_cabecalho: int | None = None,
         gerar_limpeza: bool = False,
+        gerar_limpeza_powerquery: bool = False,
     ) -> list[dict[str, Any]]:
         formatos = list(formatos)
         if tambem_parquet and "parquet" not in formatos:
@@ -270,18 +348,36 @@ class DataProfiler:
             )
 
         extensao = os.path.splitext(caminho)[1].lower()
-        if processar_todas_abas and extensao in (".xlsx", ".xls", ".xlsb"):
+        abas_ignoradas: list[str] = []
+        if processar_todas_abas and extensao in EXTENSOES_EXCEL:
             pares = ingestion.carregar_todas_abas_excel(caminho, detectar_layout)
         else:
+            
+            
+            
+            
+            
+            abas_ignoradas = abas_fora_da_analise(caminho, aba_excel)
+            if abas_ignoradas:
+                logger.warning(
+                    f"'{os.path.basename(caminho)}' tem {len(abas_ignoradas) + 1} abas e só a "
+                    f"primeira será analisada. Ficaram de fora: "
+                    f"{', '.join(abas_ignoradas[:4])}"
+                    f"{'...' if len(abas_ignoradas) > 4 else ''}. "
+                    "Para um relatório por aba, marque 'analisar todas as abas' na janela "
+                    "ou use --todas-abas na linha de comando; `recon modelar` analisa as abas "
+                    "juntas e descobre como se ligam."
+                )
             pares = [ingestion.carregar_arquivo(
                 caminho, aba_excel=aba_excel, detectar_layout=detectar_layout,
-                linha_cabecalho=linha_cabecalho,
+                linha_cabecalho=linha_cabecalho, limite_linhas=self.limite_amostra,
             )]
 
         nomes_usados: set[str] = set()
         resultados = []
         for df, nome_tabela in pares:
             payload = self.processar_dataframe(df, nome_tabela)
+            payload["metadados_execucao"]["abas_ignoradas"] = abas_ignoradas
             nome_safe = reporting.gerar_nome_unico(nome_tabela, nomes_usados)
             if "json" in formatos:
                 reporting.exportar_json(payload, f"{saida_base}_{nome_safe}.json", json_compacto)
@@ -295,9 +391,53 @@ class DataProfiler:
                 codegen.exportar_script_limpeza(
                     payload, caminho, f"{saida_base}_{nome_safe}_limpeza.py"
                 )
+            if gerar_limpeza_powerquery:
+                codegen.exportar_script_limpeza_m(
+                    payload, caminho, f"{saida_base}_{nome_safe}_limpeza.pq"
+                )
             resultados.append(payload)
         return resultados
 
+
+    
+    def conferir_versoes(
+        self,
+        caminho_anterior: str,
+        caminho_novo: str,
+        saida_base: str = "conferencia",
+        formatos: Sequence[str] = FORMATOS_PADRAO,
+        json_compacto: bool = False,
+    ) -> dict[str, Any]:
+        carregadas = []
+        for caminho in (caminho_anterior, caminho_novo):
+            df, nome = ingestion.carregar_arquivo(caminho)
+            if df is None or df.empty:
+                raise ValueError(f"'{caminho}' está vazio — não há o que conferir.")
+            logger.info(f"Perfilando '{nome}' para a conferência...")
+            payload = self.processar_dataframe(df, nome)
+            carregadas.append(
+                datamodel.TabelaCarregada(nome=nome, df=df, payload=payload, origem=caminho)
+            )
+
+        logger.info("Comparando as duas versões...")
+        resultado = datamodel.reconciliar(carregadas[0], carregadas[1])
+        resultado["metadados_execucao"] = {
+            "timestamp_utc": datetime.now(UTC).isoformat(),
+            "versao_profiler": __version__,
+            "schema_version": config.SCHEMA_VERSION,
+            "arquivo_anterior": caminho_anterior,
+            "arquivo_novo": caminho_novo,
+        }
+
+        if "json" in formatos:
+            reporting.exportar_json(resultado, f"{saida_base}_conferencia.json", json_compacto)
+        if "markdown" in formatos:
+            reporting.exportar_conferencia_markdown(
+                resultado, f"{saida_base}_conferencia.md"
+            )
+        if "html" in formatos:
+            reporting.exportar_conferencia_html(resultado, f"{saida_base}_conferencia.html")
+        return resultado
 
     
     def modelar_conjunto(
