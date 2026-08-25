@@ -258,6 +258,17 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
             'primária potencial" que não existe na base completa.</p>'
         )
 
+    risco = meta.get("risco_lgpd") or {}
+    if risco.get("colunas_sensiveis"):
+        colunas = ", ".join(
+            f"<code>{_e(c['coluna'])}</code> ({_e(c['tipo'])})"
+            for c in risco["colunas_sensiveis"][:6]
+        )
+        partes.append(
+            f'<h2>Exposição de dado pessoal — {_e(risco["nivel"])}</h2>'
+            f'<p class="sub">{colunas}. {_e(risco["recomendacao"])}</p>'
+        )
+
     if score:
         largura = max(0.0, min(100.0, float(score["score"])))
         cor = _cor_score(largura)
