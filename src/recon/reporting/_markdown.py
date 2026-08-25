@@ -248,6 +248,16 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
 
     partes: list[str] = [f"# Relatório de Perfilamento — {meta['tabela']}", ""]
 
+    risco = meta.get("risco_lgpd") or {}
+    if risco and risco.get("colunas_sensiveis"):
+        colunas = ", ".join(
+            f"`{c['coluna']}` ({c['tipo']})" for c in risco["colunas_sensiveis"][:6]
+        )
+        partes.append(
+            f"## Exposição de dado pessoal: **{risco['nivel']}**\n\n"
+            f"{colunas}. {risco['recomendacao']}\n"
+        )
+
     if score:
         partes.append(
             f"## Qualidade geral: **{score['score']}/100** (nota {score['nota']})\n"
