@@ -239,7 +239,10 @@ def test_script_de_limpeza_nao_desfaz_a_conversao_de_data(tmp_path, monkeypatch)
     )
 
     script = (tmp_path / "s_datas_limpeza.py").read_text(encoding="utf-8")
-    assert "to_datetime" in script
+    
+    
+    
+    assert "parse_dates" in script or "to_datetime" in script
     escopo: dict = {}
     exec(compile(script, "limpeza.py", "exec"), escopo)  # noqa: S102
     assert pd.api.types.is_datetime64_any_dtype(escopo["df"]["dt_evento"])

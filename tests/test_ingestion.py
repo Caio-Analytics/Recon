@@ -68,9 +68,17 @@ def test_carregar_arquivo_inexistente_levanta_file_not_found():
 
 
 def test_extensao_nao_suportada_levanta_file_format_error(tmp_path):
-    caminho = _escrever(tmp_path, "dados.txt", "qualquer coisa")
+    caminho = _escrever(tmp_path, "relatorio.docx", "qualquer coisa")
     with pytest.raises(FileFormatError):
         carregar_arquivo(str(caminho))
+
+
+def test_txt_apontado_na_mao_e_lido_como_texto_delimitado(tmp_path):
+    caminho = _escrever(tmp_path, "extracao.txt", "id;uf\n1;SP\n2;RJ\n")
+    df, nome = carregar_arquivo(str(caminho))
+
+    assert nome == "extracao"
+    assert list(df.columns) == ["id", "uf"]
 
 
 def test_csv_vazio_levanta_file_format_error(tmp_path):
