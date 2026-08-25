@@ -124,7 +124,9 @@ def _e_chave_primaria(meta: dict[str, Any]) -> bool:
     )
 
 
-def _conjunto_normalizado(serie: pd.Series) -> set[str]:
+def _conjunto_normalizado(
+    serie: pd.Series, rotulo: str = "", avisos: list[dict[str, Any]] | None = None
+) -> set[str]:
     """Valores distintos como texto canônico.
 
     A normalização é o que permite casar uma chave que virou `int64` num
@@ -143,6 +145,23 @@ def _conjunto_normalizado(serie: pd.Series) -> set[str]:
         convertida = limpa.astype(str).str.strip()
     distintos = convertida.unique()
     if len(distintos) > MAX_DISTINTOS_COMPARADOS:
+        # O corte é necessário (o casamento é por conjunto, em memória), mas em
+        # silêncio ele mente: a contenção passa a ser medida contra uma chave
+        # incompleta, sai subestimada, e a chave estrangeira pode simplesmente
+        # não aparecer no relatório sem que nada explique por quê.
+        mensagem = (
+            f"`{rotulo or serie.name}` tem {len(distintos):,} valores distintos e o "
+            f"casamento de chaves compara no máximo {MAX_DISTINTOS_COMPARADOS:,}. "
+            "A contenção medida para esta coluna é um piso, não o valor exato — uma "
+            "relação real pode ter ficado de fora."
+        )
+        logger.warning(mensagem)
+        if avisos is not None:
+            avisos.append({
+                "severidade": "🟡 MÉDIA",
+                "tipo": "Chave grande demais para comparar inteira",
+                "mensagem": mensagem,
+            })
         distintos = distintos[:MAX_DISTINTOS_COMPARADOS]
     return set(distintos)
 
@@ -167,7 +186,9 @@ def _tipos_incompativeis(serie_a: pd.Series, serie_b: pd.Series) -> bool:
 
 # ── Detecção de relacionamentos ─────────────────────────────────────────────
 
-def detectar_relacionamentos(tabelas: list[TabelaCarregada]) -> list[dict[str, Any]]:
+def detectar_relacionamentos(
+    tabelas: list[TabelaCarregada], avisos: list[dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
     """Procura chaves estrangeiras entre todas as tabelas do conjunto.
 
     Para cada coluna candidata a chave primária, testa que colunas das demais
@@ -184,7 +205,9 @@ def detectar_relacionamentos(tabelas: list[TabelaCarregada]) -> list[dict[str, A
     def conjunto(tabela: TabelaCarregada, coluna: str) -> set[str]:
         chave = (tabela.nome, coluna)
         if chave not in conjuntos:
-            conjuntos[chave] = _conjunto_normalizado(tabela.df[coluna])
+            conjuntos[chave] = _conjunto_normalizado(
+                tabela.df[coluna], f"{tabela.nome}.{coluna}", avisos
+            )
         return conjuntos[chave]
 
     achados: list[dict[str, Any]] = []
@@ -275,6 +298,92 @@ def detectar_relacionamentos(tabelas: list[TabelaCarregada]) -> list[dict[str, A
                     })
 
     achados.sort(key=lambda r: -r["confianca"])
+    return achados
+
+
+# ── Chave estrangeira composta ──────────────────────────────────────────────
+
+def _coluna_equivalente(origem: TabelaCarregada, nome: str) -> str | None:
+    """Coluna da origem que corresponde a `nome` na tabela de destino."""
+    if nome in origem.df.columns:
+        return nome
+    alvo = normalizar(nome)
+    melhor, melhor_score = None, 0.0
+    for meta in origem.colunas:
+        candidato = meta["Coluna"]
+        score = JaroWinkler.similarity(normalizar(candidato), alvo)
+        if score > melhor_score:
+            melhor, melhor_score = candidato, score
+    return melhor if melhor_score >= 0.9 else None
+
+
+def _tuplas_normalizadas(df: pd.DataFrame, colunas: list[str]) -> set[tuple[str, ...]]:
+    recorte = df[colunas].dropna()
+    if recorte.empty:
+        return set()
+    textos = [
+        _conjunto_como_serie(recorte[c]) for c in colunas
+    ]
+    return set(zip(*[s.tolist() for s in textos], strict=True))
+
+
+def _conjunto_como_serie(serie: pd.Series) -> pd.Series:
+    if pd.api.types.is_numeric_dtype(serie):
+        return serie.map(lambda v: str(int(v)) if float(v).is_integer() else str(v))
+    return serie.astype(str).str.strip()
+
+
+def detectar_relacionamentos_compostos(
+    tabelas: list[TabelaCarregada], ja_ligadas: set[tuple[str, str]]
+) -> list[dict[str, Any]]:
+    """Chaves estrangeiras de mais de uma coluna.
+
+    Tabela de evento costuma se ligar à dimensão por um par (`empregado` +
+    `curso`, `filial` + `produto`). Procurando só chave de uma coluna, essas
+    ligações ficavam invisíveis e a tabela aparecia como "sem ligação com as
+    demais" — conclusão errada sobre o modelo inteiro.
+    """
+    achados: list[dict[str, Any]] = []
+    for destino in tabelas:
+        for chave in (destino.payload.get("chaves_compostas") or [])[:4]:
+            colunas_pk = list(chave.get("colunas") or [])
+            if len(colunas_pk) < 2 or any(c not in destino.df.columns for c in colunas_pk):
+                continue
+            tuplas_pk = _tuplas_normalizadas(destino.df, colunas_pk)
+            if len(tuplas_pk) < MIN_DISTINTOS_CHAVE:
+                continue
+
+            for origem in tabelas:
+                if origem.nome == destino.nome:
+                    continue
+                if (origem.nome, destino.nome) in ja_ligadas:
+                    continue  # já existe ligação simples entre as duas
+                equivalentes = [_coluna_equivalente(origem, c) for c in colunas_pk]
+                if any(v is None for v in equivalentes):
+                    continue
+                colunas_fk = [v for v in equivalentes if v is not None]
+                if len(set(colunas_fk)) != len(colunas_pk):
+                    continue
+                tuplas_fk = _tuplas_normalizadas(origem.df, colunas_fk)
+                if len(tuplas_fk) < MIN_DISTINTOS_CHAVE:
+                    continue
+                contencao = len(tuplas_fk & tuplas_pk) / len(tuplas_fk)
+                if contencao < CONTENCAO_MINIMA:
+                    continue
+                achados.append({
+                    "tabela_origem": origem.nome,
+                    "colunas_origem": colunas_fk,
+                    "tabela_destino": destino.nome,
+                    "colunas_destino": colunas_pk,
+                    "contencao": round(contencao, 4),
+                    "pct_orfaos": round(1.0 - contencao, 4),
+                    "descricao": (
+                        f"`{origem.nome}` se liga a `{destino.nome}` pelo conjunto "
+                        f"({', '.join(colunas_fk)}) → ({', '.join(colunas_pk)}): "
+                        f"{contencao:.1%} das combinações existem no destino."
+                    ),
+                })
+    achados.sort(key=lambda r: -r["contencao"])
     return achados
 
 
@@ -561,10 +670,16 @@ def sugerir_analises(
                         f'.assign(__mes__=lambda d: pd.to_datetime(d["{data}"]).dt.to_period("M").astype(str))\n'
                         f'    .groupby("__mes__"',
                     ),
+                    # O agregador acompanha `_agregacao_para`: com `SUM` fixo,
+                    # o SQL entregue ao lado do pandas somava a nota média — os
+                    # dois trechos do mesmo relatório respondiam coisas
+                    # diferentes.
                     "sql": (
                         f'SELECT DATE_TRUNC(\'month\', f."{data}") AS mes, '
-                        f'SUM({"f" if medida["tabela"] == nome_fato else "d1"}."{medida["coluna"]}") '
-                        f'AS total\nFROM "{nome_fato}" f\n'
+                        f'{"SUM" if _agregacao_para(medida["coluna"]) == "sum" else "AVG"}'
+                        f'({"f" if medida["tabela"] == nome_fato else "d1"}."{medida["coluna"]}") '
+                        f'AS {_agregacao_para(medida["coluna"])}_{medida["coluna"]}\n'
+                        f'FROM "{nome_fato}" f\n'
                         + ("" if medida["tabela"] == nome_fato else
                            f'LEFT JOIN "{medida["tabela"]}" d1 ON '
                            f'f."{joins[0]["coluna_origem"]}" = d1."{joins[0]["coluna_destino"]}"\n')
@@ -578,7 +693,8 @@ def sugerir_analises(
 # ── Avisos de integridade entre tabelas ─────────────────────────────────────
 
 def gerar_avisos(
-    relacionamentos: list[dict[str, Any]], perfis: dict[str, PerfilTabela]
+    relacionamentos: list[dict[str, Any]], perfis: dict[str, PerfilTabela],
+    compostas: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Problemas que só aparecem quando as tabelas são olhadas juntas."""
     avisos: list[dict[str, Any]] = []
@@ -610,7 +726,8 @@ def gerar_avisos(
             })
 
     isoladas = [n for n, p in perfis.items()
-                if p.papel in ("Dimensão isolada", "Indefinida")]
+                if p.papel in ("Dimensão isolada", "Indefinida")
+                and n not in (compostas or set())]
     for nome in isoladas:
         avisos.append({
             "severidade": "🟡 MÉDIA",
@@ -633,14 +750,34 @@ def analisar_conjunto(tabelas: list[TabelaCarregada], nome_conjunto: str) -> dic
     from . import __version__
 
     logger.info(f"Procurando chaves entre {len(tabelas)} tabelas...")
-    relacionamentos = detectar_relacionamentos(tabelas)
+    avisos_chave: list[dict[str, Any]] = []
+    relacionamentos = detectar_relacionamentos(tabelas, avisos_chave)
+
+    ligadas = {(r["tabela_origem"], r["tabela_destino"]) for r in relacionamentos}
+    compostos = detectar_relacionamentos_compostos(tabelas, ligadas)
+    if compostos:
+        logger.info(f"{len(compostos)} ligação(ões) por chave composta encontrada(s).")
 
     logger.info("Classificando o papel de cada tabela...")
     perfis = classificar_papeis(tabelas, relacionamentos)
 
     logger.info("Montando análises sugeridas...")
     analises = sugerir_analises(tabelas, relacionamentos, perfis)
-    avisos = gerar_avisos(relacionamentos, perfis)
+    nomes_com_composta = {r["tabela_origem"] for r in compostos} | {
+        r["tabela_destino"] for r in compostos
+    }
+    avisos = gerar_avisos(relacionamentos, perfis, nomes_com_composta) + avisos_chave
+    for composto in compostos:
+        if composto["pct_orfaos"] > 0.05:
+            avisos.append({
+                "severidade": "🟡 MÉDIA",
+                "tipo": "Integridade referencial (chave composta)",
+                "mensagem": (
+                    f"{composto['pct_orfaos']:.1%} das combinações de "
+                    f"({', '.join(composto['colunas_origem'])}) em "
+                    f"`{composto['tabela_origem']}` não existem em `{composto['tabela_destino']}`."
+                ),
+            })
 
     granularidades = [
         {"tabela": t.nome, **grao}
@@ -694,6 +831,7 @@ def analisar_conjunto(tabelas: list[TabelaCarregada], nome_conjunto: str) -> dic
             for t in tabelas
         ],
         "relacionamentos": relacionamentos,
+        "relacionamentos_compostos": compostos,
         "granularidade": granularidades,
         "cobertura_temporal": cobertura,
         "analises_sugeridas": analises,
@@ -790,34 +928,162 @@ def analisar_cobertura_temporal(tabelas: list[TabelaCarregada]) -> dict[str, Any
 
 # ── Reconciliação entre tabelas ─────────────────────────────────────────────
 
+# Variação a partir da qual uma coluna comum entra no relatório de conferência.
+VARIACAO_NULOS_RELEVANTE = 5.0     # em pontos percentuais
+VARIACAO_CARDINALIDADE_RELEVANTE = 0.2   # 20% a mais ou a menos de valores distintos
+MAX_CHAVES_LISTADAS = 20
+
+
+def _variacoes_de_coluna(
+    tabela_a: TabelaCarregada, tabela_b: TabelaCarregada, comuns: set[str]
+) -> list[dict[str, Any]]:
+    """O que mudou nas colunas que existem nas duas versões.
+
+    Coluna que sumiu do arquivo é fácil de ver; coluna que continua lá e
+    *parou de vir preenchida* é o defeito silencioso de extração — o relatório
+    da versão nova, sozinho, mostra 40% de nulos sem nada com que comparar.
+    """
+    variacoes: list[dict[str, Any]] = []
+    for nome in sorted(comuns):
+        meta_a, meta_b = tabela_a.meta(nome), tabela_b.meta(nome)
+        if meta_a is None or meta_b is None:
+            continue
+        delta_nulos = float(meta_b.get("Pct_Nulos", 0)) - float(meta_a.get("Pct_Nulos", 0))
+        unicos_a = int(meta_a.get("Qtd_Unicos", 0)) or 1
+        unicos_b = int(meta_b.get("Qtd_Unicos", 0))
+        delta_unicos = (unicos_b - unicos_a) / unicos_a
+        mudou_tipo = meta_a.get("Tipo_Inferred") != meta_b.get("Tipo_Inferred")
+
+        motivos: list[str] = []
+        if mudou_tipo:
+            motivos.append(
+                f"tipo mudou de {meta_a.get('Tipo_Inferred')} para {meta_b.get('Tipo_Inferred')}"
+            )
+        if abs(delta_nulos) >= VARIACAO_NULOS_RELEVANTE:
+            # Nulo subindo é preenchimento caindo: inverter aqui evita a frase
+            # "o preenchimento subiu" para uma coluna que parou de vir.
+            direcao = "caiu" if delta_nulos > 0 else "subiu"
+            motivos.append(
+                f"o preenchimento {direcao}: nulos passaram de "
+                f"{meta_a.get('Pct_Nulos', 0):.1f}% para {meta_b.get('Pct_Nulos', 0):.1f}%"
+            )
+        if abs(delta_unicos) >= VARIACAO_CARDINALIDADE_RELEVANTE:
+            motivos.append(
+                f"valores distintos passaram de {unicos_a:,} para {unicos_b:,}"
+            )
+        if not motivos:
+            continue
+        variacoes.append({
+            "coluna": nome,
+            "tipo_a": meta_a.get("Tipo_Inferred"),
+            "tipo_b": meta_b.get("Tipo_Inferred"),
+            "pct_nulos_a": round(float(meta_a.get("Pct_Nulos", 0)), 2),
+            "pct_nulos_b": round(float(meta_b.get("Pct_Nulos", 0)), 2),
+            "unicos_a": unicos_a,
+            "unicos_b": unicos_b,
+            "mudou_tipo": mudou_tipo,
+            "severidade": (
+                "🔴 ALTA" if mudou_tipo or abs(delta_nulos) >= 20 else "🟡 MÉDIA"
+            ),
+            "descricao": "; ".join(motivos).capitalize() + ".",
+        })
+    return variacoes
+
+
 def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[str, Any]:
-    """Compara duas tabelas que deveriam falar do mesmo assunto.
+    """Compara duas versões da mesma base.
 
     "Recebi a base de janeiro e a de fevereiro — elas batem?" é uma pergunta
     de conferência, não de monitoramento: as duas estão na mão agora. O que
-    interessa é o que mudou de schema e quais chaves entraram e saíram.
+    interessa é o que mudou de schema, quais chaves entraram e saíram, e que
+    colunas mudaram de comportamento sem mudar de nome.
     """
     colunas_a = {c["Coluna"] for c in tabela_a.colunas}
     colunas_b = {c["Coluna"] for c in tabela_b.colunas}
+    comuns = colunas_a & colunas_b
 
+    linhas_a, linhas_b = len(tabela_a.df), len(tabela_b.df)
     resultado: dict[str, Any] = {
         "tabela_a": tabela_a.nome,
         "tabela_b": tabela_b.nome,
-        "linhas_a": len(tabela_a.df),
-        "linhas_b": len(tabela_b.df),
+        "linhas_a": linhas_a,
+        "linhas_b": linhas_b,
+        "variacao_linhas": round((linhas_b - linhas_a) / linhas_a, 4) if linhas_a else None,
         "colunas_so_em_a": sorted(colunas_a - colunas_b),
         "colunas_so_em_b": sorted(colunas_b - colunas_a),
-        "colunas_comuns": len(colunas_a & colunas_b),
+        "colunas_comuns": len(comuns),
+        "variacoes_de_coluna": _variacoes_de_coluna(tabela_a, tabela_b, comuns),
     }
 
     chaves_a = _chaves_primarias(tabela_a.colunas)
     chave = next((c for c in chaves_a if c in colunas_b), None)
     if chave:
-        valores_a = _conjunto_normalizado(tabela_a.df[chave])
-        valores_b = _conjunto_normalizado(tabela_b.df[chave])
-        resultado["chave_comparada"] = chave
-        resultado["chaves_so_em_a"] = len(valores_a - valores_b)
-        resultado["chaves_so_em_b"] = len(valores_b - valores_a)
-        resultado["chaves_em_ambas"] = len(valores_a & valores_b)
+        valores_a = _conjunto_normalizado(tabela_a.df[chave], f"{tabela_a.nome}.{chave}")
+        valores_b = _conjunto_normalizado(tabela_b.df[chave], f"{tabela_b.nome}.{chave}")
+        sairam, entraram = valores_a - valores_b, valores_b - valores_a
+        resultado.update({
+            "chave_comparada": chave,
+            "chaves_so_em_a": len(sairam),
+            "chaves_so_em_b": len(entraram),
+            "chaves_em_ambas": len(valores_a & valores_b),
+            "exemplos_sairam": sorted(sairam)[:MAX_CHAVES_LISTADAS],
+            "exemplos_entraram": sorted(entraram)[:MAX_CHAVES_LISTADAS],
+        })
+    else:
+        resultado["chave_comparada"] = None
+        resultado["motivo_sem_chave"] = (
+            "Nenhuma coluna serve de chave nas duas versões (precisa ser única, sem nulo e "
+            "existir nos dois arquivos). Sem chave dá para comparar schema e volume, mas não "
+            "quais registros entraram e saíram."
+        )
 
+    resultado["avisos"] = _avisos_da_conferencia(resultado)
     return resultado
+
+
+def _avisos_da_conferencia(resultado: dict[str, Any]) -> list[dict[str, Any]]:
+    """O que merece atenção antes de usar a versão nova."""
+    avisos: list[dict[str, Any]] = []
+    if resultado["colunas_so_em_a"]:
+        avisos.append({
+            "severidade": "🔴 ALTA",
+            "tipo": "Coluna sumiu",
+            "mensagem": (
+                f"{len(resultado['colunas_so_em_a'])} coluna(s) existiam em "
+                f"`{resultado['tabela_a']}` e não vieram em `{resultado['tabela_b']}`: "
+                f"{', '.join(resultado['colunas_so_em_a'][:6])}. "
+                "Qualquer relatório que use essas colunas quebra."
+            ),
+        })
+    if resultado["colunas_so_em_b"]:
+        avisos.append({
+            "severidade": "🟡 MÉDIA",
+            "tipo": "Coluna nova",
+            "mensagem": (
+                f"{len(resultado['colunas_so_em_b'])} coluna(s) apareceram em "
+                f"`{resultado['tabela_b']}`: {', '.join(resultado['colunas_so_em_b'][:6])}."
+            ),
+        })
+    variacao = resultado.get("variacao_linhas")
+    if variacao is not None and abs(variacao) >= 0.2:
+        avisos.append({
+            "severidade": "🔴 ALTA" if abs(variacao) >= 0.5 else "🟡 MÉDIA",
+            "tipo": "Volume mudou muito",
+            "mensagem": (
+                f"O número de linhas {'subiu' if variacao > 0 else 'caiu'} {abs(variacao):.1%} "
+                f"({resultado['linhas_a']:,} → {resultado['linhas_b']:,}). Confirme se o "
+                "recorte da extração é o mesmo antes de comparar números."
+            ),
+        })
+    graves = [v for v in resultado["variacoes_de_coluna"] if v["severidade"] == "🔴 ALTA"]
+    if graves:
+        avisos.append({
+            "severidade": "🔴 ALTA",
+            "tipo": "Coluna mudou de comportamento",
+            "mensagem": (
+                f"{len(graves)} coluna(s) continuam no arquivo mas mudaram de tipo ou de "
+                f"preenchimento: {', '.join(v['coluna'] for v in graves[:6])}. "
+                "É o defeito de extração que passa despercebido, porque o nome não mudou."
+            ),
+        })
+    return avisos
