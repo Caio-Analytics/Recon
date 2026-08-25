@@ -224,3 +224,19 @@ def test_perfilar_avisa_sobre_abas_ignoradas(tmp_path, monkeypatch):
     assert resultado.exit_code == 0
     assert "3 abas" in resultado.output
     assert "--todas-abas" in resultado.output
+
+
+def test_python_dash_m_recon_funciona_sem_o_script_no_path():
+    """`python -m recon` precisa funcionar mesmo quando o script `recon` não
+    está no PATH — é o caminho documentado para instalação `--user` em
+    máquina corporativa sem admin, onde a pasta de scripts do usuário nem
+    sempre está no PATH."""
+    import subprocess
+    import sys
+
+    saida = subprocess.run(
+        [sys.executable, "-m", "recon", "versao"],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert saida.returncode == 0
+    assert "Recon" in saida.stdout
