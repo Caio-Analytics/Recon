@@ -87,10 +87,16 @@ def sugerir_dtype(
         numericos = pd.to_numeric(serie.dropna(), errors="coerce").dropna()
         if not numericos.empty:
             minimo, maximo = float(numericos.min()), float(numericos.max())
+            
+            
+            
+            
+            
+            tem_nulo = bool(serie.isna().any())
             for nome_tipo in ("int8", "int16", "int32"):
                 info = np.iinfo(nome_tipo)
                 if minimo >= info.min and maximo <= info.max:
-                    sugerido = nome_tipo
+                    sugerido = nome_tipo.capitalize() if tem_nulo else nome_tipo
                     break
     elif tipo_amigavel == "Número Decimal":
         if dtype_atual == "float64":
@@ -447,6 +453,11 @@ def analisar_estatisticas(
                 qualidade["inconsistencia_normalizacao"] = (
                     patterns.detectar_inconsistencia_normalizacao(contagens)
                 )
+            
+            
+            
+            if not sensivel and not flag_data_como_texto:
+                qualidade["formato"] = patterns.inferir_formato(amostra_str)
 
     
     ratio_unicidade = n_unicos / total_linhas if total_linhas > 0 else 0.0
