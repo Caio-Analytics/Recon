@@ -251,4 +251,4 @@ def test_nome_de_pessoa_e_mascarado_preservando_a_forma():
     estruturado — ia para o relatório em claro."""
     mascarado = patterns.mascarar_nome_pessoa("MARIANA OLIVEIRA DOS SANTOS")
     assert mascarado == "M****** O******* D** S*****"
-    assert "AMANDA" not in mascarado
+    assert "MARIANA" not in mascarado
