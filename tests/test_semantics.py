@@ -259,10 +259,11 @@ def test_abreviatura_de_verdade_continua_expandindo():
 def test_qualificador_na_ponta_final_define_o_papel():
     """Nomenclatura inglesa põe o qualificador no fim (`SUPPLIER_CONTACT_CODE`),
     a portuguesa no início (`id_funcionario`). Olhar só o início classificava
-    `SUPPLIER_CONTACT_CODE` como valor financeiro — dá para somar centro de custo.
+    esse tipo de coluna pela primeira palavra do nome — que costuma ser o
+    assunto, não o papel.
     """
     for coluna in ("SUPPLIER_CONTACT_CODE", "WAREHOUSE_ACCESS_IDENTIFIER",
-                   "SHIPPING_MANAGER_IDEN", "PROJECT_BUDGET_CODE"):
+                   "PROJECT_BUDGET_CODE", "SHIPPING_MANAGER_IDEN"):
         assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_CHAVE_ID, coluna
     assert inferir_semantica("id_funcionario")["papel"] == config.SEMANTICA_CHAVE_ID
 
@@ -282,8 +283,8 @@ def test_nome_de_coisa_nao_e_nome_de_pessoa():
 
 
 def test_descricao_com_poucos_valores_vira_categoria():
-    """`JOB_DESCRIPTION` com milhares de valores é texto; `TYPE_DESC` com 4
-    valores em 79 mil linhas é dimensão, e quem modela precisa da diferença."""
+    """`JOB_DESCRIPTION` com milhares de valores é texto; `TYPE_DESC` com poucos
+    valores numa tabela grande é dimensão, e quem modela precisa da diferença."""
     poucos = PerfilConteudo(tipo_dados="Texto", n_unicos=4, ratio_unicidade=0.00005)
     muitos = PerfilConteudo(tipo_dados="Texto", n_unicos=9000, ratio_unicidade=0.7)
     assert inferir_semantica("SHIFT_TYPE_DESC", perfil=poucos)["papel"] == \

@@ -94,7 +94,7 @@ def _refinar_papel(papel: str | None, dominio: str | None, perfil: PerfilConteud
       mesmo qualificador. O que os separa é o domínio: departamento é estrutura
       organizacional, e nome de departamento não é dado pessoal.
     - **descrição × categoria** — `JOB_DESCRIPTION` (milhares de valores) é
-      texto livre; `SHIFT_TYPE_DESC` (4 valores em 79 mil linhas) é uma
+      texto livre; `SHIFT_TYPE_DESC` (poucos valores numa tabela grande) é uma
       dimensão. Quem vai modelar precisa dessa diferença, e ela está no dado,
       não no nome.
     """

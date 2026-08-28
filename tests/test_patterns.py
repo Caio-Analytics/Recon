@@ -227,9 +227,9 @@ def test_pii_embutida_em_frase_continua_sendo_detectada():
 
 
 def test_matricula_alfanumerica_nao_vira_telefone():
-    """Regressão real (base MDM): a regex de telefone não exigia fronteira no
-    início, então casava o trecho `9988776655` dentro da matrícula
-    `CD9988776655`. Telefone não tem letra ao lado."""
+    """Regressão real: a regex de telefone não exigia fronteira no início,
+    então casava um trecho de dígitos embutido dentro de um código
+    alfanumérico como `CD9988776655`. Telefone não tem letra ao lado."""
     matriculas = ["AB000123456", "CD9988776655", "AB772104537", "EF14290712"] * 5
     assert patterns.detectar_pii_em_texto_livre(matriculas)["tem_pii"] is False
 
