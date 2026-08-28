@@ -375,8 +375,8 @@ _RE_PII_LIVRE: dict[str, re.Pattern] = {
     "CNPJ": re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b"),
     "E-mail": re.compile(r"\b[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+\b"),
     # `(?<!\w)` no início e `(?!\w)` no fim impedem o casamento no *meio* de
-    # um código alfanumérico: sem eles, `CD9988776655` (uma matrícula) casava
-    # pelo trecho `9988776655`. Telefone não tem letra ao lado.
+    # um código alfanumérico: sem eles, uma matrícula como `CD9988776655`
+    # casava pelo trecho de dígitos. Telefone não tem letra ao lado.
     "Telefone": re.compile(r"(?<!\w)\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}(?!\w)"),
 }
 
@@ -396,9 +396,9 @@ def detectar_pii_em_texto_livre(amostra_str: list[str]) -> dict[str, Any]:
     if not amostra_str:
         return {"tem_pii": False}
 
-    # Texto livre tem espaço. Uma coluna de código (`AB772104537`) não é texto
-    # livre, e rodar a busca nela só produz falso positivo — foi assim que uma
-    # matrícula virou "telefone embutido".
+    # Texto livre tem espaço. Uma coluna de código (`CD9988776655`) não é
+    # texto livre, e rodar a busca nela só produz falso positivo — foi assim
+    # que uma matrícula virou "telefone embutido".
     com_espaco = sum(1 for v in amostra_str if " " in str(v).strip())
     if com_espaco / len(amostra_str) < _FRACAO_MINIMA_TEXTO_LIVRE:
         return {"tem_pii": False}
