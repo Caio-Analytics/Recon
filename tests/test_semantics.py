@@ -226,7 +226,7 @@ def test_abreviatura_de_verdade_continua_expandindo():
 
 def test_qualificador_na_ponta_final_define_o_papel():
     for coluna in ("SUPPLIER_CONTACT_CODE", "WAREHOUSE_ACCESS_IDENTIFIER",
-                   "SHIPPING_MANAGER_IDEN", "PROJECT_BUDGET_CODE"):
+                   "PROJECT_BUDGET_CODE", "SHIPPING_MANAGER_IDEN"):
         assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_CHAVE_ID, coluna
     assert inferir_semantica("id_funcionario")["papel"] == config.SEMANTICA_CHAVE_ID
 
