@@ -270,3 +270,21 @@ def test_duplicatas_derrubam_o_score():
 
 def test_score_de_tabela_sem_colunas():
     assert quality.calcular_score_qualidade([], {}, [])["score"] == 0.0
+
+
+
+
+def test_cnpj_nao_conta_como_risco_lgpd():
+    colunas = [{"Coluna": "CNPJ_FORNECEDOR", "Dado_Sensivel_LGPD": "CNPJ", "Qualidade": {}}]
+    resultado = quality.calcular_risco_lgpd(colunas)
+    assert resultado["nivel"] == "🟢 Sem dado pessoal identificado"
+    assert resultado["colunas_sensiveis"] == []
+
+
+def test_cpf_continua_contando_como_risco_lgpd_junto_com_cnpj():
+    colunas = [
+        {"Coluna": "CNPJ_FORNECEDOR", "Dado_Sensivel_LGPD": "CNPJ", "Qualidade": {}},
+        {"Coluna": "CPF_CLIENTE", "Dado_Sensivel_LGPD": "CPF", "Qualidade": {}},
+    ]
+    resultado = quality.calcular_risco_lgpd(colunas)
+    assert [c["coluna"] for c in resultado["colunas_sensiveis"]] == ["CPF_CLIENTE"]

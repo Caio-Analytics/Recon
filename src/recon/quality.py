@@ -398,17 +398,22 @@ def gerar_recomendacoes_tabela(
 
 
 
+
+
+
 _PESO_EXPOSICAO: dict[str, float] = {
-    "CPF": 1.0, "Nome de pessoa": 0.9, "E-mail": 0.8, "CNPJ": 0.4,
+    "CPF": 1.0, "Nome de pessoa": 0.9, "E-mail": 0.8,
     "Telefone": 0.7, "CEP": 0.5, "UUID": 0.2,
 }
 _PESO_EXPOSICAO_PADRAO = 0.6
+_TIPOS_FORA_DO_ESCOPO_LGPD = frozenset({"CNPJ"})
 
 
 def calcular_risco_lgpd(colunas: list[dict[str, Any]]) -> dict[str, Any]:
     sensiveis = [
         {"coluna": c["Coluna"], "tipo": c["Dado_Sensivel_LGPD"]}
-        for c in colunas if c.get("Dado_Sensivel_LGPD", "Nenhum") != "Nenhum"
+        for c in colunas
+        if c.get("Dado_Sensivel_LGPD", "Nenhum") not in ("Nenhum", *_TIPOS_FORA_DO_ESCOPO_LGPD)
     ]
     embutidas = [
         {"coluna": c["Coluna"],
