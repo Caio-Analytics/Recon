@@ -110,6 +110,12 @@ CATEGORIAS_FORTES: dict[str, list[str]] = {
         "date", "dt", "data", "time", "timestamp", "periodo", "competencia",
         "admissao", "demissao", "nascimento", "vencimento", "inicio", "fim",
         "prazo", "realizacao", "referencia", "vigencia", "expiracao",
+        # Sem "ano" cadastrado, o token não tinha vocabulário próprio e caía
+        # no palpite de abreviatura: "ano" é subsequência de "aluno"
+        # (a-n-o ⊂ al-u-n-o), e `ANO_BASE` saía marcada como dado pessoal
+        # (LGPD) com recomendação de mascarar — apagaria a série temporal
+        # inteira se aplicada sem checar.
+        "ano",
     ],
     "Status / Indicador / Flag": [
         "status", "flg", "flag", "is", "has", "state", "situacao",

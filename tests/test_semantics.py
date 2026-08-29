@@ -340,3 +340,15 @@ def test_sufixo_de_unidade_de_duracao_vence_palavra_ambigua():
     """`prazo` é data em muitos contextos (`data de prazo`), mas
     `PRAZO_ENTREGA_DIAS` termina em `dias` — unidade de contagem, não data."""
     assert inferir_semantica("PRAZO_ENTREGA_DIAS")["papel"] == "Quantidade / Métrica"
+
+
+def test_ano_nao_vira_dado_pessoal():
+    """Regressão real: `ano` não tinha vocabulário próprio e virava palpite
+    de abreviatura — é subsequência de `aluno` (a-n-o ⊂ al-u-n-o) — e
+    `ANO_BASE` (ano-calendário, 2010–2025) saía marcada como "Nome de pessoa"
+    com risco LGPD alto e recomendação de mascarar. Mascarar teria apagado a
+    série temporal inteira por um alarme falso."""
+    assert expandir_abreviatura("ano") == ()
+    resultado = inferir_semantica("ANO_BASE")
+    assert resultado["papel"] == config.SEMANTICA_DATA_CALENDARIO
+    assert resultado["papel"] != config.SEMANTICA_NOME_PESSOA
