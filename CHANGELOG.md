@@ -43,3 +43,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Correção do score de qualidade, paridade entre relatório HTML e Markdown, e renomeação do pacote de `datascope` para `recon`.
 
+## Documentação completa
+
+- Guia de instalação sem permissão de administrador, referência de comandos, documentação técnica e cobertura de testes para gráficos, lote e menu.
+
