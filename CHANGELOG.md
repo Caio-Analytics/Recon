@@ -55,3 +55,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Risco de exposição de dado pessoal como métrica própria, detecção de duplicata aproximada de pessoa, regras derivadas por divisão/percentual, script de limpeza também em Power Query M e o contrato de dados da v3.
 
+## Acabamento da v3
+
+- `python -m recon` sem depender do PATH, licença CC BY-NC 4.0, remoção de dados reais de teste/exemplo, correções finais de classificação (CNPJ, ano, abreviação) e diagrama de arquitetura no README.
+
