@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from recon import patterns
 
@@ -123,6 +124,33 @@ def test_inconsistencia_pega_acentuacao_divergente():
     serie = pd.Series(["Operações"] * 50 + ["Operacoes"] * 30)
     resultado = patterns.detectar_inconsistencia_normalizacao(serie.value_counts())
     assert resultado["tem_inconsistencia"] is True
+
+
+def test_numeros_diferentes_nao_colapsam_por_causa_da_virgula():
+    serie = pd.Series(["145"] * 50 + ["14,5"] * 30 + ["1,24"] * 20 + ["124"] * 10)
+    resultado = patterns.detectar_inconsistencia_normalizacao(serie.value_counts())
+    assert resultado["tem_inconsistencia"] is False
+
+
+def test_mesmo_numero_com_grafia_diferente_ainda_colapsa():
+    serie = pd.Series(["145"] * 50 + ["145,00"] * 30 + ["8"] * 10)
+    resultado = patterns.detectar_inconsistencia_normalizacao(serie.value_counts())
+    assert resultado["tem_inconsistencia"] is True
+
+
+
+
+@pytest.mark.parametrize("valor", [
+    "155024,500000", "4,0000000000000001E-2", "1.234,56", "1.234.567,89",
+    "145", "-3,5", "0,0",
+])
+def test_eh_numerico_br_aceita_formato_brasileiro(valor):
+    assert patterns.eh_numerico_br(valor) is True
+
+
+@pytest.mark.parametrize("valor", ["texto", "", "nan", "-", "abc123"])
+def test_eh_numerico_br_rejeita_nao_numero(valor):
+    assert patterns.eh_numerico_br(valor) is False
 
 
 

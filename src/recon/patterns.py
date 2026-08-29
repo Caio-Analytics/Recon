@@ -9,6 +9,20 @@ from . import config
 _RE_MOJIBAKE = re.compile(config.PADRAO_MOJIBAKE)
 _RE_SO_DIGITOS = re.compile(r"\D")
 _RE_NAO_ALFANUM = re.compile(r"[^0-9a-z]")
+_RE_NUMERICO_INICIO = re.compile(r"^-?\d")
+
+
+def eh_numerico_br(valor: str) -> bool:
+    texto = str(valor).strip()
+    if not texto or not _RE_NUMERICO_INICIO.match(texto):
+        return False
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    try:
+        float(texto)
+    except ValueError:
+        return False
+    return True
 
 
 
@@ -243,7 +257,16 @@ def detectar_sentinelas_data(serie: pd.Series, n_validos: int) -> dict[str, Any]
 
 
 def _chave_canonica(valor: str) -> str:
-    return _RE_NAO_ALFANUM.sub("", unidecode(str(valor)).lower())
+    texto = str(valor)
+    if eh_numerico_br(texto):
+        normalizado = texto.strip()
+        sinal = ""
+        if normalizado.startswith("-"):
+            sinal, normalizado = "-", normalizado[1:]
+        if "," in normalizado:
+            normalizado = normalizado.replace(".", "").replace(",", ".")
+        return sinal + repr(float(normalizado))
+    return _RE_NAO_ALFANUM.sub("", unidecode(texto).lower())
 
 
 def detectar_inconsistencia_normalizacao(
