@@ -325,9 +325,10 @@ pip install --user -e ".[dev]" && pytest -v
 
 ## 🗺️ Roadmap
 
-- **Fase 6** (planejada): gráficos embutidos no HTML (histograma e série temporal por coluna)
-- **Fase 6** (planejada): calibrar os pesos de confiança da cascata semântica sobre um corpus rotulado
-- **Fase 6** (planejada): gazetteer de municípios brasileiros completo (hoje só as 27 capitais)
+**Fase 6** (planejada):
+- gráficos embutidos no HTML (histograma e série temporal por coluna)
+- calibrar os pesos de confiança da cascata semântica sobre um corpus rotulado
+- gazetteer de municípios brasileiros completo (hoje só as 27 capitais)
 
 ---
 
