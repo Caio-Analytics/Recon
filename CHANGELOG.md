@@ -11,3 +11,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Leitura de arquivos com exceções tipadas, inferência semântica por fuzzy matching e estatística descritiva por coluna.
 
+## Testes de hipótese e qualidade
+
+- Testes de hipótese por coluna, dependências funcionais, gap analysis e recomendações de ETL; exportação em JSON, Parquet e Markdown.
+
