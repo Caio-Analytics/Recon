@@ -194,14 +194,45 @@ inventar uma); e tabela com chave compatível mas sem nenhuma medida (a relaçã
 - **Threshold fuzzy de 0,85 é frouxo** — `unica_coluna` casa com `unidade`.
   Com a decisão agora sendo por peso combinado, o certo seria baixar o piso e
   deixar o peso ser proporcional à similaridade.
-- **Sem paralelização nem leitura em blocos**: arquivo maior que a RAM não é
-  suportado.
 - **Gazetteer de municípios** cobre só as 27 capitais.
 
 ## Fora de escopo (decisão explícita do usuário)
 
-- Monitoramento de drift entre execuções.
+- ~~Monitoramento de drift entre execuções.~~ Revisto depois: virou o
+  `contrato` de dados + `conferência` entre versões (veja "Atualizações"
+  abaixo) — o que ficou de fora foi só o monitoramento *contínuo*
+  (agendado, tipo cron); a comparação sob demanda entre duas extrações
+  passou a fazer sentido dentro do escopo da ferramenta.
 - Geração de asserções para dbt / Great Expectations.
 - Qualquer backend de IA (embeddings, LLM local). Foi implementado e
   **removido** a pedido: a cascata determinística resolve o caso de uso, e a
   dependência não cabe na máquina alvo.
+
+## Atualizações desde este documento
+
+Este spec registra o desenho no lançamento da v3. O que mudou desde então,
+resumido — detalhe de cada um em `docs/TECNICO.md`:
+
+- **Paralelização e leitura em blocos**: arquivo maior que a RAM passou a ser
+  suportado (leitura por blocos com amostragem sistemática), e a fase de
+  descrição por coluna distribui entre processos acima de um teto de
+  trabalho (linhas × colunas).
+- **Entrada comprimida e Parquet**: `.gz`/`.bz2`/`.zip`/`.xz`/`.zst`, `.tsv`/
+  `.txt` e `.parquet` como formato de entrada, não só saída.
+- **Contrato de dados e conferência entre versões**: congela o que a base é
+  hoje num YAML editável e reconfere isso na extração seguinte; um relatório
+  à parte compara duas extrações da mesma base (schema, linhas, colunas que
+  mudaram de comportamento).
+- **Dicionário de dados em XLSX** e **chave estrangeira composta** entre
+  tabelas (mais de uma coluna).
+- **Janela sem terminal** (`recon janela`, `Recon.pyw`), pro público que não
+  usa linha de comando.
+- **Bytes que não decodificam no encoding detectado** deixaram de derrubar a
+  análise inteira — substituídos com aviso em vez de exceção.
+- Uma leva de correções na inferência semântica, cada uma validada contra
+  base pública real (dado de governo aberto): abreviatura especulativa de
+  2 letras, qualificador de borda em nomenclatura inglesa
+  (`SUPPLIER_CONTACT_CODE`), papel de "nome" refinado por domínio quando o
+  nome é de instituição ou conceito (não de pessoa), e CNPJ deixando de
+  contar como risco de exposição de dado pessoal — CNPJ identifica pessoa
+  jurídica, fora do escopo da LGPD.
