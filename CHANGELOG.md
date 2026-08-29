@@ -39,3 +39,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Gráficos SVG por coluna, relatório consolidado de lote, menu interativo e comando de pasta.
 
+## Renomeação para Recon e paridade HTML/Markdown
+
+- Correção do score de qualidade, paridade entre relatório HTML e Markdown, e renomeação do pacote de `datascope` para `recon`.
+
