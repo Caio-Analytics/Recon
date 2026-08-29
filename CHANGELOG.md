@@ -31,3 +31,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Detecção de layout de planilha feita à mão, relações entre colunas, regras de negócio, modelo de dados multi-tabela e a cascata de evidências semânticas.
 
+## Relatório HTML e reescrita do núcleo
+
+- Relatório HTML com detalhe por coluna, núcleo reescrito sobre os novos módulos e suíte de testes com regressão para cada bug corrigido.
+
