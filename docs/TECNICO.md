@@ -6,7 +6,7 @@ Este documento descreve **como** o Recon funciona por dentro: módulos,
 fluxo de dados, contrato de saída, critérios de cada análise, pontos de
 extensão e limitações. Para *o que* ele faz e como usar, veja o `README.md`.
 Para *por que* foi desenhado assim, veja
-`docs/superpowers/specs/2026-08-15-recon-v3-design.md`.
+`docs/specs/2026-08-15-recon-v3-design.md`.
 
 ---
 
@@ -151,26 +151,26 @@ O mesmo fluxo, visual:
 ```mermaid
 flowchart TD
     CLI[cli.py]
-    ING[ingestion.py<br/>encoding e separador]
-    LAY[layout.py<br/>cabeçalho, rodapé, mesclagem]
+    ING[ingestion.py]
+    LAY[layout.py]
     F1A[statistics.py]
     F1B[patterns.py]
     F1C[hypothesis.py]
-    F2[semantics/<br/>papel + domínio, duas passadas]
+    F2[semantics]
     F3A[relationships.py]
     F3B[rules.py]
-    F4[quality.py<br/>ETL, gap analysis, score, LGPD]
-    REP[reporting/<br/>JSON · Markdown · HTML · Parquet]
-    GEN[codegen.py<br/>script de limpeza]
-    DM[datamodel.py<br/>chave entre tabelas, fato x dimensão]
-    CFG[(config.py<br/>taxonomias e limiares)]
+    F4[quality.py]
+    REP[reporting]
+    GEN[codegen.py]
+    DM[datamodel.py]
+    CFG[(config.py)]
 
     CLI --> ING --> LAY --> F1A
     F1A --> F1B --> F1C --> F2
     F2 --> F3A --> F3B --> F4
     F4 --> REP
     F4 --> GEN
-    CLI -- modelar: perfila cada tabela primeiro --> DM
+    CLI -- modelar --> DM
     DM --> REP
     CFG -.-> F1A
     CFG -.-> F2

@@ -3,7 +3,7 @@
 > ⚠️ **DOCUMENTO HISTÓRICO — SUPERADO.**
 > Este spec descreve a Fase 1 (v2.0), concluída. A arquitetura, os
 > módulos e as decisões descritas aqui **não refletem mais o código**.
-> Para o estado atual, veja `docs/superpowers/specs/2026-08-15-recon-v3-design.md`.
+> Para o estado atual, veja `docs/specs/2026-08-15-recon-v3-design.md`.
 > Mantido como registro do que foi decidido e por quê.
 
 

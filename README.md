@@ -97,7 +97,7 @@ instalar mais nada.
 | **[GUIA.md](GUIA.md)** | quem nunca usou Python: instalar do zero, com e sem VS Code |
 | **[COMANDOS.md](COMANDOS.md)** | qual comando usar em cada situação, opções e receitas |
 | [docs/TECNICO.md](docs/TECNICO.md) | como funciona por dentro: diagrama de arquitetura, módulos, contrato do JSON, critérios de cada análise |
-| [docs/superpowers/specs/](docs/superpowers/specs/) | as decisões de projeto e o porquê de cada uma |
+| [docs/specs/](docs/specs/) | as decisões de projeto e o porquê de cada uma |
 
 ---
 
@@ -106,26 +106,26 @@ instalar mais nada.
 ```mermaid
 flowchart TD
     CLI[cli.py]
-    ING[ingestion.py<br/>encoding e separador]
-    LAY[layout.py<br/>cabeçalho, rodapé, mesclagem]
+    ING[ingestion.py]
+    LAY[layout.py]
     F1A[statistics.py]
     F1B[patterns.py]
     F1C[hypothesis.py]
-    F2[semantics/<br/>papel + domínio, duas passadas]
+    F2[semantics]
     F3A[relationships.py]
     F3B[rules.py]
-    F4[quality.py<br/>ETL, gap analysis, score, LGPD]
-    REP[reporting/<br/>JSON · Markdown · HTML · Parquet]
-    GEN[codegen.py<br/>script de limpeza]
-    DM[datamodel.py<br/>chave entre tabelas, fato x dimensão]
-    CFG[(config.py<br/>taxonomias e limiares)]
+    F4[quality.py]
+    REP[reporting]
+    GEN[codegen.py]
+    DM[datamodel.py]
+    CFG[(config.py)]
 
     CLI --> ING --> LAY --> F1A
     F1A --> F1B --> F1C --> F2
     F2 --> F3A --> F3B --> F4
     F4 --> REP
     F4 --> GEN
-    CLI -- modelar: perfila cada tabela primeiro --> DM
+    CLI -- modelar --> DM
     DM --> REP
     CFG -.-> F1A
     CFG -.-> F2
