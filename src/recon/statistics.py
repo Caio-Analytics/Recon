@@ -21,7 +21,6 @@ from .semantics import tokenizar
 # Acima disso a coluna é texto livre e o agrupamento não diz nada.
 _MAX_CARDINALIDADE_ANALISE_VALOR = 5_000
 
-_RE_NUMERICO = re.compile(r"^-?\d+([.,]\d+)?$")
 _RE_DATA_QUALQUER = re.compile("|".join(config.PADROES_DATA))
 
 
@@ -68,7 +67,7 @@ def detectar_mistura_tipos(amostra_str: list[str]) -> dict[str, Any]:
     if n == 0:
         return {"tem_mistura": False}
 
-    qtd_num = sum(1 for v in amostra_str if _RE_NUMERICO.match(v.replace(",", ".")))
+    qtd_num = sum(1 for v in amostra_str if patterns.eh_numerico_br(v))
     qtd_data = sum(1 for v in amostra_str if _RE_DATA_QUALQUER.match(v))
     qtd_vazio = sum(1 for v in amostra_str if v.strip() == "")
     qtd_texto_puro = max(n - qtd_num - qtd_data - qtd_vazio, 0)

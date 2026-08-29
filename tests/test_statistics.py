@@ -84,6 +84,17 @@ def test_detectar_mistura_tipos_opera_apenas_sobre_a_amostra():
     assert set(resultado["tipos_detectados"]) == {"numerico", "texto_puro"}
 
 
+def test_numero_brasileiro_com_milhar_nao_vira_mistura_de_tipos():
+    """Regressão real: `1.234.567,89` (milhar com ponto, decimal com vírgula)
+    caía em "texto_puro" porque a troca ingênua de vírgula por ponto deixava
+    um segundo ponto sobrando. 100% dos valores eram número válido; o recon
+    reportava ~11% de mistura e recomendava normalizar um dado que não tinha
+    nada de errado."""
+    valores = ["155024,500000", "1.234.567,89", "4,0000000000000001E-2", "89025,750000"] * 10
+    resultado = detectar_mistura_tipos(valores)
+    assert resultado["tem_mistura"] is False
+
+
 # ── LGPD ────────────────────────────────────────────────────────────────────
 
 def test_cpf_detectado_mesmo_em_coluna_de_chave_sistema():

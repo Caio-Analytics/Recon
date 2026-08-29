@@ -17,6 +17,29 @@ from . import config
 _RE_MOJIBAKE = re.compile(config.PADRAO_MOJIBAKE)
 _RE_SO_DIGITOS = re.compile(r"\D")
 _RE_NAO_ALFANUM = re.compile(r"[^0-9a-z]")
+_RE_NUMERICO_INICIO = re.compile(r"^-?\d")
+
+
+def eh_numerico_br(valor: str) -> bool:
+    """Reconhece número no formato brasileiro: vírgula decimal, ponto como
+    separador de milhar quando os dois aparecem juntos.
+
+    Trocar vírgula por ponto sem tirar o ponto de milhar antes rejeitava
+    `1.234.567,89` — sobrava um segundo ponto e o valor caía em "texto" por
+    engano. Notação científica com vírgula (`4,0000000000000001E-2`) tem o
+    mesmo problema e o mesmo conserto: normalizar para o formato que `float`
+    entende antes de tentar converter.
+    """
+    texto = str(valor).strip()
+    if not texto or not _RE_NUMERICO_INICIO.match(texto):
+        return False
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    try:
+        float(texto)
+    except ValueError:
+        return False
+    return True
 
 
 # ── Validação por dígito verificador ────────────────────────────────────────
@@ -305,7 +328,23 @@ def detectar_sentinelas_data(serie: pd.Series, n_validos: int) -> dict[str, Any]
 # ── Inconsistência de normalização ──────────────────────────────────────────
 
 def _chave_canonica(valor: str) -> str:
-    return _RE_NAO_ALFANUM.sub("", unidecode(str(valor)).lower())
+    """Chave que agrupa grafias diferentes do mesmo valor.
+
+    Remover pontuação cega funciona para texto (`S.P.` e `SP` são a mesma
+    sigla) e quebra para número: `145` e `14,5` viram a mesma sequência de
+    dígitos se a vírgula some, mas são dois números diferentes, não duas
+    grafias do mesmo. Valor numérico usa o próprio número como chave.
+    """
+    texto = str(valor)
+    if eh_numerico_br(texto):
+        normalizado = texto.strip()
+        sinal = ""
+        if normalizado.startswith("-"):
+            sinal, normalizado = "-", normalizado[1:]
+        if "," in normalizado:
+            normalizado = normalizado.replace(".", "").replace(",", ".")
+        return sinal + repr(float(normalizado))
+    return _RE_NAO_ALFANUM.sub("", unidecode(texto).lower())
 
 
 def detectar_inconsistencia_normalizacao(
