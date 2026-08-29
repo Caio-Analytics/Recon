@@ -23,3 +23,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Interpretação de datas brasileiras (dia primeiro), detecção de CPF/CNPJ armazenados como número e análise temporal para datas em texto.
 
+## Robustez estatística e renomeação para datascope
+
+- Protege o Shapiro-Wilk contra série constante, valida documentos e sujeira de conteúdo, sobe o piso para Python 3.12 e renomeia o pacote de `data_profiler` para `datascope`.
+
