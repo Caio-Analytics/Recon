@@ -16,6 +16,10 @@ _RAZAO_MAX_EXPANSAO = 4.0
 _MIN_LEN_ABREVIATURA = 2
 
 
+
+_MIN_LEN_ABREVIATURA_ESPECULATIVA = 3
+
+
 def normalizar(texto: str) -> str:
     return unidecode(str(texto)).lower().strip()
 
@@ -62,6 +66,14 @@ def expandir_abreviatura(token: str) -> tuple[tuple[str, float], ...]:
         
         confianca = 0.85 if len(curadas) == 1 else 0.55
         return tuple((palavra, confianca) for palavra in curadas)
+
+    
+    
+    
+    
+    
+    if len(token) < _MIN_LEN_ABREVIATURA_ESPECULATIVA:
+        return ()
 
     candidatos: list[tuple[str, float]] = []
     for palavra in _vocabulario_expansao():

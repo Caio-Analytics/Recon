@@ -284,3 +284,26 @@ def test_ano_nao_vira_dado_pessoal():
     resultado = inferir_semantica("ANO_BASE")
     assert resultado["papel"] == config.SEMANTICA_DATA_CALENDARIO
     assert resultado["papel"] != config.SEMANTICA_NOME_PESSOA
+
+
+def test_abreviatura_especulativa_de_duas_letras_nao_e_tentada():
+    assert expandir_abreviatura("ue") == ()
+    assert inferir_semantica("nm")[  
+        "papel"
+    ] == config.SEMANTICA_NOME_PESSOA
+
+
+def test_nome_de_conceito_eleitoral_nao_e_dado_pessoal():
+    for coluna in ("NM_PARTIDO", "NM_TIPO_ELEICAO", "NM_PARTIDO_FORNECEDOR"):
+        assert inferir_semantica(coluna)["papel"] != config.SEMANTICA_NOME_PESSOA, coluna
+    for coluna in ("NM_DOADOR", "NM_FORNECEDOR"):
+        assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_NOME_PESSOA, coluna
+
+
+def test_nome_de_orgao_publico_nao_e_dado_pessoal():
+    for coluna in ("Nome do órgão superior", "Nome órgão solicitante"):
+        assert inferir_semantica(coluna)["papel"] != config.SEMANTICA_NOME_PESSOA, coluna
+
+
+def test_sequencial_de_candidato_e_chave_nao_nome():
+    assert inferir_semantica("SQ_CANDIDATO_FORNECEDOR")["papel"] == config.SEMANTICA_CHAVE_ID
