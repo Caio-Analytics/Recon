@@ -101,6 +101,42 @@ instalar mais nada.
 
 ---
 
+## 🏗️ Arquitetura
+
+```mermaid
+flowchart TD
+    CLI[cli.py]
+    ING[ingestion.py<br/>encoding e separador]
+    LAY[layout.py<br/>cabeçalho, rodapé, mesclagem]
+    F1A[statistics.py]
+    F1B[patterns.py]
+    F1C[hypothesis.py]
+    F2[semantics/<br/>papel + domínio, duas passadas]
+    F3A[relationships.py]
+    F3B[rules.py]
+    F4[quality.py<br/>ETL, gap analysis, score, LGPD]
+    REP[reporting/<br/>JSON · Markdown · HTML · Parquet]
+    GEN[codegen.py<br/>script de limpeza]
+    DM[datamodel.py<br/>chave entre tabelas, fato x dimensão]
+    CFG[(config.py<br/>taxonomias e limiares)]
+
+    CLI --> ING --> LAY --> F1A
+    F1A --> F1B --> F1C --> F2
+    F2 --> F3A --> F3B --> F4
+    F4 --> REP
+    F4 --> GEN
+    CLI -- modelar: perfila cada tabela primeiro --> DM
+    DM --> REP
+    CFG -.-> F1A
+    CFG -.-> F2
+    CFG -.-> F4
+```
+
+Detalhe de cada módulo, o contrato do JSON e o critério por trás de cada
+número do relatório: [docs/TECNICO.md](docs/TECNICO.md).
+
+---
+
 ## 🖥️ Uso pela linha de comando
 
 ### O atalho: uma pasta inteira
