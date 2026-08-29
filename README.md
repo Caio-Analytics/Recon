@@ -288,7 +288,7 @@ ruff check src tests && mypy
 ## 🔄 Reinstalação do zero (com venv)
 
 ```bash
-rm -rf .venv && python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip && pip install -e ".[dev]"
+deactivate 2>/dev/null; rm -rf .venv && python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip && pip install -e ".[dev]"
 ```
 
 ---
