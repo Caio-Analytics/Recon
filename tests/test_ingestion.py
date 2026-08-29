@@ -124,3 +124,32 @@ def test_carregar_todas_abas_excel_corrompido_levanta_file_format_error(tmp_path
     caminho = _escrever(tmp_path, "corrompida.xlsx", "isto nao e um arquivo excel valido")
     with pytest.raises(FileFormatError):
         carregar_todas_abas_excel(str(caminho))
+
+
+# ── Byte que não decodifica no encoding detectado ───────────────────────────
+
+def test_byte_corrompido_nao_derruba_a_analise(tmp_path, monkeypatch):
+    """Regressão real: um export de sistema legado (136 MB, cp1252 detectado
+    a partir da amostra do início) tinha uma dúzia de bytes corrompidos lá
+    pelo meio — o mesmo byte 0x9D virando "Á" numa palavra e "ç"/"ã" noutra,
+    sinal de que a fonte já estava quebrada antes de chegar aqui. Isso
+    derrubava a análise inteira com `UnicodeDecodeError`. Byte corrompido no
+    meio do arquivo não pode custar o relatório inteiro: substitui por "�" e
+    avisa, em vez de travar."""
+    from recon import ingestion
+
+    monkeypatch.setattr(ingestion, "detectar_encoding", lambda *a, **k: "cp1252")
+    conteudo = (
+        b"ORGAO;VALOR\r\n"
+        b'"BANCO CENTRAL DO BRASIL";"DI\x9dRIAS"\r\n'
+        b'"OUTRO";"NORMAL"\r\n'
+    ) * 50
+    caminho = tmp_path / "legado.csv"
+    caminho.write_bytes(conteudo)
+
+    df, _ = carregar_arquivo(str(caminho))
+
+    assert len(df) > 0
+    assert "�" in df["VALOR"].iloc[0]
+    avisos = df.attrs["layout"].avisos
+    assert any(a["tipo"] == "encoding_substituido" for a in avisos)
