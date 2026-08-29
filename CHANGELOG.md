@@ -19,3 +19,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Comandos `perfilar` e `lote` no CLI, unificação das exceções de ingestão e remoção dos pipelines legados.
 
+## Datas, CPF/CNPJ e leitura mais robusta
+
+- Interpretação de datas brasileiras (dia primeiro), detecção de CPF/CNPJ armazenados como número e análise temporal para datas em texto.
+
