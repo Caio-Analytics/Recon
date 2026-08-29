@@ -282,3 +282,25 @@ def test_duplicatas_derrubam_o_score():
 
 def test_score_de_tabela_sem_colunas():
     assert quality.calcular_score_qualidade([], {}, [])["score"] == 0.0
+
+
+# ── Risco LGPD ──────────────────────────────────────────────────────────────
+
+def test_cnpj_nao_conta_como_risco_lgpd():
+    """CNPJ identifica pessoa jurídica, não natural — a LGPD (Art. 5º, I)
+    define dado pessoal como o que se relaciona a pessoa natural. Uma coluna
+    só de CNPJ não pode gerar "risco de exposição de dado pessoal"."""
+    colunas = [{"Coluna": "CNPJ_FORNECEDOR", "Dado_Sensivel_LGPD": "CNPJ", "Qualidade": {}}]
+    resultado = quality.calcular_risco_lgpd(colunas)
+    assert resultado["nivel"] == "🟢 Sem dado pessoal identificado"
+    assert resultado["colunas_sensiveis"] == []
+
+
+def test_cpf_continua_contando_como_risco_lgpd_junto_com_cnpj():
+    """CNPJ fora do escopo não pode esconder um CPF real na mesma tabela."""
+    colunas = [
+        {"Coluna": "CNPJ_FORNECEDOR", "Dado_Sensivel_LGPD": "CNPJ", "Qualidade": {}},
+        {"Coluna": "CPF_CLIENTE", "Dado_Sensivel_LGPD": "CPF", "Qualidade": {}},
+    ]
+    resultado = quality.calcular_risco_lgpd(colunas)
+    assert [c["coluna"] for c in resultado["colunas_sensiveis"]] == ["CPF_CLIENTE"]
