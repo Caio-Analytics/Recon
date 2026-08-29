@@ -51,3 +51,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Ajustes de classificação semântica validados contra bases reais de RH e vendas, e leitura de arquivos comprimidos, TSV/TXT e Parquet.
 
+## Fase 6: privacidade e regras avançadas
+
+- Risco de exposição de dado pessoal como métrica própria, detecção de duplicata aproximada de pessoa, regras derivadas por divisão/percentual, script de limpeza também em Power Query M e o contrato de dados da v3.
+
