@@ -15,6 +15,10 @@ _RE_LETRA_NUMERO = re.compile(r"([a-z])(\d)")
 # uma palavra de 20 letras não é abreviatura, é coincidência de subsequência.
 _RAZAO_MAX_EXPANSAO = 4.0
 _MIN_LEN_ABREVIATURA = 2
+# Abaixo disso, só o dicionário curado expande (`nm`, `sg`, `dt`...). Palpite
+# por subsequência com 2 letras casa contra quase qualquer palavra do
+# vocabulário — `ue` ⊂ `user` não quer dizer nada.
+_MIN_LEN_ABREVIATURA_ESPECULATIVA = 3
 
 
 def normalizar(texto: str) -> str:
@@ -85,6 +89,14 @@ def expandir_abreviatura(token: str) -> tuple[tuple[str, float], ...]:
         # desempate fica por conta do contexto da tabela.
         confianca = 0.85 if len(curadas) == 1 else 0.55
         return tuple((palavra, confianca) for palavra in curadas)
+
+    # Token de 2 letras casa por subsequência com quase qualquer palavra
+    # longa o suficiente — `ue` ⊂ `user`, sem nenhuma relação real entre os
+    # dois. Abaixo desse tamanho só o dicionário curado (checado acima) vale;
+    # o palpite por subsequência precisa de pelo menos 3 letras pra a posição
+    # relativa das letras significar alguma coisa.
+    if len(token) < _MIN_LEN_ABREVIATURA_ESPECULATIVA:
+        return ()
 
     candidatos: list[tuple[str, float]] = []
     for palavra in _vocabulario_expansao():

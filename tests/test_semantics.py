@@ -352,3 +352,41 @@ def test_ano_nao_vira_dado_pessoal():
     resultado = inferir_semantica("ANO_BASE")
     assert resultado["papel"] == config.SEMANTICA_DATA_CALENDARIO
     assert resultado["papel"] != config.SEMANTICA_NOME_PESSOA
+
+
+def test_abreviatura_especulativa_de_duas_letras_nao_e_tentada():
+    """Regressão real (dado do TSE): `ue` é subsequência de `user`
+    (u-e ⊂ u-s-e-r) e virava palpite de nome de pessoa em `SG_UE`/`NM_UE`,
+    sem nenhuma relação real entre as duas palavras. Abaixo de 3 letras, só o
+    dicionário curado vale — é o que já protege `nm`, `sg`, `dt`."""
+    assert expandir_abreviatura("ue") == ()
+    assert inferir_semantica("nm")[  # ainda funciona: curado, não especulativo
+        "papel"
+    ] == config.SEMANTICA_NOME_PESSOA
+
+
+def test_nome_de_conceito_eleitoral_nao_e_dado_pessoal():
+    """Regressão real (dado do TSE): `NM_PARTIDO`/`NM_TIPO_ELEICAO` são nome
+    de partido e tipo de eleição, não de pessoa — mas sem domínio próprio pra
+    competir com o qualificador `nm`→`nome`, saíam como dado pessoal. Doador
+    e fornecedor continuam pessoa: a base real mistura nome de empresa e de
+    autônomo nessas colunas."""
+    for coluna in ("NM_PARTIDO", "NM_TIPO_ELEICAO", "NM_PARTIDO_FORNECEDOR"):
+        assert inferir_semantica(coluna)["papel"] != config.SEMANTICA_NOME_PESSOA, coluna
+    for coluna in ("NM_DOADOR", "NM_FORNECEDOR"):
+        assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_NOME_PESSOA, coluna
+
+
+def test_nome_de_orgao_publico_nao_e_dado_pessoal():
+    """Regressão real (Portal da Transparência): `Nome do órgão superior` é
+    nome de instituição, não de pessoa."""
+    for coluna in ("Nome do órgão superior", "Nome órgão solicitante"):
+        assert inferir_semantica(coluna)["papel"] != config.SEMANTICA_NOME_PESSOA, coluna
+
+
+def test_sequencial_de_candidato_e_chave_nao_nome():
+    """Regressão real (dado do TSE): `SQ_CANDIDATO_FORNECEDOR` é um número
+    sequencial que referencia um candidato — não é o nome dele. `candidato`
+    sozinho pesa como nome de pessoa; o qualificador `sq`/`sequencial` na
+    borda precisa vencer."""
+    assert inferir_semantica("SQ_CANDIDATO_FORNECEDOR")["papel"] == config.SEMANTICA_CHAVE_ID
