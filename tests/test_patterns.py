@@ -1,5 +1,6 @@
 """Testes de validação de documento, mascaramento e detecção de sujeira."""
 import pandas as pd
+import pytest
 
 from recon import patterns
 
@@ -134,6 +135,43 @@ def test_inconsistencia_pega_acentuacao_divergente():
     serie = pd.Series(["Operações"] * 50 + ["Operacoes"] * 30)
     resultado = patterns.detectar_inconsistencia_normalizacao(serie.value_counts())
     assert resultado["tem_inconsistencia"] is True
+
+
+def test_numeros_diferentes_nao_colapsam_por_causa_da_virgula():
+    """Regressão real: `145` e `14,5` são dois números diferentes que viram a
+    mesma sequência de dígitos se a vírgula decimal for tratada como
+    pontuação a remover. A chave canônica de valor numérico é o número, não
+    a grafia — só texto de verdade (`SP`/`S.P.`) deve colapsar por grafia."""
+    serie = pd.Series(["145"] * 50 + ["14,5"] * 30 + ["1,24"] * 20 + ["124"] * 10)
+    resultado = patterns.detectar_inconsistencia_normalizacao(serie.value_counts())
+    assert resultado["tem_inconsistencia"] is False
+
+
+def test_mesmo_numero_com_grafia_diferente_ainda_colapsa():
+    """`145` e `145,00` são o mesmo valor com formatação diferente — isso
+    continua sendo inconsistência de verdade, só o *número* diferente é que
+    não deveria colapsar."""
+    serie = pd.Series(["145"] * 50 + ["145,00"] * 30 + ["8"] * 10)
+    resultado = patterns.detectar_inconsistencia_normalizacao(serie.value_counts())
+    assert resultado["tem_inconsistencia"] is True
+
+
+# ── Número em formato brasileiro ────────────────────────────────────────────
+
+@pytest.mark.parametrize("valor", [
+    "155024,500000", "4,0000000000000001E-2", "1.234,56", "1.234.567,89",
+    "145", "-3,5", "0,0",
+])
+def test_eh_numerico_br_aceita_formato_brasileiro(valor):
+    """Milhar com ponto e decimal com vírgula juntos (`1.234.567,89`) e
+    notação científica com vírgula quebravam a troca ingênua de separador —
+    sobrava um ponto extra e o valor caía em "texto" por engano."""
+    assert patterns.eh_numerico_br(valor) is True
+
+
+@pytest.mark.parametrize("valor", ["texto", "", "nan", "-", "abc123"])
+def test_eh_numerico_br_rejeita_nao_numero(valor):
+    assert patterns.eh_numerico_br(valor) is False
 
 
 # ── Mojibake ────────────────────────────────────────────────────────────────
