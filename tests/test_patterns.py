@@ -252,6 +252,16 @@ def test_telefone_em_frase_continua_sendo_detectado():
     assert patterns.detectar_pii_em_texto_livre(frases)["tem_pii"] is True
 
 
+def test_documento_numerico_sem_formatacao_nao_vira_telefone():
+    documentos = [f"{i:09d}" for i in range(200, 260)]
+    assert patterns.detectar_padrao_texto(documentos) != "Telefone"
+
+
+def test_telefone_formatado_continua_sendo_detectado():
+    for numero in ("(11) 98765-4321", "11987654321", "(21) 3333-4444", "2133334444"):
+        assert patterns.detectar_padrao_texto([numero] * 30) == "Telefone"
+
+
 def test_nome_de_pessoa_e_mascarado_preservando_a_forma():
     mascarado = patterns.mascarar_nome_pessoa("MARIANA OLIVEIRA DOS SANTOS")
     assert mascarado == "M****** O******* D** S*****"

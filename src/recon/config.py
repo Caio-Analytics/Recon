@@ -98,6 +98,7 @@ CATEGORIAS_FORTES: dict[str, list[str]] = {
     SEMANTICA_CHAVE_ID: [
         "id", "cod", "codigo", "code", "key", "number", "matricula", "mat",
         "cpf", "cnpj", "registro", "chave", "identifier", "iden", "nr", "num", "pk", "fk",
+        "sequencial",
     ],
     SEMANTICA_DATA_CALENDARIO: [
         "date", "dt", "data", "time", "timestamp", "periodo", "competencia",
@@ -157,6 +158,21 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
         "diretoria", "gerencia", "setor", "area", "divisao", "celula",
         "squad", "lotacao", "unidade", "filial", "subsidiaria", "agencia",
         "coordenacao", "superintendencia", "nucleo", "equipe", "time",
+        
+        
+        
+        
+        "orgao", "secretaria", "ministerio", "autarquia",
+    ],
+    
+    
+    
+    
+    
+    
+    "Processo Eleitoral": [
+        "eleicao", "partido", "pleito", "coligacao", "chapa", "urna",
+        "votacao", "sufragio", "candidatura",
     ],
     "Perfil do Colaborador": [
         "gender", "nationality", "career", "workforce", "staff",
@@ -211,6 +227,10 @@ TOKENS_QUALIFICADORES: frozenset[str] = frozenset({
     
     
     "dias",
+    
+    
+    
+    "sequencial",
 })
 
 
@@ -245,7 +265,13 @@ PADROES_ESTRUTURADOS: dict[str, str] = {
     "CNPJ":     r"^\d{2}[.\-]?\d{3}[.\-]?\d{3}[\/\-]?\d{4}[.\-]?\d{2}$",
     "CEP":      r"^\d{5}[-\s]?\d{3}$",
     "E-mail":   r"^[\w.+\-]+@[\w\-]+(\.[\w\-]+)*\.[\w\-]{2,}$",
-    "Telefone": r"^[\(\+]?\d[\d\s\-\(\)]{6,14}\d$",
+    
+    
+    
+    
+    
+    
+    "Telefone": r"^\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}$",
     "UUID":     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 }
 
