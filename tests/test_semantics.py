@@ -277,3 +277,10 @@ def test_qualificador_generico_perde_para_palavra_de_dominio_no_fuzzy():
 
 def test_sufixo_de_unidade_de_duracao_vence_palavra_ambigua():
     assert inferir_semantica("PRAZO_ENTREGA_DIAS")["papel"] == "Quantidade / Métrica"
+
+
+def test_ano_nao_vira_dado_pessoal():
+    assert expandir_abreviatura("ano") == ()
+    resultado = inferir_semantica("ANO_BASE")
+    assert resultado["papel"] == config.SEMANTICA_DATA_CALENDARIO
+    assert resultado["papel"] != config.SEMANTICA_NOME_PESSOA

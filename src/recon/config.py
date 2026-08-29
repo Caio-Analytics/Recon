@@ -103,6 +103,12 @@ CATEGORIAS_FORTES: dict[str, list[str]] = {
         "date", "dt", "data", "time", "timestamp", "periodo", "competencia",
         "admissao", "demissao", "nascimento", "vencimento", "inicio", "fim",
         "prazo", "realizacao", "referencia", "vigencia", "expiracao",
+        
+        
+        
+        
+        
+        "ano",
     ],
     "Status / Indicador / Flag": [
         "status", "flg", "flag", "is", "has", "state", "situacao",
