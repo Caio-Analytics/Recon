@@ -47,3 +47,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Guia de instalação sem permissão de administrador, referência de comandos, documentação técnica e cobertura de testes para gráficos, lote e menu.
 
+## Correções de classificação semântica
+
+- Ajustes de classificação semântica validados contra bases reais de RH e vendas, e leitura de arquivos comprimidos, TSV/TXT e Parquet.
+
