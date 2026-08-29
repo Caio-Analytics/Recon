@@ -183,7 +183,17 @@ def _ler_csv(caminho: str, encoding: str, sep: str) -> pd.DataFrame:
         return pd.read_csv(caminho, encoding=encoding, sep=sep, engine="pyarrow")
     except Exception as e:
         logger.debug(f"Engine pyarrow recusou o arquivo ({e}); usando o engine C.")
-        return pd.read_csv(caminho, encoding=encoding, sep=sep, low_memory=False)
+        # `encoding_errors="replace"` porque a amostra que decide o encoding
+        # olha só o início do arquivo — um export de sistema legado pode ter
+        # uma dúzia de bytes corrompidos lá pelo meio (o mesmo byte virando
+        # letras diferentes em palavras diferentes é sinal de que a fonte já
+        # estava quebrada antes de chegar aqui). Travar a análise inteira de
+        # um arquivo de 100+ MB por uma dúzia de bytes é pior que substituir
+        # por "�" e avisar — `_avisar_se_encoding_teve_substituicao` cuida do
+        # aviso.
+        return pd.read_csv(
+            caminho, encoding=encoding, sep=sep, low_memory=False, encoding_errors="replace"
+        )
 
 
 _LINHAS_INSPECAO_LAYOUT = 40
@@ -210,7 +220,7 @@ def _ler_csv_amostrado(
     pedacos: list[pd.DataFrame] = []
     leitor = pd.read_csv(
         caminho, encoding=encoding, sep=sep, skiprows=skiprows or None,
-        chunksize=_LINHAS_POR_BLOCO, low_memory=False,
+        chunksize=_LINHAS_POR_BLOCO, low_memory=False, encoding_errors="replace",
     )
     guardadas = 0
     for bloco in leitor:
@@ -255,6 +265,38 @@ def _matriz_crua_csv(caminho: str, encoding: str, sep: str, compactacao: str = "
     return pd.DataFrame(normalizadas)
 
 
+def _avisar_se_encoding_teve_substituicao(
+    df: pd.DataFrame, avisos: list, encoding: str
+) -> None:
+    """Verifica se sobrou caractere de substituição ("�") depois da leitura
+    tolerante e, se sim, deixa isso visível no relatório em vez de silencioso.
+
+    `encoding_errors="replace"` evita a análise inteira travar por um byte
+    corrompido, mas trocar sem avisar esconderia justamente o tipo de defeito
+    que esta ferramenta existe para apontar.
+    """
+    colunas_texto = df.select_dtypes(include=["object", "str"]).columns
+    if colunas_texto.empty:
+        return
+    afetadas = [
+        str(c) for c in colunas_texto
+        if df[c].astype(str).str.contains("�", regex=False).any()
+    ]
+    if not afetadas:
+        return
+    avisos.append({
+        "tipo": "encoding_substituido",
+        "severidade": "🟡 MÉDIA",
+        "mensagem": (
+            f"Byte que não decodifica em '{encoding}' foi substituído por "
+            f"\"�\" em {len(afetadas)} coluna(s): {', '.join(afetadas[:6])}"
+            f"{'…' if len(afetadas) > 6 else ''}. Provável origem: bytes "
+            "corrompidos no arquivo de origem, não erro de detecção — "
+            "confira o valor original na fonte antes de usar essas colunas."
+        ),
+    })
+
+
 def _anexar_layout(df: pd.DataFrame, lay: layout_mod.Layout) -> pd.DataFrame:
     """Guarda o diagnóstico de layout no próprio DataFrame.
 
@@ -294,6 +336,7 @@ def _carregar_csv_com_layout(
     if grande and limite_linhas is not None:
         df, total_arquivo = _ler_csv_amostrado(caminho, encoding, sep, inicio, limite_linhas)
         df.attrs["linhas_originais"] = total_arquivo
+        _avisar_se_encoding_teve_substituicao(df, avisos, encoding)
         df = layout_mod.converter_datas_iso(df)
         if detectar:
             df, lay = _preparar_corpo(df, avisos)
@@ -305,8 +348,12 @@ def _carregar_csv_com_layout(
     df = (
         _ler_csv(caminho, encoding, sep) if inicio == 0
         # O pyarrow não aceita `skiprows`: arquivo com preâmbulo cai no engine C.
-        else pd.read_csv(caminho, encoding=encoding, sep=sep, skiprows=inicio, low_memory=False)
+        else pd.read_csv(
+            caminho, encoding=encoding, sep=sep, skiprows=inicio, low_memory=False,
+            encoding_errors="replace",
+        )
     )
+    _avisar_se_encoding_teve_substituicao(df, avisos, encoding)
     # Aplicado aos dois caminhos de propósito. Os engines discordam sobre data
     # ISO — o pyarrow converte o que tem hora, o C não converte nada — e o
     # mesmo arquivo saía com tipos diferentes só por ter, ou não, um título em
