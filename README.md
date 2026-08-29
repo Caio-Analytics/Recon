@@ -295,6 +295,73 @@ Recon/
 
 **Fluxo interno:** `cli.py` → `pipeline.DataProfiler` → carrega o arquivo (`ingestion`) → descreve cada coluna (`statistics` + `patterns` + `hypothesis`) → infere a semântica da **tabela inteira** (`semantics`, duas passadas) → cruza colunas (`relationships`) → prioriza (`quality`) → exporta (`reporting`).
 
+```mermaid
+flowchart TD
+    CLI["cli.py<br/>perfilar · modelar · lote · pasta · janela"]
+    CFG[("config.py<br/>taxonomias e limiares<br/>só dado, sem lógica")]
+
+    CLI --> ING
+
+    subgraph ING_G [" "]
+        direction TB
+        ING["ingestion.py"] --> ING1["detecta encoding e separador"]
+        ING1 --> ING2["layout.py<br/>cabeçalho real, rodapé, células mescladas"]
+    end
+
+    ING_G --> F1
+
+    subgraph F1 [" Fase 1 · por coluna, independente "]
+        direction TB
+        F1A["statistics.py<br/>tipo, outliers, dtype sugerido"]
+        F1B["patterns.py<br/>documento, sentinela, mojibake, PII"]
+        F1C["hypothesis.py<br/>testes estatísticos, distribuição"]
+        F1A --- F1B --- F1C
+    end
+
+    F1 --> F2
+
+    subgraph F2 [" Fase 2 · semântica da tabela inteira "]
+        direction TB
+        F2A["semantics/<br/>papel + domínio, 1ª passada"]
+        F2B["contexto da tabela desambigua<br/>o que ficou em aberto, 2ª passada"]
+        F2A --> F2B
+    end
+
+    F2 --> F3
+
+    subgraph F3 [" Fase 3 · cruzamentos dentro da tabela "]
+        direction TB
+        F3A["relationships.py<br/>dependência funcional, redundância,<br/>correlação, hierarquia, série temporal"]
+        F3B["rules.py<br/>ordem entre datas, derivação aritmética"]
+    end
+
+    F3 --> F4
+
+    subgraph F4 [" Fase 4 · priorização "]
+        direction TB
+        F4A["quality.py<br/>recomendações de ETL, gap analysis,<br/>score de qualidade, risco LGPD"]
+    end
+
+    F4 --> OUT
+
+    subgraph OUT [" "]
+        direction TB
+        REP["reporting/<br/>JSON · Markdown · HTML · Parquet"]
+        GEN["codegen.py<br/>script de limpeza pandas / Power Query M"]
+    end
+
+    CLI -.->|"modelar: perfila cada<br/>tabela primeiro"| DM
+    DM["datamodel.py<br/>chave entre tabelas, fato × dimensão,<br/>contrato e conferência entre versões"] -.-> OUT
+
+    CFG -.-> F1
+    CFG -.-> F2
+    CFG -.-> F3
+    CFG -.-> F4
+
+    classDef fase fill:#1f6feb0d,stroke:#1f6feb55,color:inherit;
+    class F1,F2,F3,F4 fase;
+```
+
 A inferência semântica vem depois da descrição das colunas de propósito: os detectores de conteúdo consomem o que `statistics` já apurou (valores distintos, cardinalidade, assimetria) em vez de recalcular.
 
 Cada módulo é um conjunto de funções puras sem estado global. `config.py` é só dado; a lógica que o consome vive nos módulos de análise.
