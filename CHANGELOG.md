@@ -27,3 +27,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Protege o Shapiro-Wilk contra série constante, valida documentos e sujeira de conteúdo, sobe o piso para Python 3.12 e renomeia o pacote de `data_profiler` para `datascope`.
 
+## Arquitetura v3: relações, regras e modelo de dados
+
+- Detecção de layout de planilha feita à mão, relações entre colunas, regras de negócio, modelo de dados multi-tabela e a cascata de evidências semânticas.
+
