@@ -29,7 +29,7 @@ ABREVIATURAS: dict[str, list[str]] = {
     "nm": ["nome"], "ds": ["descricao"], "dsc": ["descricao"], "desc": ["descricao"],
     "tp": ["tipo"], "fl": ["flag"], "flg": ["flag"], "sg": ["sigla"],
     "pc": ["percentual"], "perc": ["percentual"], "pct": ["percentual"],
-    "id": ["identificador"], "seq": ["sequencial"], "st": ["status"],
+    "id": ["identificador"], "seq": ["sequencial"], "sq": ["sequencial"], "st": ["status"],
     "ind": ["indicador"], "mt": ["matricula"], "mat": ["matricula"],
     # entidades de RH e estrutura organizacional
     "dep": ["departamento", "dependente", "deposito"],

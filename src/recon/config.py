@@ -105,6 +105,7 @@ CATEGORIAS_FORTES: dict[str, list[str]] = {
     SEMANTICA_CHAVE_ID: [
         "id", "cod", "codigo", "code", "key", "number", "matricula", "mat",
         "cpf", "cnpj", "registro", "chave", "identifier", "iden", "nr", "num", "pk", "fk",
+        "sequencial",
     ],
     SEMANTICA_DATA_CALENDARIO: [
         "date", "dt", "data", "time", "timestamp", "periodo", "competencia",
@@ -164,6 +165,21 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
         "diretoria", "gerencia", "setor", "area", "divisao", "celula",
         "squad", "lotacao", "unidade", "filial", "subsidiaria", "agencia",
         "coordenacao", "superintendencia", "nucleo", "equipe", "time",
+        # Vocabulário de dado público brasileiro: sem "orgao"/"secretaria",
+        # `NOME_ORGAO_SUPERIOR` (nome do órgão do governo, não de pessoa)
+        # não tinha domínio nenhum pra competir com o default de nome
+        # pessoal do qualificador "nome".
+        "orgao", "secretaria", "ministerio", "autarquia",
+    ],
+    # Vocabulário de processo eleitoral (dados do TSE): sem domínio próprio,
+    # `NM_PARTIDO`/`NM_TIPO_ELEICAO` (nome do partido, tipo de eleição — não
+    # de pessoa) ficavam sem nada pra competir com o qualificador "nome" e
+    # saíam como dado pessoal. Não inclui "candidato" de propósito: um
+    # candidato é uma pessoa, e a coluna `NOME_CANDIDATO` precisa continuar
+    # sendo dado pessoal — misturar o termo aqui derrubaria isso.
+    "Processo Eleitoral": [
+        "eleicao", "partido", "pleito", "coligacao", "chapa", "urna",
+        "votacao", "sufragio", "candidatura",
     ],
     "Perfil do Colaborador": [
         "gender", "nationality", "career", "workforce", "staff",
@@ -218,6 +234,10 @@ TOKENS_QUALIFICADORES: frozenset[str] = frozenset({
     # coluna como contagem, não data. Sem `dias` como borda, `prazo` vencia
     # sozinho e uma coluna numérica de dias virava "Data / Calendário".
     "dias",
+    # `SQ_CANDIDATO_FORNECEDOR` (dado real do TSE) é um número sequencial que
+    # referencia um candidato — não o nome dele. Sem `sequencial` como borda,
+    # `candidato` (palavra forte de nome de pessoa) vencia sozinho.
+    "sequencial",
 })
 
 # Peso do token qualificador no ranking semântico. Ele ainda conta (um
@@ -252,7 +272,13 @@ PADROES_ESTRUTURADOS: dict[str, str] = {
     "CNPJ":     r"^\d{2}[.\-]?\d{3}[.\-]?\d{3}[\/\-]?\d{4}[.\-]?\d{2}$",
     "CEP":      r"^\d{5}[-\s]?\d{3}$",
     "E-mail":   r"^[\w.+\-]+@[\w\-]+(\.[\w\-]+)*\.[\w\-]{2,}$",
-    "Telefone": r"^[\(\+]?\d[\d\s\-\(\)]{6,14}\d$",
+    # Exige a forma de telefone brasileiro (DDD de 2 dígitos + 8 ou 9 dígitos
+    # do número) em vez de "qualquer dígito de 8 a 16 caracteres" — a versão
+    # antiga casava documento numérico sem formatação (`000022680`, um número
+    # de ingresso no serviço público, achado real em base de servidores) como
+    # se fosse telefone. Mesma forma exigida na busca de PII embutida em
+    # texto livre, por consistência.
+    "Telefone": r"^\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}$",
     "UUID":     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 }
 
