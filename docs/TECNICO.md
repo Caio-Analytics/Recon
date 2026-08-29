@@ -146,12 +146,47 @@ A semântica roda **depois** da descrição das colunas: os detectores de
 conteúdo consomem o que `statistics` já apurou (valores distintos,
 cardinalidade, assimetria) em vez de recalcular.
 
+O mesmo fluxo, visual:
+
+```mermaid
+flowchart TD
+    CLI[cli.py]
+    ING[ingestion.py<br/>encoding e separador]
+    LAY[layout.py<br/>cabeçalho, rodapé, mesclagem]
+    F1A[statistics.py]
+    F1B[patterns.py]
+    F1C[hypothesis.py]
+    F2[semantics/<br/>papel + domínio, duas passadas]
+    F3A[relationships.py]
+    F3B[rules.py]
+    F4[quality.py<br/>ETL, gap analysis, score, LGPD]
+    REP[reporting/<br/>JSON · Markdown · HTML · Parquet]
+    GEN[codegen.py<br/>script de limpeza]
+    DM[datamodel.py<br/>chave entre tabelas, fato x dimensão]
+    CFG[(config.py<br/>taxonomias e limiares)]
+
+    CLI --> ING --> LAY --> F1A
+    F1A --> F1B --> F1C --> F2
+    F2 --> F3A --> F3B --> F4
+    F4 --> REP
+    F4 --> GEN
+    CLI -- modelar: perfila cada tabela primeiro --> DM
+    DM --> REP
+    CFG -.-> F1A
+    CFG -.-> F2
+    CFG -.-> F4
+```
+
 ### 4.2 Conjunto de tabelas (`modelar`)
 
 Perfila cada tabela (inclusive cada aba de um Excel como tabela independente)
 e depois roda `datamodel.analisar_conjunto`: detecta chaves estrangeiras,
 classifica papéis, mede grão, integridade referencial e cobertura temporal, e
-monta as análises sugeridas com código pronto.
+monta as análises sugeridas com código pronto. Fato × dimensão é
+**classificação estrutural, não pelo nome**: tabela que aponta para várias
+outras e carrega medida numérica é fato; tabela apontada e com chave própria é
+dimensão. Fato sem medida não é anomalia — é tabela de evento, e continua
+sendo o centro da análise.
 
 ---
 
