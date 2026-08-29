@@ -35,3 +35,7 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 
 - Relatório HTML com detalhe por coluna, núcleo reescrito sobre os novos módulos e suíte de testes com regressão para cada bug corrigido.
 
+## Usabilidade (Fase 5)
+
+- Gráficos SVG por coluna, relatório consolidado de lote, menu interativo e comando de pasta.
+
