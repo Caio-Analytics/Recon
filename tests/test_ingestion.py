@@ -117,3 +117,25 @@ def test_carregar_todas_abas_excel_corrompido_levanta_file_format_error(tmp_path
     caminho = _escrever(tmp_path, "corrompida.xlsx", "isto nao e um arquivo excel valido")
     with pytest.raises(FileFormatError):
         carregar_todas_abas_excel(str(caminho))
+
+
+
+
+def test_byte_corrompido_nao_derruba_a_analise(tmp_path, monkeypatch):
+    from recon import ingestion
+
+    monkeypatch.setattr(ingestion, "detectar_encoding", lambda *a, **k: "cp1252")
+    conteudo = (
+        b"ORGAO;VALOR\r\n"
+        b'"BANCO CENTRAL DO BRASIL";"DI\x9dRIAS"\r\n'
+        b'"OUTRO";"NORMAL"\r\n'
+    ) * 50
+    caminho = tmp_path / "legado.csv"
+    caminho.write_bytes(conteudo)
+
+    df, _ = carregar_arquivo(str(caminho))
+
+    assert len(df) > 0
+    assert "�" in df["VALOR"].iloc[0]
+    avisos = df.attrs["layout"].avisos
+    assert any(a["tipo"] == "encoding_substituido" for a in avisos)
