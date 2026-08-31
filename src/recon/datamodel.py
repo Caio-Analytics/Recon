@@ -1,16 +1,12 @@
 """Inferência do modelo de dados a partir de um conjunto de tabelas.
 
-Enquanto `pipeline` responde "o que tem nesta tabela?", este módulo responde
-a pergunta seguinte: **"como estas tabelas se ligam e o que dá para fazer com
-elas juntas?"**
+Descobre chaves estrangeiras por contenção de valores, classifica cada
+tabela como fato ou dimensão, monta o grafo de junção e sugere análises
+concretas com o código pronto para rodar.
 
-O caminho é: descobrir chaves estrangeiras por *contenção* de valores →
-classificar cada tabela como fato ou dimensão → montar o grafo de junção →
-sugerir análises concretas com o código pronto para rodar.
-
-Contenção, não similaridade: uma FK está contida na PK (`FK ⊆ PK`), mas
-raramente é igual a ela. Comparar por Jaccard subestimaria toda relação em que
-a dimensão tem valores não usados pelo fato — que é o caso normal.
+Usa contenção, não similaridade: uma FK está contida na PK (`FK ⊆ PK`), mas
+raramente é igual a ela. Jaccard subestimaria relações em que a dimensão tem
+valores não usados pelo fato, que é o caso normal.
 """
 from dataclasses import dataclass, field
 from typing import Any
@@ -23,12 +19,12 @@ from . import config
 from .semantics import normalizar
 
 # ── Limiares ────────────────────────────────────────────────────────────────
-# Contenção medida em valores *distintos*. O limiar é deliberadamente
-# tolerante: uma chave estrangeira com 8% de linhas órfãs continua sendo uma
-# chave estrangeira, e descartá-la faria o usuário não ver relação nenhuma —
-# muito pior do que vê-la acompanhada de um aviso. Quem segura o falso
-# positivo aqui é o conjunto de guardas (medida não é chave, cobertura mínima
-# da dimensão, apoio do nome) e o limiar de confiança combinada.
+# Contenção medida em valores distintos. O limiar é deliberadamente tolerante:
+# uma chave estrangeira com 8% de linhas órfãs continua sendo uma chave
+# estrangeira, e descartá-la faria o usuário não ver relação nenhuma — pior
+# do que vê-la acompanhada de um aviso. O falso positivo é contido pelo
+# conjunto de guardas (medida não é chave, cobertura mínima da dimensão,
+# apoio do nome) e pelo limiar de confiança combinada.
 CONTENCAO_MINIMA = 0.6
 CONTENCAO_MINIMA_COM_APOIO_DE_NOME = 0.35
 CONFIANCA_MINIMA_RELACAO = 0.6
@@ -52,8 +48,8 @@ _PRIORIDADE_ATRIBUTO = (
 )
 _MAX_CARDINALIDADE_ATRIBUTO = 100
 
-# Medida não-aditiva: a soma não tem significado, a média tem. É a distinção
-# clássica entre medida aditiva (horas, valor) e razão/escore.
+# Medida não-aditiva: a soma não tem significado, a média tem. Medida aditiva
+# (horas, valor) soma; razão ou escore não.
 _TOKENS_NAO_ADITIVOS = frozenset({
     "nota", "score", "indice", "taxa", "percentual", "pct", "media", "ratio",
     "proporcao", "nivel", "aderencia", "satisfacao", "avaliacao", "peso",
@@ -167,7 +163,7 @@ def _conjunto_normalizado(
 
 
 def _contencao_por_linha(serie: pd.Series, valores_referencia: set[str]) -> float:
-    """Fração das *linhas* preenchidas cujo valor existe na chave referenciada."""
+    """Fração das linhas preenchidas cujo valor existe na chave referenciada."""
     limpa = serie.dropna()
     if limpa.empty:
         return 0.0
@@ -192,10 +188,10 @@ def detectar_relacionamentos(
     """Procura chaves estrangeiras entre todas as tabelas do conjunto.
 
     Para cada coluna candidata a chave primária, testa que colunas das demais
-    tabelas têm os seus valores contidos nela. O grau de contenção também
-    responde uma pergunta de qualidade que nenhuma análise de tabela isolada
-    alcança: *quantos registros do fato apontam para uma chave que não existe
-    na dimensão?*
+    tabelas têm os seus valores contidos nela. O grau de contenção também mede
+    quantos registros do fato apontam para uma chave que não existe na
+    dimensão, problema de qualidade que não aparece analisando cada tabela
+    isolada.
     """
     if len(tabelas) < 2:
         return []
@@ -273,10 +269,10 @@ def detectar_relacionamentos(
                     if confianca < CONFIANCA_MINIMA_RELACAO:
                         continue
 
-                    # Contenção por linha responde a pergunta prática — "quantos
-                    # registros eu perco num INNER JOIN?" — que a contenção por
-                    # valor distinto distorce quando os órfãos são raros mas
-                    # variados, ou frequentes mas repetidos.
+                    # Contenção por linha mede quantas linhas se perderiam num
+                    # INNER JOIN — métrica que a contenção por valor distinto
+                    # distorce quando os órfãos são raros mas variados, ou
+                    # frequentes mas repetidos.
                     contencao_linhas = _contencao_por_linha(origem.df[fk], valores_pk)
                     orfaos = round(1.0 - contencao_linhas, 4)
                     achados.append({
@@ -553,13 +549,12 @@ def sugerir_analises(
 
     A medida não precisa morar no fato: numa base de treinamentos, a carga
     horária costuma estar na dimensão do curso, e o fato só registra quem fez
-    o quê. Por isso as medidas consideradas incluem as das dimensões ligadas —
-    é justamente esse cruzamento que ninguém consegue enxergar olhando uma
-    planilha por vez.
+    o quê. Por isso as medidas consideradas incluem as das dimensões ligadas,
+    cruzamento que não aparece analisando uma planilha por vez.
     """
-    # Sem nenhuma chave em comum não existe análise *cruzada* — e sugerir
+    # Sem nenhuma chave em comum não existe análise cruzada — e sugerir
     # agregação de uma tabela só, num relatório que existe para descrever o
-    # conjunto, é preencher espaço com o que o `perfilar` já entrega.
+    # conjunto, repetiria o que o `perfilar` já entrega.
     if not relacionamentos:
         return []
 
@@ -846,11 +841,10 @@ def detectar_granularidade(
 ) -> dict[str, Any] | None:
     """Diz, numa frase, o que uma linha da tabela representa.
 
-    "Cada linha é um (colaborador × curso)" é a primeira pergunta de qualquer
-    modelagem, e a resposta sai de graça das chaves estrangeiras já
-    detectadas. Junto vem a verificação que interessa: o grão *é mesmo* único?
-    Se o par se repete, qualquer contagem por colaborador está inflada — e
-    esse erro é invisível olhando coluna a coluna.
+    "Cada linha é um (colaborador × curso)" sai de graça das chaves
+    estrangeiras já detectadas. Junto vem a verificação de que o grão é
+    realmente único: se o par se repete, qualquer contagem por colaborador
+    está inflada, erro invisível olhando coluna a coluna.
     """
     fks = [r for r in relacionamentos if r["tabela_origem"] == tabela.nome]
     if not fks:
@@ -939,9 +933,9 @@ def _variacoes_de_coluna(
 ) -> list[dict[str, Any]]:
     """O que mudou nas colunas que existem nas duas versões.
 
-    Coluna que sumiu do arquivo é fácil de ver; coluna que continua lá e
-    *parou de vir preenchida* é o defeito silencioso de extração — o relatório
-    da versão nova, sozinho, mostra 40% de nulos sem nada com que comparar.
+    Coluna que sumiu do arquivo é fácil de ver; coluna que continua lá e parou
+    de vir preenchida é o defeito silencioso de extração — o relatório da
+    versão nova, sozinho, mostra 40% de nulos sem nada com que comparar.
     """
     variacoes: list[dict[str, Any]] = []
     for nome in sorted(comuns):
@@ -993,10 +987,10 @@ def _variacoes_de_coluna(
 def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[str, Any]:
     """Compara duas versões da mesma base.
 
-    "Recebi a base de janeiro e a de fevereiro — elas batem?" é uma pergunta
-    de conferência, não de monitoramento: as duas estão na mão agora. O que
-    interessa é o que mudou de schema, quais chaves entraram e saíram, e que
-    colunas mudaram de comportamento sem mudar de nome.
+    Serve para conferir duas extrações já em mãos — a base de janeiro contra a
+    de fevereiro, por exemplo —, não para monitoramento contínuo. Interessa o
+    que mudou de schema, quais chaves entraram e saíram, e que colunas mudaram
+    de comportamento sem mudar de nome.
     """
     colunas_a = {c["Coluna"] for c in tabela_a.colunas}
     colunas_b = {c["Coluna"] for c in tabela_b.colunas}

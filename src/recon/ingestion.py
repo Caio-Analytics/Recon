@@ -122,7 +122,7 @@ def detectar_encoding(caminho: str, compactacao: str = "") -> str:
 
 
 def detectar_separador(caminho: str, encoding: str, compactacao: str = "") -> str:
-    """Escolhe o separador pela *consistência* do número de campos por linha.
+    """Escolhe o separador pela consistência do número de campos por linha.
 
     A heurística anterior aceitava o primeiro separador que produzisse mais de
     uma coluna, e caía num sniffer genérico quando nenhum produzia. Isso
@@ -130,8 +130,8 @@ def detectar_separador(caminho: str, encoding: str, compactacao: str = "") -> st
     colunas `['n', 'me']`, com a letra "o" eleita separador.
 
     Aqui um separador só vence se todas as linhas da amostra se dividirem no
-    mesmo número de campos, e uma única coluna é um resultado legítimo — não
-    um sinal de falha.
+    mesmo número de campos, e uma única coluna é um resultado legítimo, não um
+    sinal de falha.
     """
     try:
         texto = _amostra_bytes(caminho, compactacao).decode(encoding, errors="replace")
@@ -156,7 +156,7 @@ def detectar_separador(caminho: str, encoding: str, compactacao: str = "") -> st
         if not linhas:
             continue
         contagens = [len(linha) for linha in linhas]
-        # A largura típica é a *moda*, não a da primeira linha: num arquivo com
+        # A largura típica é a moda, não a da primeira linha: num arquivo com
         # título ("RELATÓRIO DE PESSOAL") a primeira linha tem um campo só com
         # qualquer separador, e o candidato certo era descartado logo de saída —
         # o arquivo inteiro acabava lido como coluna única.
@@ -177,8 +177,8 @@ def detectar_separador(caminho: str, encoding: str, compactacao: str = "") -> st
 def _ler_csv(caminho: str, encoding: str, sep: str) -> pd.DataFrame:
     """Lê o CSV preferindo o engine pyarrow (multi-thread, ~10× mais rápido
     que o engine C nesta carga), com queda para o engine C quando o pyarrow
-    recusa o arquivo — ele é bem mais estrito com CSV malformado, que é
-    justamente o tipo de arquivo que este profiler existe para analisar."""
+    recusa o arquivo — ele é bem mais estrito com CSV malformado, que é o
+    caso comum nos arquivos analisados aqui."""
     try:
         return pd.read_csv(caminho, encoding=encoding, sep=sep, engine="pyarrow")
     except Exception as e:
@@ -272,8 +272,8 @@ def _avisar_se_encoding_teve_substituicao(
     tolerante e, se sim, deixa isso visível no relatório em vez de silencioso.
 
     `encoding_errors="replace"` evita a análise inteira travar por um byte
-    corrompido, mas trocar sem avisar esconderia justamente o tipo de defeito
-    que esta ferramenta existe para apontar.
+    corrompido, mas trocar sem avisar esconderia esse defeito de dado em vez
+    de reportá-lo.
     """
     colunas_texto = df.select_dtypes(include=["object", "str"]).columns
     if colunas_texto.empty:
@@ -395,7 +395,7 @@ def _carregar_aba_com_layout(
 def _carregar_parquet(caminho: str) -> pd.DataFrame:
     """Parquet já vem tipado e sem preâmbulo — não há layout a detectar.
 
-    Entrou na lista de entrada porque a ferramenta já *exportava* Parquet e não
+    Entrou na lista de entrada porque a ferramenta já exportava Parquet e não
     lia: quem guardou a camada Silver em Parquet não conseguia perfilá-la.
     """
     try:

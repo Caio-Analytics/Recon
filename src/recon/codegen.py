@@ -1,14 +1,8 @@
 """Geração do script de limpeza a partir dos achados do perfil.
 
-O relatório diz "converta `dt_admissao` para datetime", "`N/A` é nulo
-disfarçado", "padronize `SP`/`sp`/`S.P.`", "esta coluna cabe em `int16`".
-Tudo isso já está estruturado no payload — falta emitir o código que aplica.
-
-É a diferença entre entregar um diagnóstico e entregar o começo do trabalho
-feito: o script sai pronto para rodar, com cada passo comentado com o motivo
-que o profiler encontrou, e o usuário decide o que manter.
-
-Nada aqui é irreversível: o script lê o arquivo original e devolve um
+Converte os achados do payload (colunas a converter, sentinelas a tratar,
+grafias a padronizar, dtype a reduzir) num script pandas pronto para rodar,
+com cada passo comentado com o motivo. Lê o arquivo original e devolve um
 DataFrame novo, sem sobrescrever nada.
 """
 from typing import Any
@@ -55,9 +49,8 @@ def _leitura(payload: dict[str, Any], caminho_origem: str) -> list[str]:
     else:
         argumentos = [f"r{_literal(caminho_origem)}"]
         # Sem separador e encoding, o script gerado lê com os padrões do pandas
-        # (`,` e utf-8) e quebra justamente no arquivo brasileiro típico — que é
-        # o que a ferramenta existe para tratar. Os dois vêm da detecção que a
-        # ingestão já fez, então o script reproduz a mesma leitura.
+        # (`,` e utf-8) e quebra no arquivo brasileiro típico. Os dois vêm da
+        # detecção que a ingestão já fez, então o script reproduz a mesma leitura.
         if layout.get("separador") and layout["separador"] != ",":
             argumentos.append(f"sep={_literal(layout['separador'])}")
         if layout.get("encoding") and str(layout["encoding"]).lower() not in ("utf-8", "utf8"):
@@ -140,7 +133,7 @@ def _passos_por_coluna(payload: dict[str, Any]) -> list[str]:
                 f".decode('utf-8', 'ignore') if isinstance(v, str) else v\n)",
             ))
 
-        # A sugestão de dtype foi calculada sobre a coluna *antes* da conversão
+        # A sugestão de dtype foi calculada sobre a coluna antes da conversão
         # de data. Aplicá-la depois transformaria o datetime recém-criado em
         # `category`, desfazendo o passo anterior.
         if (not virou_data
@@ -297,8 +290,8 @@ def gerar_script_limpeza_m(payload: dict[str, Any], caminho_origem: str) -> str:
     """Os mesmos passos do script pandas, em Power Query (M).
 
     Quem entrega em Power BI não roda o `.py`: refaz na mão, no editor, os
-    passos que o relatório descreveu. Emitir M colável fecha essa distância —
-    é o mesmo diagnóstico entregue na linguagem em que o trabalho acontece.
+    passos que o relatório descreveu. Este gera o M pronto para colar, sem
+    precisar reimplementar os passos manualmente.
     """
     meta = payload["metadados_execucao"]
     layout = meta.get("layout") or {}

@@ -1,22 +1,22 @@
 """Inferência semântica de colunas por acúmulo de evidências.
 
-O modelo tem dois eixos, não um:
+O modelo tem dois eixos:
 
-- **papel** — o que a coluna *é*: identificador, data, valor financeiro,
-  quantidade, nome, descrição, contato, flag.
-- **domínio** — sobre o que ela *fala*: estrutura organizacional, cargo,
-  curso, localidade, perfil do colaborador.
+- papel: o que a coluna é (identificador, data, valor financeiro,
+  quantidade, nome, descrição, contato, flag).
+- domínio: sobre o que ela fala (estrutura organizacional, cargo, curso,
+  localidade, perfil do colaborador).
 
 `nome_departamento` tem papel "Nome" e domínio "Estrutura Organizacional".
 
-A inferência é uma **cascata de detectores independentes**, não uma sequência
-de `if/elif` em que o primeiro a responder vence. Cada detector emite
-evidências com peso, e a combinação por noisy-OR deixa pistas fracas se
-somarem. É o que permite classificar `cd_dpto_lot`: o dicionário não conhece o
-nome, mas a abreviatura reconstrói `codigo`/`departamento`/`lotacao`, o
-conteúdo mostra baixa cardinalidade e o contexto da tabela confirma o assunto.
+A inferência é uma cascata de detectores independentes, não uma sequência de
+`if/elif` em que o primeiro a responder vence. Cada detector emite evidências
+com peso, combinadas por noisy-OR, o que deixa pistas fracas se somarem.
+Assim `cd_dpto_lot` é classificável mesmo sem o dicionário conhecer o nome: a
+abreviatura reconstrói `codigo`/`departamento`/`lotacao`, o conteúdo mostra
+baixa cardinalidade e o contexto da tabela confirma o assunto.
 
-A inferência acontece em **duas passadas**. A primeira classifica o que dá
+A inferência acontece em duas passadas. A primeira classifica o que dá
 isoladamente; a segunda usa os domínios já estabelecidos com confiança para
 desambiguar o que ficou em cima do muro — `dep` (departamento? dependente?
 depósito?) é insolúvel na coluna e trivial na tabela.
@@ -56,7 +56,7 @@ __all__ = [
 # erro; alto demais e ele nunca ajuda.
 _CONFIANCA_MINIMA_CONTEXTO = 0.7
 
-# Piso para *afirmar* um domínio. Abaixo dele a categoria continua visível em
+# Piso para afirmar um domínio. Abaixo dele a categoria continua visível em
 # `hipoteses`, mas o campo `dominio` fica vazio.
 _CONFIANCA_MINIMA_DOMINIO = 0.5
 
@@ -90,13 +90,12 @@ def _refinar_papel(papel: str | None, dominio: str | None, perfil: PerfilConteud
     nome sozinho não dá, e são eles que separam dois pares que o motor
     confundia:
 
-    - **nome de gente × nome de coisa** — `FULL_NAME` e `DEPARTMENT_NAME` têm o
-      mesmo qualificador. O que os separa é o domínio: departamento é estrutura
-      organizacional, e nome de departamento não é dado pessoal.
-    - **descrição × categoria** — `JOB_DESCRIPTION` (milhares de valores) é
-      texto livre; `SHIFT_TYPE_DESC` (poucos valores numa tabela grande) é uma
-      dimensão. Quem vai modelar precisa dessa diferença, e ela está no dado,
-      não no nome.
+    - nome de gente x nome de coisa: `FULL_NAME` e `DEPARTMENT_NAME` têm o
+      mesmo qualificador. O que os separa é o domínio: departamento é
+      estrutura organizacional, e nome de departamento não é dado pessoal.
+    - descrição x categoria: `JOB_DESCRIPTION` (milhares de valores) é texto
+      livre; `SHIFT_TYPE_DESC` (poucos valores numa tabela grande) é uma
+      dimensão. Essa diferença está no dado, não no nome.
     """
     if papel == config.SEMANTICA_NOME_PESSOA:
         if dominio is not None and dominio not in config.DOMINIOS_DE_PESSOA:
@@ -122,9 +121,8 @@ def _montar_resultado(
 
     # Domínio abaixo do piso não é afirmado: continua listado em `hipoteses`,
     # mas não vira fato no relatório. `cod_dep` numa tabela sem nenhuma outra
-    # pista de estrutura organizacional é um palpite, não um achado — e é
-    # justamente esse caso que a segunda passada por contexto vai resolver (ou
-    # deixar em aberto, o que também é uma resposta honesta).
+    # pista de estrutura organizacional é um palpite, não um achado; é esse
+    # caso que a segunda passada por contexto resolve, ou deixa em aberto.
     dominio_incerto = dominio is not None and conf_dominio < _CONFIANCA_MINIMA_DOMINIO
     if dominio_incerto:
         dominio, conf_dominio, origem_dominio = None, 0.0, "Sem evidência"
@@ -157,7 +155,7 @@ def _montar_resultado(
         "dominio": dominio,
         "confianca_score": round(confianca, 4),
         "origem": origem,
-        # Conclusiva exige os *dois* eixos resolvidos — mas ambiguidade é ter
+        # Conclusiva exige os dois eixos resolvidos — mas ambiguidade é ter
         # candidatos empatados, não é não ter candidato nenhum. Uma coluna como
         # `diretoria`, que só tem domínio e nenhum papel, está perfeitamente
         # resolvida e precisa entrar no contexto que desambigua as vizinhas.

@@ -390,7 +390,7 @@ def analisar_estatisticas(
 
             if sensivel:
                 # Min, max, média, mediana e limites de outlier de uma coluna
-                # de CPF/CNPJ *são* documentos reais de pessoas reais. Mascarar
+                # de CPF/CNPJ são documentos reais de pessoas reais. Mascarar
                 # só a amostra e publicar o mínimo em claro anula a proteção —
                 # e para um identificador nenhum desses números tem
                 # significado analítico. Suprimidos por completo.
@@ -496,8 +496,8 @@ def analisar_estatisticas(
                     patterns.detectar_inconsistencia_normalizacao(contagens)
                 )
             # Formato dominante: cobre a família de códigos que não é CPF nem
-            # CNPJ — matrícula, código de produto, número de contrato — em que
-            # o achado não é o formato, é a lista de quem foge dele.
+            # CNPJ — matrícula, código de produto, número de contrato. O
+            # achado é a lista de quem foge do formato, não o formato em si.
             if not sensivel and not flag_data_como_texto:
                 qualidade["formato"] = patterns.inferir_formato(amostra_str)
 

@@ -5,13 +5,13 @@ regras vão além: dizem que `dt_demissao` nunca é anterior a `dt_admissao`,
 que `vl_liquido` é `vl_bruto - vl_desconto`, e que `dt_demissao` só é
 preenchida quando `status = 'Inativo'`.
 
-São o achado mais acionável que dá para extrair de um profiling, por dois
-motivos: descrevem o dado em linguagem de negócio (não de estatística), e as
-*violações* são erros concretos com nome e sobrenome — "14 linhas com
-demissão antes da admissão" é algo que se conserta hoje.
+É o achado mais acionável de um profiling, por dois motivos: descreve o dado
+em linguagem de negócio, não de estatística, e as violações são erros
+concretos e localizáveis — "14 linhas com demissão antes da admissão" é algo
+que se conserta hoje.
 
-A regra só é reportada quando vale na esmagadora maioria das linhas. Uma
-"regra" que falha em 30% dos casos não é regra, é coincidência.
+A regra só é reportada quando vale na esmagadora maioria das linhas: uma que
+falha em 30% dos casos é coincidência.
 """
 from itertools import combinations, permutations
 from typing import Any
@@ -236,7 +236,7 @@ def detectar_derivacao_aritmetica(
     explicadas: set[str] = set()
     for trio in combinations(numericas, 3):
         # Uma coluna já explicada não vira alvo de novo (seria a mesma regra
-        # dita de outro jeito), mas continua disponível como *parcela*: é assim
+        # dita de outro jeito), mas continua disponível como parcela: é assim
         # que `vl_liquido = vl_bruto - vl_desconto` e
         # `vl_unitario = vl_liquido / qtd` aparecem os dois.
         if all(c in explicadas for c in trio):

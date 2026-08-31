@@ -6,7 +6,7 @@ informação — o nome pode sugerir uma coisa fracamente e o conteúdo confirma
 outra, e a resposta certa costuma ser a que várias fontes fracas apontam
 juntas.
 
-Aqui cada detector emite `Evidencia` e a combinação é feita por **noisy-OR**:
+Aqui cada detector emite `Evidencia` e a combinação é feita por noisy-OR:
 `1 - Π(1 - peso)`. Duas pistas de 0,5 valem 0,75; três valem 0,875. Evidências
 independentes se reforçam sem nunca estourar 1,0, e uma pista forte sozinha
 continua bastando.
@@ -27,7 +27,7 @@ _MARGEM_CONCLUSIVA = 0.15
 class Evidencia:
     """Uma pista sobre o significado de uma coluna.
 
-    `peso` é a confiança *desta* pista isoladamente (0-1). `origem` é o texto
+    `peso` é a confiança desta pista isoladamente (0-1). `origem` é o texto
     que aparece no relatório — precisa explicar por que a pista existe, não só
     nomeá-la.
     """

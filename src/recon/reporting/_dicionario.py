@@ -1,9 +1,9 @@
 """Dicionário de dados em XLSX.
 
-O HTML é para ler; o XLSX é para *circular*. É o formato que vai anexado num
-chamado, que o gestor filtra por conta própria e que vira a documentação
-oficial da base. O conteúdo já está inteiro no payload — falta o arquivo que
-as pessoas sabem abrir.
+Formato para distribuição: anexado a chamados, filtrado pelo gestor por
+conta própria, usado como documentação oficial da base. O conteúdo já está
+inteiro no payload; falta o arquivo num formato que as pessoas já sabem
+abrir.
 
 Uma aba por tabela, uma linha por coluna, mais uma aba de resumo quando há
 mais de uma tabela.

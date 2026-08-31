@@ -24,8 +24,8 @@ env/
 # Worktrees de desenvolvimento isolado
 .worktrees/
 
-# Configuração local do Claude Code
-.claude/settings.local.json
+# Configuração local de ferramentas de desenvolvimento
+.claude/
 
 # Cache do Python
 __pycache__/

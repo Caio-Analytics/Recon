@@ -629,7 +629,7 @@ def _escolher_coluna_referencia(
 def analisar_series_temporais(
     df: pd.DataFrame, colunas_meta: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
-    """Testa estacionariedade e autocorrelação sobre a série *agregada* por
+    """Testa estacionariedade e autocorrelação sobre a série agregada por
     período.
 
     Linhas transacionais não são uma série temporal: há várias linhas na mesma
@@ -752,10 +752,10 @@ def explicar_medidas(
 ) -> list[dict[str, Any]]:
     """Ranqueia que atributo categórico melhor explica cada medida numérica.
 
-    A razão de correlação (η) já existe como métrica de par; o que faltava era
-    a leitura: em vez de listar pares acima de um limiar, dizer *"salário é
-    explicado principalmente por cargo (η²=0,87), depois por diretoria
-    (0,31)"*. Isso é insight, não estatística.
+    A razão de correlação (η) já existe como métrica de par; faltava a leitura
+    em cima dela — em vez de listar pares acima de um limiar, o retorno diz
+    "salário é explicado principalmente por cargo (η²=0,87), depois por
+    diretoria (0,31)".
     """
     if len(df) < config.CORRELACAO_MIN_N:
         return []

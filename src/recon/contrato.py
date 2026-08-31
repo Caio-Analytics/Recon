@@ -1,16 +1,16 @@
 """Contrato de dados: congelar o que a base é hoje e reconferir depois.
 
-O Recon já *descobre* que `dt_admissao <= dt_desligamento`, que `matricula` é
+O Recon já descobre que `dt_admissao <= dt_desligamento`, que `matricula` é
 única e sem nulo, e que `uf` só assume 27 valores. Enquanto isso vive apenas
-no relatório, vale para o dia em que foi gerado.
+no relatório, vale só para o dia em que foi gerado.
 
 O contrato transforma esses achados num arquivo YAML pequeno, legível e
-editável — e `conferir_contrato` roda a mesma verificação na extração do mês
-seguinte. É o que separa um diagnóstico de uma checagem recorrente, sem
-servidor, sem banco e sem agendador.
+editável, e `conferir_contrato` roda a mesma verificação na extração do mês
+seguinte — uma checagem recorrente sem servidor, sem banco e sem agendador.
 
 O arquivo é feito para ser editado à mão: o que o Recon inferiu é ponto de
-partida, não lei. Apagar uma regra é a forma de dizer "isso aí pode variar".
+partida, não regra fixa. Apagar uma entrada é a forma de dizer que aquilo
+pode variar entre extrações.
 """
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,8 +24,8 @@ from . import __version__
 VERSAO_CONTRATO = 1
 
 # Cardinalidade máxima para congelar a lista de valores permitidos. Acima
-# disso o domínio não é um domínio, é conteúdo — e a lista viraria um arquivo
-# de milhares de linhas que ninguém revisa.
+# disso deixa de ser um domínio fechado e vira conteúdo — a lista viraria um
+# arquivo de milhares de linhas que ninguém revisa.
 MAX_VALORES_DOMINIO = 40
 # Folga sobre o percentual de nulos observado. Sem ela, qualquer oscilação
 # normal da extração viraria violação.

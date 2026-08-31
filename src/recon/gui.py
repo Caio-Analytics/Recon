@@ -9,10 +9,10 @@ algo está acontecendo.
 
 Duas decisões estruturam o módulo:
 
-1. **A janela é lançador, não visualizador.** Quem analisa é o `DataProfiler`,
+1. A janela é lançador, não visualizador. Quem analisa é o `DataProfiler`,
    o mesmo da CLI; quem mostra o resultado é o HTML que ele já gera. Regra de
    negócio que aparecer aqui está no lugar errado.
-2. **A análise roda em outra thread.** `processar_arquivo` leva minutos em
+2. A análise roda em outra thread. `processar_arquivo` leva minutos em
    arquivo grande e o Tk é single-thread: chamar direto no clique do botão faz
    o Windows escurecer a janela e escrever "Não Responde" — e o usuário leigo
    conclui que quebrou e mata o processo no meio. O trabalho vai para uma
@@ -104,10 +104,10 @@ _TIPOS_DIALOGO = [
 # então o relatório se identifica sozinho na pasta.
 PREFIXO_SAIDA = "recon"
 
-# Formatos oferecidos, com a explicação de para que serve cada um — a pergunta
-# de quem não programa não é "quero JSON?", é "para que isso serve?". Parquet
-# fica de fora: quem precisa dele está na linha de comando, e é a única saída
-# que não se abre com dois cliques.
+# Formatos oferecidos, cada um com uma explicação de para que serve — quem não
+# programa precisa saber a finalidade, não só o nome do formato. Parquet fica
+# de fora: quem precisa dele está na linha de comando, e é a única saída que
+# não se abre com dois cliques.
 FORMATOS: tuple[tuple[str, str, str], ...] = (
     ("html", "HTML", "abre no navegador — é o relatório para ler e mandar"),
     ("json", "JSON", "os dados do perfil, para colar num prompt de IA ou ler por código"),
@@ -708,7 +708,7 @@ class ItemNavegacao(tk.Frame):
 
     É `tk.Frame` e não `ttk`: estado de hover em ttk exige criar um estilo por
     item e mapear estados, enquanto aqui é atribuir `background`. O clique é
-    ligado no quadro **e em cada filho** porque o rótulo por cima do quadro
+    ligado no quadro e em cada filho porque o rótulo por cima do quadro
     engole o evento — clicar no texto não faria nada.
     """
 

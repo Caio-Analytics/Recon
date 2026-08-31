@@ -411,8 +411,8 @@ def gerar_recomendacoes_tabela(
 
 # Quanto cada tipo de dado pessoal pesa na exposição da tabela. CPF identifica
 # uma pessoa sozinho; CEP e telefone precisam de companhia. CNPJ não entra:
-# identifica pessoa *jurídica*, e a LGPD (Art. 5º, I) define dado pessoal como
-# o que se relaciona a pessoa *natural* identificada ou identificável — vale
+# identifica pessoa jurídica, e a LGPD (Art. 5º, I) define dado pessoal como
+# o que se relaciona a pessoa natural identificada ou identificável — vale
 # como confidencial pra outros fins, mas não é o que este risco mede.
 _PESO_EXPOSICAO: dict[str, float] = {
     "CPF": 1.0, "Nome de pessoa": 0.9, "E-mail": 0.8,
@@ -427,8 +427,8 @@ def calcular_risco_lgpd(colunas: list[dict[str, Any]]) -> dict[str, Any]:
 
     Misturar as duas coisas num score só respondia mal às duas perguntas: uma
     base impecável cheia de CPF tirava nota baixa como se estivesse suja, e uma
-    base suja sem dado pessoal parecia tão arriscada quanto. Aqui a pergunta é
-    outra — *o que vaza se este arquivo for para o lugar errado?*
+    base suja sem dado pessoal parecia tão arriscada quanto. Aqui a métrica é
+    outra: o que vaza se o arquivo for parar no lugar errado.
     """
     sensiveis = [
         {"coluna": c["Coluna"], "tipo": c["Dado_Sensivel_LGPD"]}
@@ -491,7 +491,7 @@ def _nota(score: float) -> str:
 def dano_da_coluna(coluna: dict[str, Any]) -> tuple[float, list[str]]:
     """Quanto uma coluna está comprometida, de 0 a 1, e por quê.
 
-    Os danos somam e saturam em 1: uma coluna com mojibake *e* sentinela está
+    Os danos somam e saturam em 1: uma coluna com mojibake e sentinela está
     mais comprometida que uma com só um dos dois, mas nenhuma passa de
     inutilizável.
     """
@@ -520,7 +520,7 @@ def dano_da_coluna(coluna: dict[str, Any]) -> tuple[float, list[str]]:
         achados.append((dano["inconsistencia_texto"], "grafias divergentes"))
     if alertas.get("data_como_texto"):
         achados.append((dano["data_como_texto"], "data como texto"))
-    # Dado pessoal estruturado *não* entra aqui. Uma base de RH limpa perdia
+    # Dado pessoal estruturado não entra aqui. Uma base de RH limpa perdia
     # nota por ter CPF — que é o dado dela. Exposição é risco, não defeito, e
     # agora tem número próprio em `calcular_risco_lgpd`.
 
@@ -553,7 +553,7 @@ def calcular_score_qualidade(
     dano_colunas = sum(d for _, d, _ in danos) / total
 
     pct_duplicadas = float(duplicatas.get("pct_linhas_duplicadas", 0.0))
-    # Só coluna *idêntica* é redundância. A quase idêntica é divergência entre
+    # Só coluna idêntica é redundância. A quase idêntica é divergência entre
     # origens — problema real, mas de outra natureza, e contá-la aqui derrubava
     # a nota de uma tabela cujo defeito é reconciliação, não duplicação.
     exatas = [r for r in redundantes if r.get("tipo") != "quase idêntica"]

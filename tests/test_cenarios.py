@@ -1,13 +1,13 @@
 """Cenários de ponta a ponta com dados propositalmente ruins.
 
 Os testes unitários verificam cada detector isolado com o defeito que ele
-procura. Estes verificam o comportamento **agregado** diante de arquivos como
-os que chegam na vida real: sujos em várias dimensões ao mesmo tempo, ou
-limpos mas inúteis.
+procura. Estes verificam o comportamento agregado diante de arquivos como os
+que chegam na vida real: sujos em várias dimensões ao mesmo tempo, ou limpos
+mas inúteis.
 
-O critério aqui não é "achou tudo" — é *não afirmar besteira*: quando não há
-relação entre as tabelas, o relatório precisa dizer que não há; quando há
-chave mas nenhuma medida, precisa dizer que não dá para analisar.
+O critério não é achar tudo, é não afirmar besteira: quando não há relação
+entre as tabelas, o relatório precisa dizer que não há; quando há chave mas
+nenhuma medida, precisa dizer que não dá para analisar.
 """
 import numpy as np
 import pandas as pd
@@ -26,9 +26,8 @@ FRACAO_SUJA = 0.6
 def df_60pct_poluido() -> pd.DataFrame:
     """Base com 60% das linhas contaminadas em alguma dimensão.
 
-    Cada coluna carrega um defeito diferente, todos simultâneos — que é como
-    a sujeira aparece de verdade, e não um de cada vez como nos testes
-    unitários.
+    Cada coluna carrega um defeito diferente, todos simultâneos, como a sujeira
+    aparece de verdade — não um de cada vez como nos testes unitários.
     """
     rng = np.random.default_rng(42)
     n_sujo = int(N_LINHAS * FRACAO_SUJA)
