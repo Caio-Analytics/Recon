@@ -2,12 +2,12 @@
 
 Só dado, sem lógica. Duas famílias:
 
-- **Abreviaturas** — sistemas corporativos brasileiros abreviam de forma
+- Abreviaturas: sistemas corporativos brasileiros abreviam de forma
   sistemática (`cd_dpto_lot`, `nr_seq_mvto`, `vl_tot_liq`). Um dicionário
   curado resolve o caso frequente; o resto cai na reconstrução por
   subsequência (ver `tokens.expandir_abreviatura`).
-- **Gazetteers** — conjuntos fechados de valores que identificam a coluna pelo
-  *conteúdo*, independentemente de como ela foi batizada. Uma coluna chamada
+- Gazetteers: conjuntos fechados de valores que identificam a coluna pelo
+  conteúdo, independentemente de como ela foi batizada. Uma coluna chamada
   `f27` cujos valores são as 27 siglas de UF é uma coluna de localização, e
   nenhuma análise do nome chegaria lá.
 """

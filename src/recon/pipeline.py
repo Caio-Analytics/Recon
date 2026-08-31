@@ -443,9 +443,9 @@ class DataProfiler:
     ) -> dict[str, Any]:
         """Compara duas versões da mesma base e devolve o que mudou.
 
-        É a pergunta que se repete a cada extração — "a base de agosto bate com
-        a de julho?" — e que nenhum relatório de tabela isolada responde: ele
-        mostra 40% de nulos numa coluna sem ter com o que comparar.
+        Um relatório de tabela isolada mostra, por exemplo, 40% de nulos numa
+        coluna, mas não diz se isso é novo ou sempre foi assim — falta a versão
+        anterior para comparar.
         """
         carregadas = []
         for caminho in (caminho_anterior, caminho_novo):
@@ -557,11 +557,8 @@ class DataProfiler:
     ) -> tuple[list[dict[str, Any]], list[tuple[str, str]]]:
         """Perfila vários arquivos e consolida num relatório comparativo.
 
-        A pergunta do lote não é "o que tem neste arquivo?" e sim "recebi doze
-        arquivos, quais prestam e por onde começo?". Ela se responde
-        comparando, então a saída padrão é um HTML único ordenado do pior para
-        o melhor — doze relatórios separados obrigariam a abrir doze abas para
-        descobrir onde está o problema.
+        A saída padrão é um HTML único com todos os arquivos ordenados do pior
+        para o melhor, em vez de um relatório separado por arquivo.
 
         Devolve os payloads e a lista de falhas, para o chamador decidir o
         código de saída.

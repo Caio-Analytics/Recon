@@ -107,7 +107,7 @@ def test_coluna_de_uf_e_localizacao():
     ("nasc", "nascimento"),
 ])
 def test_abreviatura_reconstruida_por_subsequencia(abreviatura, esperado):
-    """Abreviatura corporativa é a palavra com letras removidas *na ordem*
+    """Abreviatura corporativa é a palavra com letras removidas na ordem
     (`dpto` ⊂ `departamento`). Distância de edição erra esse caso;
     subsequência acerta."""
     assert esperado in [palavra for palavra, _ in expandir_abreviatura(abreviatura)]

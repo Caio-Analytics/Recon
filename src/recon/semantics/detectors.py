@@ -156,7 +156,7 @@ def por_token_forte(tokens: list[str]) -> list[Evidencia]:
     """Casa os tokens do nome — e as expansões das abreviaturas — contra o
     dicionário curado.
 
-    A regra do qualificador posicional continua valendo: o token na *borda* do
+    A regra do qualificador posicional continua valendo: o token na borda do
     nome define o papel. As duas convenções que aparecem em sistema corporativo
     põem o qualificador em pontas opostas — `id_funcionario`, `dt_movimento`,
     `nome_departamento` no português; `EMPLOYEE_ID`, `SUPPLIER_CONTACT_CODE`,
@@ -225,7 +225,7 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
     # domínio: a semelhança que sobra é homógrafo, não evidência. `time` é
     # "equipe" em português e está no vocabulário de estrutura organizacional —
     # por isso `RECORD_UPDATE_TIME` ganhava domínio "Estrutura Organizacional"
-    # tendo papel de data com 0,96 de confiança vindo do *mesmo* token.
+    # tendo papel de data com 0,96 de confiança vindo do mesmo token.
     candidatos_nome = [(nome_limpo, 1.0, nome_limpo)] + [
         c for c in tokens_expandidos(tokens)
         if not (c[0] == c[2] and c[0] in _INDICE_TOKEN_FORTE)
@@ -274,7 +274,7 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
 # ── 5. Conteúdo: assinatura estrutural ──────────────────────────────────────
 
 def por_assinatura_estrutural(perfil: PerfilConteudo) -> list[Evidencia]:
-    """Deduz o papel pela *forma* dos dados, não pelo nome.
+    """Deduz o papel pela forma dos dados, não pelo nome.
 
     Pistas fracas de propósito: sozinhas não decidem nada, mas somadas a um
     nome ambíguo costumam ser o que desempata.

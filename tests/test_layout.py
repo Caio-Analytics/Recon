@@ -1,6 +1,6 @@
 """Detecção de layout de planilha feita por gente.
 
-Metade dos testes verifica que a detecção *não* dispara: uma heurística de
+Metade dos testes verifica que a detecção não dispara: uma heurística de
 layout que se engana num arquivo bem formado é pior que não ter heurística
 nenhuma, porque estraga o caso comum para consertar o raro.
 """

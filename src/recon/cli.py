@@ -24,9 +24,9 @@ app = typer.Typer(
 def principal(ctx: typer.Context) -> None:
     """Sem argumento nenhum, abre o menu interativo.
 
-    A maior barreira de adoção não é a ferramenta ser difícil — é não lembrar
-    a sintaxe. Quem usa uma vez por mês não guarda `--formatos` nem
-    `--limite-amostra`; digitar `recon` e responder três perguntas, sim.
+    Quem usa o Recon uma vez por mês não guarda `--formatos` nem
+    `--limite-amostra` de cabeça; digitar `recon` e responder três perguntas
+    não exige lembrar sintaxe nenhuma.
     """
     if ctx.invoked_subcommand is None:
         from .interativo import executar
@@ -40,10 +40,9 @@ _MODOS_VALIDOS = ("auto", "individual", "lote", "modelo")
 def _decidir_modo(modo: str, arquivos: list[str], sim: bool) -> str:
     """Escolhe entre perfil individual, lote e modelo do conjunto.
 
-    Com um arquivo só não há o que comparar nem cruzar. Com vários, o lote é a
-    escolha segura — o modelo é oferecido, não imposto, porque cruzar tabelas
-    que não têm relação nenhuma só produz um relatório dizendo que não há
-    relação.
+    Com um arquivo só não há o que comparar nem cruzar. Com vários, o lote é o
+    padrão e o modelo é oferecido, não imposto: cruzar tabelas sem relação
+    nenhuma só produz um relatório dizendo que não há relação.
     """
     if modo not in _MODOS_VALIDOS:
         raise typer.BadParameter(
@@ -196,9 +195,8 @@ def lote(
 ) -> None:
     """Perfila vários arquivos e compara todos num relatório único.
 
-    A pergunta do lote não é "o que tem neste arquivo?" e sim "recebi doze
-    arquivos, por onde começo?". A saída principal é um HTML só, ordenado do
-    pior para o melhor, com o pior já aberto.
+    A saída principal é um HTML só, com todos os arquivos ordenados do pior
+    para o melhor e o pior já aberto.
     """
     setup_logging()
     escolhidos = _parsear_formatos(formatos)
@@ -399,8 +397,8 @@ def validar(
 ) -> None:
     """Confere uma extração contra um contrato e lista o que saiu da linha.
 
-    Sai com código 1 quando há violação grave, para poder ser usado em script:
-    é a checagem mensal que transforma o diagnóstico numa rotina.
+    Sai com código 1 quando há violação grave, para poder ser usado em script
+    (ex.: checagem automática a cada nova extração).
     """
     setup_logging()
     try:
@@ -433,8 +431,8 @@ def dicionario(
 ) -> None:
     """Gera o dicionário de dados em XLSX — uma aba por tabela.
 
-    É o entregável que circula: vai anexado num chamado, o gestor filtra
-    sozinho e vira a documentação oficial da base.
+    Formato pensado para circular: anexar num chamado, filtrar no Excel,
+    usar como documentação da base.
     """
     setup_logging()
     payloads = []
@@ -455,8 +453,8 @@ def janela() -> None:
     """Abre o Recon em janela, sem terminal.
 
     Mesma análise dos outros comandos, com "Procurar" abrindo o Explorer no
-    lugar de caminho digitado à mão. É o caminho de quem não usa terminal —
-    no Windows, dois cliques em `Recon.pyw` chegam aqui sem passar pelo cmd.
+    lugar de caminho digitado à mão. No Windows, dois cliques em `Recon.pyw`
+    chegam aqui sem passar pelo cmd.
     """
     from .gui import main
     main()

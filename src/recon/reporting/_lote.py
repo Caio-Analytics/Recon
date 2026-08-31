@@ -1,8 +1,8 @@
 """Relatório consolidado de lote: vários arquivos num HTML só.
 
-O `perfilar` responde tudo sobre um arquivo. O lote responde outra pergunta:
-*"recebi doze arquivos, quais deles prestam e por onde eu começo?"* — e essa
-pergunta se responde comparando, não empilhando doze relatórios.
+`perfilar` descreve um único arquivo. O lote compara vários arquivos entre
+si — quais prestam e por onde começar — o que exige comparação lado a lado,
+não relatórios individuais empilhados.
 
 Por isso a saída é um arquivo único, com um painel de comparação no topo e
 cada tabela em bloco recolhível abaixo. Um HTML por arquivo obrigaria a abrir
@@ -44,7 +44,7 @@ details.tabela .corpo { padding: 0 1rem 1rem; }
 
 
 def _painel_comparativo(perfis: list[dict[str, Any]]) -> str:
-    """Tabela de comparação — a razão de existir do relatório de lote."""
+    """Tabela de comparação entre os arquivos do lote."""
     linhas = []
     for p in sorted(perfis, key=lambda x: x["score"]):
         cor = _cor_score(p["score"])

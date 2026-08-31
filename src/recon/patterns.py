@@ -2,7 +2,7 @@
 detecção de sujeira de conteúdo (sentinelas, mojibake, inconsistência de
 normalização).
 
-Separado de `statistics` porque é lógica de *conteúdo* de valor — nada aqui
+Separado de `statistics` porque é lógica de conteúdo de valor — nada aqui
 depende de agregação estatística, e vários itens (sentinela, mojibake) são
 consumidos direto pelas recomendações de ETL.
 """
@@ -106,7 +106,7 @@ def detectar_padrao_texto(amostra_str: list[str], eh_chave_sistema: bool = False
     """Identifica o padrão estruturado dominante numa amostra de strings.
 
     Padrões com dígito verificador (CPF/CNPJ) só são aceitos se a maioria da
-    amostra também *validar* — casar o formato não basta, porque a máscara de
+    amostra também validar — casar o formato não basta, porque a máscara de
     CPF é indistinguível de qualquer outro número de 11 dígitos pontuado.
     """
     if not amostra_str:
@@ -125,7 +125,7 @@ def detectar_padrao_texto(amostra_str: list[str], eh_chave_sistema: bool = False
 
 
 def detectar_documento_invalido(amostra_str: list[str]) -> dict[str, Any]:
-    """Detecta coluna que *tem cara* de CPF/CNPJ mas cujos dígitos
+    """Detecta coluna que tem cara de CPF/CNPJ mas cujos dígitos
     verificadores não fecham.
 
     Consequência direta da validação por DV: quando o formato bate e a conta
@@ -413,7 +413,7 @@ _RE_PII_LIVRE: dict[str, re.Pattern] = {
     "CPF": re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b"),
     "CNPJ": re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b"),
     "E-mail": re.compile(r"\b[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+\b"),
-    # `(?<!\w)` no início e `(?!\w)` no fim impedem o casamento no *meio* de
+    # `(?<!\w)` no início e `(?!\w)` no fim impedem o casamento no meio de
     # um código alfanumérico: sem eles, uma matrícula como `CD9988776655`
     # casava pelo trecho de dígitos. Telefone não tem letra ao lado.
     "Telefone": re.compile(r"(?<!\w)\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}(?!\w)"),
@@ -421,13 +421,13 @@ _RE_PII_LIVRE: dict[str, re.Pattern] = {
 
 
 def detectar_pii_em_texto_livre(amostra_str: list[str]) -> dict[str, Any]:
-    """Procura CPF/CNPJ/e-mail/telefone *dentro* de coluna de texto livre.
+    """Procura CPF/CNPJ/e-mail/telefone dentro de coluna de texto livre.
 
     A detecção de padrão estruturado exige que o valor inteiro seja o
     documento; um CPF citado no meio de uma observação escapa dela — e é
     justamente onde PII costuma vazar sem ninguém perceber.
 
-    Só conta como PII *embutida* o que não ocupa o valor inteiro. Sem essa
+    Só conta como PII embutida o que não ocupa o valor inteiro. Sem essa
     distinção, uma coluna que é toda de documentos (a que a detecção de padrão
     estruturado já trata, com mascaramento próprio) seria reportada aqui de
     novo, com a rotulagem errada de "texto livre".
@@ -488,10 +488,11 @@ def inferir_formato(amostra_str: list[str], cobertura_minima: float = 0.8) -> di
     """Descobre o formato dominante de uma coluna de código e quem foge dele.
 
     Generaliza a detecção de padrão estruturado para códigos que não são
-    CPF/CNPJ: matrícula, código de produto, placa, número de contrato. O valor
-    está menos no formato encontrado e mais na *lista de exceções* — "98% dos
-    códigos são `AA999999` e estes 2% não são" é um achado de limpeza direto,
-    e hoje esses 2% passariam despercebidos no meio da coluna.
+    CPF/CNPJ: matrícula, código de produto, placa, número de contrato. O
+    achado principal é a lista de exceções, não o formato dominante em si —
+    "98% dos códigos são `AA999999` e estes 2% não são" é um achado de
+    limpeza direto, e hoje esses 2% passariam despercebidos no meio da
+    coluna.
     """
     if len(amostra_str) < 20:
         return {"tem_formato": False}
@@ -543,8 +544,8 @@ _BENFORD_ESPERADO = [0.301, 0.176, 0.125, 0.097, 0.079, 0.067, 0.058, 0.051, 0.0
 def distribuicao_benford(serie: pd.Series) -> dict[str, Any] | None:
     """Compara a distribuição do primeiro dígito com a esperada pela Lei de
     Benford. Desvio forte em coluna financeira costuma indicar valor
-    arredondado/manual, faixa truncada ou dado sintético — não é prova de
-    fraude, é um ponteiro para investigar.
+    arredondado/manual, faixa truncada ou dado sintético. Não confirma
+    fraude sozinho — é um ponteiro para investigar a origem do dado.
     """
     positivos = serie[serie > 0]
     if len(positivos) < 100:

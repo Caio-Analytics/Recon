@@ -149,7 +149,7 @@ def test_numeros_diferentes_nao_colapsam_por_causa_da_virgula():
 
 def test_mesmo_numero_com_grafia_diferente_ainda_colapsa():
     """`145` e `145,00` são o mesmo valor com formatação diferente — isso
-    continua sendo inconsistência de verdade, só o *número* diferente é que
+    continua sendo inconsistência de verdade, só o número diferente é que
     não deveria colapsar."""
     serie = pd.Series(["145"] * 50 + ["145,00"] * 30 + ["8"] * 10)
     resultado = patterns.detectar_inconsistencia_normalizacao(serie.value_counts())

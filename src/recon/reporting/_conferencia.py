@@ -1,9 +1,9 @@
 """Relatório da conferência entre duas versões da mesma base.
 
-O `perfilar` responde "o que tem neste arquivo?". Este relatório responde a
-pergunta seguinte, a que se repete todo mês: **"a extração nova bate com a
-anterior?"** — o que mudou de schema, quais registros entraram e saíram, e
-que colunas mudaram de comportamento sem mudar de nome.
+`perfilar` descreve um único arquivo. Este relatório compara duas versões da
+mesma base, uso típico a cada nova extração: o que mudou de schema, quais
+registros entraram e saíram, e que colunas mudaram de comportamento sem
+mudar de nome.
 """
 from html import escape
 from typing import Any

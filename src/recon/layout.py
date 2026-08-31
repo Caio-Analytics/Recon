@@ -1,16 +1,15 @@
 """Detecção do layout real de uma planilha feita por gente.
 
 Arquivo exportado de sistema tem os dados começando na linha 1. Planilha
-montada por uma pessoa tem título, data de emissão, linha em branco, o
-cabeçalho lá pela quinta linha, e um "TOTAL" no rodapé.
+montada por uma pessoa costuma ter título, data de emissão, linha em branco,
+cabeçalho lá pela quinta linha e um "TOTAL" no rodapé.
 
-Sem tratar isso, o pandas adota o título como nome de coluna, toda a tipagem
-vai por água abaixo e o relatório sai *bonito e errado* — que é o pior
-resultado possível, porque nada nele indica que está errado.
+Sem tratar isso, o pandas adota o título como nome de coluna e a tipagem
+inteira sai errada, sem nenhum sinal de que algo deu errado.
 
-Todas as heurísticas aqui são conservadoras: na dúvida, devolvem o
-comportamento padrão (cabeçalho na primeira linha) em vez de arriscar um
-palpite. Cada desvio do padrão vira um aviso explícito no relatório.
+As heurísticas aqui são conservadoras: na dúvida, mantêm o comportamento
+padrão (cabeçalho na primeira linha) em vez de arriscar um palpite. Cada
+desvio do padrão vira um aviso explícito no relatório.
 """
 import re
 from dataclasses import dataclass, field
@@ -24,7 +23,7 @@ _FRACAO_LARGURA_CABECALHO = 0.8
 # E se a maior parte das suas células for texto — cabeçalho é rótulo, não dado.
 _FRACAO_TEXTO_CABECALHO = 0.6
 # Linhas do topo inspecionadas em busca do cabeçalho. Preâmbulo maior que isso
-# não é preâmbulo, é outra coisa.
+# deixa de ser preâmbulo.
 _MAX_LINHAS_PREAMBULO = 30
 # Um cabeçalho descuidado repete um nome ou dois; uma linha de dados repete o
 # mesmo valor em metade das colunas. As duas condições juntas separam os casos
@@ -100,8 +99,8 @@ def detectar_linha_cabecalho(df_bruto: pd.DataFrame) -> tuple[int, list[dict[str
     # Reserva: a primeira linha que serve de cabeçalho em tudo, menos por
     # repetir um rótulo. Duas colunas "Valor" são comuns em relatório
     # exportado, e sem essa reserva a varredura seguia adiante e podia eleger
-    # uma *linha de dados* logo abaixo — cabeçalho errado estraga a tabela
-    # inteira, que é justamente o que este módulo existe para evitar.
+    # uma linha de dados logo abaixo — cabeçalho errado estraga a tabela
+    # inteira.
     reserva: int | None = None
     escolhido: int | None = None
     for indice in range(limite):
@@ -253,7 +252,7 @@ def detectar_celulas_mescladas(df: pd.DataFrame) -> list[dict[str, Any]]:
             continue
         if preenchida.nunique(dropna=True) > _MAX_CARDINALIDADE_MESCLA:
             continue
-        # O discriminante é a *não repetição* dos valores preenchidos: numa
+        # O discriminante é a não repetição dos valores preenchidos: numa
         # mesclagem cada valor aparece uma única vez (as repetições são os
         # nulos do bloco). Coluna com nulos espalhados ao acaso repete muito
         # os mesmos valores nas posições preenchidas, e cai fora aqui.
@@ -278,9 +277,9 @@ def detectar_celulas_mescladas(df: pd.DataFrame) -> list[dict[str, Any]]:
 def detectar_blocos_multiplos(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Detecta mais de uma tabela empilhada na mesma aba.
 
-    Linha totalmente vazia com dados acima *e* abaixo é o separador clássico
-    de duas tabelas coladas na mesma planilha. As duas viram uma só na
-    leitura, e nenhuma estatística faz sentido depois disso.
+    Linha totalmente vazia com dados acima e abaixo é o separador clássico de
+    duas tabelas coladas na mesma planilha. As duas viram uma só na leitura, e
+    nenhuma estatística faz sentido depois disso.
     """
     if len(df) < 4:
         return []

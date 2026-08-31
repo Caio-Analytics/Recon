@@ -2,7 +2,7 @@
 
 Separado de `statistics` (que faz descrição de coluna) porque aqui a
 responsabilidade é inferencial: cada função declara explicitamente quando
-*não* é aplicável, em vez de devolver um número sem significado.
+não é aplicável, em vez de devolver um número sem significado.
 """
 import math
 from typing import Any
@@ -102,9 +102,8 @@ def testar_normalidade_shapiro(numericos: pd.Series) -> dict[str, Any]:
 
     Com n grande o p-valor de qualquer teste de normalidade tende a zero por
     desvios irrelevantes — reportar só `p=0.0` não informa nada. A estatística
-    W (1,0 = normal perfeita) e a assimetria/curtose dizem *o quanto* a série
-    se afasta, que é a pergunta que decide se dá para usar um método
-    paramétrico.
+    W (1,0 = normal perfeita) e a assimetria/curtose dizem o quanto a série
+    se afasta, o que decide se dá para usar um método paramétrico.
     """
     n = len(numericos)
     if n < config.SHAPIRO_MIN_N:
@@ -220,7 +219,7 @@ def detectar_distribuicao_provavel(numericos: pd.Series) -> dict[str, Any]:
     """Escolhe a distribuição que melhor descreve a série por AIC.
 
     A abordagem anterior ajustava os parâmetros com `fit()` e testava aderência
-    com `kstest` usando *esses mesmos* parâmetros. Isso viola a premissa do KS
+    com `kstest` usando esses mesmos parâmetros. Isso viola a premissa do KS
     (parâmetros têm que ser conhecidos a priori) e infla o p-valor: uma t de
     Student com 3 graus de liberdade passava como normal. Além disso, escolher
     o maior p-valor compara modelos com número diferente de parâmetros livres,
