@@ -87,7 +87,6 @@ def _montar_resultado(
     
     
     
-    
     dominio_incerto = dominio is not None and conf_dominio < _CONFIANCA_MINIMA_DOMINIO
     if dominio_incerto:
         dominio, conf_dominio, origem_dominio = None, 0.0, "Sem evidência"

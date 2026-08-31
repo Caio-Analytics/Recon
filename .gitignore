@@ -24,8 +24,8 @@ env/
 # Worktrees de desenvolvimento isolado
 .worktrees/
 
-# Configuração local do contributor Code
-.contributor/settings.local.json
+# Configuração local de ferramentas de desenvolvimento
+.contributor/
 
 # Cache do Python
 __pycache__/

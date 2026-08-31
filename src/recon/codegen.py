@@ -43,7 +43,6 @@ def _leitura(payload: dict[str, Any], caminho_origem: str) -> list[str]:
         
         
         
-        
         if layout.get("separador") and layout["separador"] != ",":
             argumentos.append(f"sep={_literal(layout['separador'])}")
         if layout.get("encoding") and str(layout["encoding"]).lower() not in ("utf-8", "utf8"):
