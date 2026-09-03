@@ -22,7 +22,7 @@ from . import (
     semantics,
     statistics,
 )
-from .tipos import LayoutPayload, MetadadosExecucao
+from .tipos import IncertezaAmostra, LayoutPayload, MetadadosExecucao
 
 
 
@@ -239,7 +239,7 @@ class DataProfiler:
         df_alvo = df.sample(n=self.limite_amostra, random_state=42) if amostrado else df
         linhas_analisadas = len(df_alvo)
         cobertura_amostra = (linhas_analisadas / total_linhas) if total_linhas else 1.0
-        incerteza_amostra = {
+        incerteza_amostra: IncertezaAmostra = {
             "cobertura_pct": round(cobertura_amostra * 100, 3),
             "limiar_evento_raro_pct": round((3 / linhas_analisadas) * 100, 4)
             if linhas_analisadas else None,
@@ -490,7 +490,11 @@ class DataProfiler:
             meta = perfil["metadados_execucao"]
             atual = {
                 "arquivo": os.path.basename(caminho),
-                "linhas": meta["linhas_analisadas"],
+                "linhas": meta["linhas_originais"],
+                "linhas_analisadas": meta["linhas_analisadas"],
+                "linhas_total_desconhecido": meta["linhas_originais_desconhecidas"],
+                "amostragem_aplicada": meta["amostragem_aplicada"],
+                "cobertura_amostra_pct": meta["incerteza_amostra"]["cobertura_pct"],
                 "colunas": meta["total_colunas"],
                 "score": meta["score_qualidade"]["score"],
                 "colunas_com_nulos": meta["resumo_qualidade"]["colunas_com_nulos"],
@@ -508,6 +512,17 @@ class DataProfiler:
                         f"A estrutura mudou de {anterior['colunas']} para {atual['colunas']} coluna(s): "
                         f"{anterior['arquivo']} → {atual['arquivo']}."
                     )
+                if not atual["linhas_total_desconhecido"] and not anterior["linhas_total_desconhecido"]:
+                    variacao_volume = (atual["linhas"] - anterior["linhas"]) / max(
+                        anterior["linhas"], 1
+                    )
+                    if abs(variacao_volume) >= 0.20:
+                        direcao = "cresceu" if variacao_volume > 0 else "caiu"
+                        alertas.append(
+                            f"O volume {direcao} {abs(variacao_volume):.1%}: "
+                            f"{anterior['linhas']:,} → {atual['linhas']:,} linhas "
+                            f"({anterior['arquivo']} → {atual['arquivo']})."
+                        )
             extracoes.append(atual)
             anterior = atual
         resultado = {
