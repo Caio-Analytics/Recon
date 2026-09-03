@@ -13,6 +13,7 @@ que se conserta hoje.
 A regra só é reportada quando vale na esmagadora maioria das linhas: uma que
 falha em 30% dos casos é coincidência.
 """
+from datetime import UTC, datetime
 from itertools import combinations, permutations
 from typing import Any
 
@@ -33,6 +34,131 @@ MAX_COLUNAS_CONDICIONAIS = 12
 _MAX_LINHAS_AMOSTRA = 20_000
 _TOLERANCIA_RELATIVA = 1e-6
 _MAX_EXEMPLOS = 3
+
+
+def _tokens_nome(nome: str) -> set[str]:
+    """Tokens leves para ativar packs, sem depender da inferência semântica."""
+    from .semantics import tokenizar
+
+    return set(tokenizar(nome))
+
+
+def _regra_de_faixa(
+    serie: pd.Series, coluna: str, minimo: float, maximo: float,
+    pacote: str, descricao: str,
+) -> dict[str, Any] | None:
+    valores = pd.to_numeric(serie, errors="coerce").dropna()
+    if len(valores) < MIN_LINHAS_REGRA:
+        return None
+    conforme = valores.between(minimo, maximo)
+    taxa = float(conforme.mean())
+    if taxa < CONFORMIDADE_MINIMA:
+        return None
+    violacoes = valores[~conforme]
+    return {
+        "tipo": f"Regra de {pacote}", "pacote": pacote,
+        "regra": f"`{coluna}` entre {minimo:g} e {maximo:g}",
+        "descricao": descricao if violacoes.empty else f"{descricao} Há {len(violacoes)} valor(es) fora da faixa.",
+        "conformidade": round(taxa, 4), "qtd_violacoes": int(len(violacoes)),
+        "exemplos_violacao": [{coluna: float(valor)} for valor in violacoes.head(_MAX_EXEMPLOS)],
+    }
+
+
+def detectar_regras_por_pacote(
+    df: pd.DataFrame, colunas_meta: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Aplica packs conservadores para domínios reconhecíveis.
+
+    Diferentemente de uma regra inventada por nome de coluna, cada pack só
+    relata um achado se pelo menos 95% dos dados o confirmarem. Isso deixa a
+    sugestão útil como ponto de partida, sem transformar exceções legítimas
+    em erro automático.
+    """
+    if len(df) < MIN_LINHAS_REGRA:
+        return []
+    achados: list[dict[str, Any]] = []
+    nomes = {nome: _tokens_nome(nome) for nome in df.columns}
+
+    # Financeiro: desconto não pode ultrapassar o valor bruto da transação.
+    descontos = [nome for nome, tokens in nomes.items() if {"desconto", "discount"} & tokens]
+    brutos = [nome for nome, tokens in nomes.items() if {"bruto", "gross"} & tokens]
+    if descontos and brutos:
+        desconto, bruto = descontos[0], brutos[0]
+        pares = df[[desconto, bruto]].apply(pd.to_numeric, errors="coerce").dropna()
+        if len(pares) >= MIN_LINHAS_REGRA:
+            conforme = (pares[desconto] >= 0) & (pares[desconto] <= pares[bruto])
+            taxa = float(conforme.mean())
+            if taxa >= CONFORMIDADE_MINIMA:
+                erros = pares[~conforme]
+                achados.append({
+                    "tipo": "Regra de Financeiro", "pacote": "Financeiro",
+                    "regra": f"`{desconto}` entre 0 e `{bruto}`",
+                    "descricao": (
+                        "O desconto é compatível com o valor bruto."
+                        if erros.empty else f"{len(erros)} linha(s) têm desconto negativo ou acima do bruto."
+                    ),
+                    "conformidade": round(taxa, 4), "qtd_violacoes": int(len(erros)),
+                    "exemplos_violacao": erros.head(_MAX_EXEMPLOS).to_dict("records"),
+                })
+
+    # Logística: estoque físico negativo costuma significar baixa/ajuste não conciliado.
+    for nome, tokens in nomes.items():
+        if {"estoque", "inventory", "stock"} & tokens:
+            regra = _regra_de_faixa(
+                df[nome], nome, 0, float("inf"), "Logística",
+                "O estoque físico não deveria ficar negativo; confirme baixas, devoluções e ajustes.",
+            )
+            if regra:
+                achados.append(regra)
+            break
+
+    # Saúde: faixa de idade humana, sem afirmar que uma exceção é impossibilidade.
+    for nome, tokens in nomes.items():
+        if {"idade", "age"} & tokens:
+            regra = _regra_de_faixa(
+                df[nome], nome, 0, 130, "Saúde",
+                "A idade está dentro de uma faixa humana plausível; confira valores extremos na origem.",
+            )
+            if regra:
+                achados.append(regra)
+            break
+
+    # Dados públicos: ano de exercício/referência não deve trazer século improvável.
+    limite_ano = datetime.now(UTC).year + 1
+    for nome, tokens in nomes.items():
+        if "ano" in tokens and ({"exercicio", "referencia", "competencia"} & tokens):
+            regra = _regra_de_faixa(
+                df[nome], nome, 1900, limite_ano, "Dados públicos",
+                "O ano de referência está dentro do período esperado para publicação e prestação de contas.",
+            )
+            if regra:
+                achados.append(regra)
+            break
+
+    # Atendimento: encerramento posterior ao prazo de SLA indica atendimento vencido.
+    prazos = [nome for nome, tokens in nomes.items() if {"sla", "prazo", "deadline"} & tokens]
+    fins = [nome for nome, tokens in nomes.items() if {"resolucao", "conclusao", "fechamento", "encerramento"} & tokens]
+    if prazos and fins:
+        prazo, fim = prazos[0], fins[0]
+        pares = pd.DataFrame({
+            prazo: pd.to_datetime(df[prazo], errors="coerce", format="mixed"),
+            fim: pd.to_datetime(df[fim], errors="coerce", format="mixed"),
+        }).dropna()
+        if len(pares) >= MIN_LINHAS_REGRA:
+            conforme = pares[fim] <= pares[prazo]
+            taxa = float(conforme.mean())
+            if taxa >= CONFORMIDADE_MINIMA:
+                erros = pares[~conforme]
+                achados.append({
+                    "tipo": "Regra de Suporte", "pacote": "Suporte / SLA",
+                    "regra": f"`{fim}` <= `{prazo}`",
+                    "descricao": "Os chamados foram concluídos até o prazo de SLA." if erros.empty else (
+                        f"{len(erros)} chamado(s) foram concluídos após o prazo de SLA."
+                    ),
+                    "conformidade": round(taxa, 4), "qtd_violacoes": int(len(erros)),
+                    "exemplos_violacao": erros.head(_MAX_EXEMPLOS).astype(str).to_dict("records"),
+                })
+    return achados
 
 
 def _amostrar(df: pd.DataFrame) -> pd.DataFrame:
@@ -327,5 +453,6 @@ def inferir_regras(
     regras += detectar_ordem_entre_datas(df, colunas_meta)
     regras += detectar_nulidade_condicional(df, colunas_meta)
     regras += detectar_derivacao_aritmetica(df, colunas_meta)
+    regras += detectar_regras_por_pacote(df, colunas_meta)
     regras.sort(key=lambda r: (r["qtd_violacoes"] == 0, -r["qtd_violacoes"]))
     return regras

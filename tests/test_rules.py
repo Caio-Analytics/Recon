@@ -176,3 +176,25 @@ def test_regra_abaixo_do_limiar_nao_e_reportada():
     ordens = [r for r in rules.inferir_regras(df, _meta(df))
               if r["tipo"] == "Ordem entre datas"]
     assert ordens == []
+
+
+def test_packs_de_dominio_relacionam_violacoes_a_contexto_de_negocio():
+    """Os packs não dependem de RH e deixam claro de qual domínio vem a regra."""
+    n = 100
+    base = pd.Timestamp("2025-01-01")
+    df = pd.DataFrame({
+        "valor_bruto": [100.0] * n,
+        "valor_desconto": [10.0] * (n - 1) + [150.0],
+        "qtd_estoque": [10] * (n - 1) + [-1],
+        "idade_paciente": [42] * (n - 1) + [180],
+        "ano_exercicio": [2025] * (n - 1) + [1800],
+        "prazo_sla": [base + pd.Timedelta(days=2)] * n,
+        "data_resolucao": [base + pd.Timedelta(days=1)] * (n - 1) + [base + pd.Timedelta(days=3)],
+    })
+
+    regras = rules.detectar_regras_por_pacote(df, _meta(df))
+
+    assert {regra["pacote"] for regra in regras} == {
+        "Financeiro", "Logística", "Saúde", "Dados públicos", "Suporte / SLA"
+    }
+    assert all(regra["qtd_violacoes"] == 1 for regra in regras)
