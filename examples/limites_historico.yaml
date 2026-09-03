@@ -1,0 +1,5 @@
+# Opcional: use com `recon historico arquivos/*.csv --limites este_arquivo.yaml`.
+# Ausência de uma chave mantém o padrão do Recon.
+score_minimo: 80
+queda_score_maxima: 3
+variacao_volume_maxima_pct: 15

@@ -380,6 +380,9 @@ def historico(
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
     vocabularios: str | None = _OPCAO_VOCABULARIOS,
+    limites: str | None = typer.Option(
+        None, "--limites", help="YAML com limites de score e variação para alertas históricos."
+    ),
 ) -> None:
     """Mostra a evolução de qualidade de 2+ extrações, na ordem informada."""
     setup_logging()
@@ -388,7 +391,7 @@ def historico(
         profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         profiler.analisar_historico(
             caminhos, saida_base=saida_base, formatos=escolhidos,
-            json_compacto=json_compacto,
+            json_compacto=json_compacto, limites=limites,
         )
     except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
         typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)

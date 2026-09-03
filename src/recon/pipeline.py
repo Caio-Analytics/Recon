@@ -24,6 +24,7 @@ from . import (
     semantics,
     statistics,
 )
+from . import historico as historico_mod
 from .tipos import IncertezaAmostra, LayoutPayload, MetadadosExecucao
 
 # HTML como padrão: um `.html` clicado abre renderizado no navegador de
@@ -516,12 +517,14 @@ class DataProfiler:
         saida_base: str = "historico",
         formatos: Sequence[str] = FORMATOS_PADRAO,
         json_compacto: bool = False,
+        limites: str | None = None,
     ) -> dict[str, Any]:
         """Compara a evolução de várias extrações da mesma base na ordem dada."""
         if len(caminhos) < 2:
             raise ValueError("O histórico precisa de ao menos duas extrações, em ordem cronológica.")
         extracoes: list[dict[str, Any]] = []
         alertas: list[str] = []
+        limites_ativos = historico_mod.carregar_limiares(limites)
         anterior: dict[str, Any] | None = None
         for caminho in caminhos:
             df, nome = ingestion.carregar_arquivo(caminho, limite_linhas=self.limite_amostra)
@@ -541,35 +544,14 @@ class DataProfiler:
                 "colunas_com_nulos": meta["resumo_qualidade"]["colunas_com_nulos"],
                 "recomendacoes": meta["resumo_qualidade"]["total_recomendacoes"],
             }
-            if anterior is not None:
-                queda = atual["score"] - anterior["score"]
-                if queda <= -5:
-                    alertas.append(
-                        f"A qualidade caiu {abs(queda):.1f} ponto(s): "
-                        f"{anterior['arquivo']} → {atual['arquivo']}."
-                    )
-                if atual["colunas"] != anterior["colunas"]:
-                    alertas.append(
-                        f"A estrutura mudou de {anterior['colunas']} para {atual['colunas']} coluna(s): "
-                        f"{anterior['arquivo']} → {atual['arquivo']}."
-                    )
-                if not atual["linhas_total_desconhecido"] and not anterior["linhas_total_desconhecido"]:
-                    variacao_volume = (atual["linhas"] - anterior["linhas"]) / max(
-                        anterior["linhas"], 1
-                    )
-                    if abs(variacao_volume) >= 0.20:
-                        direcao = "cresceu" if variacao_volume > 0 else "caiu"
-                        alertas.append(
-                            f"O volume {direcao} {abs(variacao_volume):.1%}: "
-                            f"{anterior['linhas']:,} → {atual['linhas']:,} linhas "
-                            f"({anterior['arquivo']} → {atual['arquivo']})."
-                        )
+            alertas.extend(historico_mod.alertas_da_transicao(anterior, atual, limites_ativos))
             extracoes.append(atual)
             anterior = atual
         resultado = {
             "metadados_execucao": {"timestamp_utc": datetime.now(UTC).isoformat()},
             "extracoes": extracoes,
             "alertas": alertas,
+            "limites": limites_ativos,
             "resumo": (
                 f"{len(extracoes)} extrações analisadas na ordem informada. "
                 f"{len(alertas)} alerta(s) de evolução encontrado(s)."
