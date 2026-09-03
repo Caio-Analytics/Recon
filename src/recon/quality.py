@@ -12,6 +12,7 @@ from typing import Any
 from loguru import logger
 
 from . import config
+from .tipos import ColunaCritica, PenalidadeScore, ScoreQualidade
 
 # ── Prioridades ─────────────────────────────────────────────────────────────
 # Rank explícito: a ordenação do relatório dependia do codepoint do emoji
@@ -533,7 +534,7 @@ def calcular_score_qualidade(
     colunas: list[dict[str, Any]],
     duplicatas: dict[str, Any],
     redundantes: list[dict[str, Any]],
-) -> dict[str, Any]:
+) -> ScoreQualidade:
     """Consolida os defeitos num score 0-100.
 
     É a média do dano por coluna, não a soma de frações do total de colunas. A
@@ -547,7 +548,13 @@ def calcular_score_qualidade(
     """
     total = len(colunas)
     if total == 0:
-        return {"score": 0.0, "nota": "E", "colunas_criticas": [], "penalidades": []}
+        return {
+            "score": 0.0, "nota": "E",
+            "metodologia": {
+                "versao": "1.1", "descricao": "Não há colunas para avaliar.", "componentes": [],
+            },
+            "colunas_comprometidas": 0, "colunas_criticas": [], "penalidades": [],
+        }
 
     danos = [(c["Coluna"], *dano_da_coluna(c)) for c in colunas]
     dano_colunas = sum(d for _, d, _ in danos) / total
@@ -566,13 +573,13 @@ def calcular_score_qualidade(
     )
     score = max(0.0, 100.0 * (1.0 - dano_total))
 
-    criticas = sorted(
+    criticas: list[ColunaCritica] = sorted(
         ({"coluna": nome, "dano": round(d, 3), "motivos": motivos}
          for nome, d, motivos in danos if d > 0),
         key=lambda c: -c["dano"],
     )
 
-    penalidades: list[dict[str, Any]] = [{
+    penalidades: list[PenalidadeScore] = [{
         "dimensao": "Colunas comprometidas",
         "intensidade": round(dano_colunas, 4),
         "pontos_perdidos": round(100 * config.PESO_DANO_COLUNAS * dano_colunas, 2),
@@ -587,6 +594,25 @@ def calcular_score_qualidade(
     return {
         "score": round(score, 1),
         "nota": _nota(score),
+        "metodologia": {
+            "versao": "1.1",
+            "descricao": (
+                "Indicador heurístico de priorização: começa em 100 e reduz pontos por "
+                "problemas observados na amostra. Não substitui validação de negócio."
+            ),
+            "componentes": [
+                {
+                    "nome": "Qualidade das colunas",
+                    "peso_pct": round(config.PESO_DANO_COLUNAS * 100, 1),
+                    "pontos_perdidos": round(100 * config.PESO_DANO_COLUNAS * dano_colunas, 2),
+                },
+                {
+                    "nome": "Duplicatas e redundância",
+                    "peso_pct": round(config.PESO_DANO_TABELA * 100, 1),
+                    "pontos_perdidos": round(100 * config.PESO_DANO_TABELA * dano_tabela, 2),
+                },
+            ],
+        },
         "colunas_comprometidas": len(criticas),
         "colunas_criticas": criticas[:10],
         "penalidades": penalidades,

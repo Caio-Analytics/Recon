@@ -664,12 +664,30 @@ def analisar_series_temporais(
     if base.empty:
         return []
 
+    por_nome = {m["Coluna"]: m for m in colunas_meta}
+
+    def operacao(coluna: str) -> str:
+        meta = por_nome[coluna]
+        # Transações de valor e quantidade são aditivas: a pergunta útil é o
+        # total por período. Taxas, saldos, notas e métricas genéricas seguem
+        # pela média, que não infla o número quando há mais linhas num dia.
+        if meta.get("Papel") in _PAPEIS_DE_MEDIDA or meta.get("Semantica_IA") in _PAPEIS_DE_MEDIDA:
+            return "soma"
+        return "média"
+
+    def agregar(codigo: str) -> pd.DataFrame:
+        series: dict[str, pd.Series] = {}
+        for coluna in colunas_numericas:
+            origem = base[coluna].resample(codigo)
+            series[coluna] = origem.sum(min_count=1) if operacao(coluna) == "soma" else origem.mean()
+        return pd.DataFrame(series)
+
     # Escolhe a menor granularidade que ainda rende pontos suficientes para o
     # teste — diária quando o histórico é longo, mensal quando é curto.
     frequencia = None
     agregado = None
     for codigo, rotulo in _FREQUENCIAS_AGREGACAO:
-        candidato = base.resample(codigo).mean()
+        candidato = agregar(codigo)
         candidato = candidato.dropna(how="all")
         if len(candidato) >= _MIN_PONTOS_AGREGADOS:
             frequencia, agregado = rotulo, candidato
@@ -690,6 +708,7 @@ def analisar_series_temporais(
             "coluna": coluna,
             "coluna_temporal_referencia": col_referencia,
             "agregacao": frequencia,
+            "operacao": operacao(coluna),
             "n_pontos": int(len(serie)),
             "adf": adf,
             "ljung_box": ljung_box,

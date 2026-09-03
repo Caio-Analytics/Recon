@@ -299,6 +299,9 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
             for p in score["penalidades"][:5]:
                 partes.append(f"- {explicar_impacto_score(p['dimensao'], p['pontos_perdidos'])}")
             partes.append("")
+        metodologia = score.get("metodologia") or {}
+        if metodologia.get("descricao"):
+            partes.append(f"> Como interpretar: {metodologia['descricao']} Método {metodologia.get('versao', '—')}.\n")
 
     total_linhas = (
         "não contabilizado (leitura limitada)" if meta.get("linhas_originais_desconhecidas")
@@ -454,7 +457,7 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
         for t in payload["analise_temporal_series"]:
             adf, lb = t["adf"], t["ljung_box"]
             partes.append(
-                f"- `{t['coluna']}` ({t['n_pontos']} períodos) — "
+                f"- `{t['coluna']}` ({t.get('operacao', 'média')} por período; {t['n_pontos']} períodos) — "
                 f"{explicar_estabilidade_temporal(adf)} "
                 f"{explicar_dependencia_temporal(lb)}"
             )

@@ -402,6 +402,12 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
                 "A nota começa em 100 e diminui conforme problemas são encontrados.</p>"
                 f"<ul>{penalidades}</ul>"
             )
+        metodologia = score.get("metodologia") or {}
+        if metodologia.get("descricao"):
+            partes.append(
+                f"<p class='sub'><b>Como interpretar:</b> {_e(metodologia['descricao'])} "
+                f"Método {_e(metodologia.get('versao', '—'))}.</p>"
+            )
         criticas = score.get("colunas_criticas") or []
         if criticas:
             itens = "".join(
@@ -558,9 +564,10 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
             "Esta seção observa a evolução de uma mesma coluna no tempo; não é uma correlação entre colunas.</p>"
         )
         partes.append(_tabela(
-            ["Coluna resumida", "Períodos analisados", "Padrão no tempo", "Efeito entre períodos"],
+            ["Coluna resumida", "Como foi resumida", "Períodos analisados", "Padrão no tempo", "Efeito entre períodos"],
             [[
-                f'<code>{_e(t["coluna"])}</code>', f'{t["n_pontos"]:,} períodos',
+                f'<code>{_e(t["coluna"])}</code>', _e(t.get("operacao", "média")),
+                f'{t["n_pontos"]:,} períodos',
                 _e(explicar_estabilidade_temporal(t["adf"])),
                 _e(explicar_dependencia_temporal(t["ljung_box"])),
             ] for t in payload["analise_temporal_series"]],

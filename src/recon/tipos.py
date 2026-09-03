@@ -21,6 +21,45 @@ class LayoutPayload(TypedDict):
     avisos: list[Aviso]
 
 
+class IncertezaAmostra(TypedDict):
+    cobertura_pct: float
+    limiar_evento_raro_pct: float | None
+    mensagem: str
+
+
+class PenalidadeScore(TypedDict):
+    dimensao: str
+    intensidade: float
+    pontos_perdidos: float
+
+
+class ColunaCritica(TypedDict):
+    coluna: str
+    dano: float
+    motivos: list[str]
+
+
+class ComponenteMetodologiaScore(TypedDict):
+    nome: str
+    peso_pct: float
+    pontos_perdidos: float
+
+
+class MetodologiaScore(TypedDict):
+    versao: str
+    descricao: str
+    componentes: list[ComponenteMetodologiaScore]
+
+
+class ScoreQualidade(TypedDict):
+    score: float
+    nota: str
+    metodologia: MetodologiaScore
+    colunas_comprometidas: int
+    colunas_criticas: list[ColunaCritica]
+    penalidades: list[PenalidadeScore]
+
+
 class MetadadosExecucao(TypedDict):
     tabela: str
     timestamp_utc: str
@@ -31,10 +70,10 @@ class MetadadosExecucao(TypedDict):
     linhas_analisadas: int
     amostragem_aplicada: bool
     motivo_amostragem: str | None
-    incerteza_amostra: dict[str, Any]
+    incerteza_amostra: IncertezaAmostra
     total_colunas: int
     layout: LayoutPayload
-    score_qualidade: dict[str, Any]
+    score_qualidade: ScoreQualidade
     risco_lgpd: dict[str, Any]
     duplicatas: dict[str, Any]
     resumo_qualidade: dict[str, Any]

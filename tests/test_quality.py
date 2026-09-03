@@ -209,6 +209,8 @@ def _coluna(**overrides):
 def test_score_maximo_para_tabela_limpa():
     resultado = quality.calcular_score_qualidade([_coluna(), _coluna()], {}, [])
     assert resultado["score"] == 100.0
+    assert resultado["metodologia"]["versao"] == "1.1"
+    assert len(resultado["metodologia"]["componentes"]) == 2
     assert resultado["nota"] == "A"
     assert resultado["colunas_comprometidas"] == 0
 
