@@ -5,7 +5,7 @@ import lzma
 import os
 import zipfile
 from collections.abc import Sequence
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,9 @@ ExcelEngine = Literal["xlrd", "openpyxl", "pyxlsb"]
 _ENGINES_EXCEL: dict[str, ExcelEngine] = {".xlsx": "openpyxl", ".xls": "xlrd", ".xlsb": "pyxlsb"}
 _SEPARADORES_CANDIDATOS: Sequence[str] = (",", ";", "\t", "|")
 _LINHAS_AMOSTRA_SNIFF = 50
+_MAX_MEMBROS_ZIP = 1
+_MAX_TAMANHO_DESCOMPACTADO_ZIP = 10 * 1024**3
+_MAX_RAZAO_COMPRESSAO_ZIP = 250
 
 
 
@@ -71,6 +74,36 @@ class EncodingDetectionError(IngestionError):
     pass
 
 
+def _validar_zip(caminho: str) -> zipfile.ZipInfo:
+    try:
+        with zipfile.ZipFile(caminho) as arquivo:
+            membros = [m for m in arquivo.infolist() if not m.is_dir()]
+    except zipfile.BadZipFile as e:
+        raise FileFormatError(f"Arquivo ZIP inválido: '{caminho}'.") from e
+    if len(membros) != _MAX_MEMBROS_ZIP:
+        raise FileFormatError(
+            "ZIPs aceitos pelo Recon devem conter exatamente um arquivo de dados; "
+            f"'{caminho}' contém {len(membros)} membro(s)."
+        )
+    membro = membros[0]
+    if not membro.filename.lower().endswith(tuple(_EXTENSOES_TEXTO)):
+        raise FileFormatError(
+            f"O ZIP deve conter CSV/TSV/TXT; encontrou '{membro.filename}'."
+        )
+    if membro.file_size > _MAX_TAMANHO_DESCOMPACTADO_ZIP:
+        raise FileFormatError(
+            f"O conteúdo de '{caminho}' descompactaria para mais de 10 GB; "
+            "recusei a leitura por segurança."
+        )
+    razao = membro.file_size / max(membro.compress_size, 1)
+    if razao > _MAX_RAZAO_COMPRESSAO_ZIP:
+        raise FileFormatError(
+            f"O ZIP '{caminho}' tem razão de compressão incomum ({razao:.0f}×) e foi recusado "
+            "por segurança."
+        )
+    return membro
+
+
 
 
 
@@ -90,10 +123,8 @@ def _amostra_bytes(caminho: str, compactacao: str = "", limite: int = _BYTES_AMO
             return f.read(limite)
     if compactacao == ".zip":
         with zipfile.ZipFile(caminho) as z:
-            nomes = z.namelist()
-            if not nomes:
-                return b""
-            with z.open(nomes[0]) as f:
+            membro = _validar_zip(caminho)
+            with z.open(membro) as f:
                 return f.read(limite)
     with open(caminho, "rb") as f:
         return f.read(limite)
@@ -200,7 +231,32 @@ def _memoria_sistema_bytes() -> tuple[int | None, int | None]:
         disponivel = campos.get("MemAvailable", disponivel)
         return total, disponivel
     except (AttributeError, OSError, ValueError):
-        return None, None
+        pass
+    
+    
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            class _StatusMemoria(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                ]
+
+            estado = _StatusMemoria()
+            estado.dwLength = ctypes.sizeof(estado)
+            windll: Any = ctypes.__dict__["windll"]
+            if windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(estado)):
+                return int(estado.ullTotalPhys), int(estado.ullAvailPhys)
+        except (AttributeError, OSError):
+            pass
+    
+    
+    return None, None
 
 
 def _amostragem_por_memoria(caminho: str, formato: str) -> str | None:
@@ -208,7 +264,18 @@ def _amostragem_por_memoria(caminho: str, formato: str) -> str | None:
     if total is None or disponivel is None:
         return None
     fator = _FATOR_MEMORIA_EXCEL if formato == "excel" else _FATOR_MEMORIA_TEXTO
-    estimativa = os.path.getsize(caminho) * fator
+    tamanho_base = os.path.getsize(caminho)
+    
+    
+    if formato == "excel" and caminho.lower().endswith(".xlsx"):
+        try:
+            with zipfile.ZipFile(caminho) as livro:
+                tamanho_base = max(tamanho_base, sum(info.file_size for info in livro.infolist()))
+        except zipfile.BadZipFile:
+            
+            
+            pass
+    estimativa = tamanho_base * fator
     
     
     
@@ -391,21 +458,73 @@ def _carregar_aba_com_layout(
             "severidade": "🟡 MÉDIA",
             "mensagem": aviso_memoria,
         })
-    lido = pd.read_excel(
-        caminho, sheet_name=aba, engine=engine, header=inicio,
-        nrows=limite_linhas if aviso_memoria else None,
-    )
-    df = lido if isinstance(lido, pd.DataFrame) else pd.DataFrame()
-    if aviso_memoria:
-        
-        
+    if aviso_memoria and engine == "openpyxl":
+        df, total_arquivo = _ler_xlsx_amostrado(caminho, aba, inicio, limite_linhas or 1)
+        df.attrs["linhas_originais"] = total_arquivo
         df.attrs["motivo_amostragem"] = aviso_memoria
+    else:
+        lido = pd.read_excel(
+            caminho, sheet_name=aba, engine=engine, header=inicio,
+            nrows=limite_linhas if aviso_memoria else None,
+        )
+        df = lido if isinstance(lido, pd.DataFrame) else pd.DataFrame()
+    if aviso_memoria and engine != "openpyxl":
+        
+        
+        
+        df.attrs["motivo_amostragem"] = (
+            aviso_memoria + " Neste formato legado, foram lidas as primeiras linhas; "
+            "a amostra não é uniforme e o total não foi contabilizado."
+        )
         df.attrs["linhas_originais_desconhecidas"] = True
     if detectar and not df.empty:
         df, lay = _preparar_corpo(df, avisos)
         lay.linha_cabecalho = inicio
         _anexar_layout(df, lay)
     return df
+
+
+def _nomes_colunas_excel(cabecalho: tuple[object, ...]) -> list[str]:
+    usados: dict[str, int] = {}
+    nomes: list[str] = []
+    for indice, valor in enumerate(cabecalho):
+        base = f"Unnamed: {indice}" if valor is None else str(valor)
+        repeticao = usados.get(base, 0)
+        usados[base] = repeticao + 1
+        nomes.append(base if repeticao == 0 else f"{base}.{repeticao}")
+    return nomes
+
+
+def _ler_xlsx_amostrado(
+    caminho: str, aba: str, inicio: int, limite: int
+) -> tuple[pd.DataFrame, int]:
+    from openpyxl import load_workbook
+
+    livro = load_workbook(caminho, read_only=True, data_only=True)
+    try:
+        planilha = livro[aba]
+        linhas = planilha.iter_rows(min_row=inicio + 1, values_only=True)
+        cabecalho = next(linhas, None)
+        if cabecalho is None:
+            return pd.DataFrame(), 0
+        reserva: list[tuple[object, ...]] = []
+        gerador = np.random.default_rng(42)
+        total = 0
+        for linha in linhas:
+            total += 1
+            if len(reserva) < limite:
+                reserva.append(linha)
+                continue
+            indice = int(gerador.integers(0, total))
+            if indice < limite:
+                reserva[indice] = linha
+        logger.info(
+            f"Leitura XLSX em streaming: {total:,} linhas na aba, "
+            f"{len(reserva):,} sorteadas para análise."
+        )
+        return pd.DataFrame(reserva, columns=_nomes_colunas_excel(cabecalho)), total
+    finally:
+        livro.close()
 
 
 def _carregar_parquet(caminho: str) -> pd.DataFrame:
@@ -426,6 +545,8 @@ def carregar_arquivo(
         raise FileNotFoundError(f"Arquivo não encontrado: '{caminho}'")
 
     extensao, compactacao = _partes_da_extensao(caminho)
+    if compactacao == ".zip":
+        _validar_zip(caminho)
     nome_base = os.path.basename(caminho)
     for sufixo in (compactacao, extensao):
         if sufixo and nome_base.lower().endswith(sufixo):
