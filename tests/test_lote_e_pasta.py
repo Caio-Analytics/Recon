@@ -104,6 +104,7 @@ def test_lote_gera_um_html_com_todos_os_arquivos(tmp_path, monkeypatch):
     assert falhas == []
     html = (tmp_path / "l_consolidado.html").read_text(encoding="utf-8")
     assert html.count("<details") == 3
+    assert "Leitura executiva" in html
     for nome in ("empregados", "cursos", "treinamentos"):
         assert nome in html
 

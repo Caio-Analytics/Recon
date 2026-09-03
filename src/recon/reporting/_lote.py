@@ -149,6 +149,7 @@ def exportar_lote_html(payloads: list[dict[str, Any]], caminho: str, titulo: str
     total_linhas = sum(p["linhas"] for p in perfis)
     total_alta = sum(p["alta"] for p in perfis)
     pior = min(perfis, key=lambda p: p["score"]) if perfis else None
+    melhor = max(perfis, key=lambda p: p["score"]) if perfis else None
     media = sum(p["score"] for p in perfis) / len(perfis) if perfis else 0.0
 
     cartoes = [
@@ -158,6 +159,23 @@ def exportar_lote_html(payloads: list[dict[str, Any]], caminho: str, titulo: str
         ("Achados 🔴", f"{total_alta}"),
         ("Pior arquivo", pior["tabela"] if pior else "—"),
     ]
+    leitura_executiva = []
+    if pior and melhor:
+        leitura_executiva.append(
+            f"Comece por <b>{_e(pior['tabela'])}</b>: score {pior['score']:.0f}, "
+            f"com {pior['alta']} achado(s) de prioridade alta."
+        )
+        if melhor["tabela"] != pior["tabela"]:
+            leitura_executiva.append(
+                f"A distância até <b>{_e(melhor['tabela'])}</b>, a melhor base do lote, é de "
+                f"{melhor['score'] - pior['score']:.1f} ponto(s) de qualidade."
+            )
+    com_lgpd = [p for p in perfis if p["sensiveis"]]
+    if com_lgpd:
+        leitura_executiva.append(
+            f"{len(com_lgpd)} arquivo(s) contêm dado pessoal identificado; confirme o tratamento "
+            "antes de compartilhar os relatórios."
+        )
 
     partes = [
         f"<h1>Perfilamento em lote — {_e(titulo)}</h1>",
@@ -169,6 +187,9 @@ def exportar_lote_html(payloads: list[dict[str, Any]], caminho: str, titulo: str
             f'<div class="valor">{_e(v)}</div></div>' for r, v in cartoes
         )
         + "</div>",
+        "<section class='resumo-executivo'><h2>Leitura executiva</h2><ul>"
+        + "".join(f"<li>{texto}</li>" for texto in leitura_executiva)
+        + "</ul></section>",
         "<h2>Comparação entre os arquivos</h2>",
         _painel_comparativo(perfis),
         "<h2>Detalhe de cada arquivo</h2>",
