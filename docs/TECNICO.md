@@ -35,11 +35,11 @@ dados nem de serviço externo.
 | Python | ≥ 3.12 (piso real de `numpy` 2.5 e `scipy` 1.18) |
 | Validado em | 3.14 (registrado em `.python-version`) |
 | Dependências | pandas, numpy, pyarrow, openpyxl, xlrd, pyxlsb, charset-normalizer, rapidfuzz, unidecode, scipy, statsmodels, pyyaml, loguru, typer, tqdm |
-| Extras `dev` | pytest, pytest-cov, pandas-stubs, types-PyYAML, mypy, ruff |
+| Extra `gui` | PySide6 (instalado com `.[gui]`) |
+| Extra `dev` | pytest, pytest-cov, pandas-stubs, types-PyYAML, mypy, ruff |
 
 ```bash
-pip install -e ".[dev]"          # com venv
-pip install --user -e ".[dev]"   # máquina corporativa
+pip install -e ".[gui,dev]"      # com venv
 ```
 
 Todas as versões são fixadas exatamente. É decisão consciente: reprodutível
@@ -56,6 +56,7 @@ src/recon/
 ├── layout.py            cabeçalho real, linha de total, célula mesclada, blocos
 ├── patterns.py          documentos, mascaramento, sentinela, mojibake, shape, Benford
 ├── semantics/           cascata de inferência semântica
+│   ├── contexto.py        vocabulário imutável e isolado por execução
 │   ├── vocabulary.py      abreviaturas e gazetteers (só dado)
 │   ├── tokens.py          normalização, tokenização, expansão de abreviatura
 │   ├── detectors.py       cinco detectores determinísticos + contexto
@@ -69,10 +70,12 @@ src/recon/
 ├── codegen.py           script de limpeza
 ├── reporting/           JSON, Markdown, HTML, Parquet, lote, modelo e histórico
 ├── pipeline.py          DataProfiler — orquestração
+├── application.py       casos de uso compartilhados pela interface Qt
 ├── interativo.py        menu do terminal (`recon` sem argumento)
-├── gui.py               janela tkinter (`recon janela`, `Recon.pyw`)
+├── gui.py               interface Tk legada (compatibilidade)
 │                        tema escuro (paleta GitHub em `CORES`, tema `clam`),
 │                        navegação lateral e seletor de formato
+├── gui_qt.py            interface PySide6 (`recon janela`, `Recon.pyw`)
 └── cli.py               perfilar · modelar · lote · pasta · conferir · histórico · contrato
 ```
 

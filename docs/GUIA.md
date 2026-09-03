@@ -7,8 +7,11 @@ Com o ambiente virtual ativo, execute `recon janela`. Na primeira tela, escolha 
 1. **Analisar arquivos** gera um perfil separado para cada arquivo selecionado.
 2. **Comparar arquivos em lote** ajuda a priorizar bases com mais problemas.
 3. **Entender relações entre tabelas** procura chaves, fatos e dimensões.
+4. **Conferir duas versões** compara uma extração anterior com a nova.
+5. **Acompanhar histórico de qualidade** mostra a evolução de várias extrações, na ordem escolhida.
 
 Depois, adicione os arquivos, escolha a pasta de saída e clique em **Analisar agora**. O relatório HTML abre em qualquer navegador.
+Se sua área usa siglas ou campos próprios, escolha também o YAML de vocabulário nessa mesma tela; ele vale apenas para aquela execução.
 
 ## Pelo terminal
 
@@ -36,7 +39,7 @@ Informe o arquivo no comando:
 recon perfilar dados.csv --vocabularios meu-dominio.yaml
 ```
 
-O mesmo parâmetro está disponível nos modos de lote, modelo, pasta e histórico. O vocabulário vale somente para aquela execução.
+O mesmo parâmetro está disponível em todos os comandos que analisam uma base: perfil, lote, modelo, pasta, conferência, histórico, contrato, validação e dicionário. O vocabulário vale somente para aquela execução.
 
 ## Contratos de dados
 
@@ -51,6 +54,8 @@ O YAML pode ser editado para definir nulos máximos, faixas numéricas, valores 
 ```bash
 recon validar dados_novos.csv --contrato contrato.yaml
 ```
+
+Se o contrato foi criado a partir de uma amostra, o Recon não infere automaticamente unicidade, domínio fechado nem faixas numéricas: confirme essas regras na base inteira antes de torná-las obrigatórias.
 
 ## Demonstração segura
 
