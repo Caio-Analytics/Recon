@@ -493,6 +493,31 @@ def dicionario(
     typer.secho(f"Dicionário de {len(payloads)} tabela(s) salvo em {saida}.", fg=typer.colors.GREEN)
 
 
+@app.command("revisar-semantica")
+def revisar_semantica(
+    caminho: str = typer.Argument(..., help="Base usada para montar o modelo de revisão."),
+    saida: str = typer.Option("correcoes_semanticas.yaml", "--saida"),
+    limite_amostra: int = _OPCAO_LIMITE,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
+) -> None:
+    """Gera um YAML para o analista corrigir classificações e reutilizar.
+
+    O arquivo traz a semântica atual de cada coluna. Edite somente as que
+    conhece e informe o YAML em ``--vocabularios`` nas análises seguintes.
+    """
+    from . import semantics
+
+    setup_logging()
+    try:
+        profiler = _construir_profiler(limite_amostra, None, vocabularios)
+        quadro, nome = _carregar(caminho)
+        semantics.exportar_modelo_de_correcoes(profiler.processar_dataframe(quadro, nome), saida)
+    except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
+        typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    typer.secho(f"Modelo de revisão semântica salvo em {saida}.", fg=typer.colors.GREEN)
+
+
 @app.command()
 def janela() -> None:
     """Abre o Recon em janela, sem terminal.

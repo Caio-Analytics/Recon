@@ -64,6 +64,21 @@ def test_vocabularios_concorrentes_ficam_isolados_por_execucao(tmp_path):
     assert resultados == ["Domínio Aurora", "Domínio Brisa"]
 
 
+def test_correcao_semantica_por_coluna_prevalece_somente_na_execucao(tmp_path):
+    caminho = tmp_path / "correcoes.yaml"
+    caminho.write_text("correcoes_colunas:\n  codigo_interno: Categoria Revisada\n", encoding="utf-8")
+
+    corrigido = DataProfiler(vocabularios=str(caminho)).processar_dataframe(
+        pd.DataFrame({"codigo_interno": ["A", "B"] * 30}), "teste"
+    )
+    normal = DataProfiler().processar_dataframe(
+        pd.DataFrame({"codigo_interno": ["A", "B"] * 30}), "teste"
+    )
+
+    assert corrigido["colunas"][0]["Semantica_IA"] == "Categoria Revisada"
+    assert normal["colunas"][0]["Semantica_IA"] != "Categoria Revisada"
+
+
 def test_versao_do_payload_vem_do_pacote(df_rh_exemplo):
     """Regressão: a versão saía hardcoded como '2.0-Fase1' e divergia do
     pyproject."""

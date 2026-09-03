@@ -24,7 +24,7 @@ depósito?) é insolúvel na coluna e trivial na tabela.
 from typing import Any
 
 from .. import config
-from .contexto import ContextoSemantico
+from .contexto import ContextoSemantico, contexto_atual
 from .detectors import (
     PAPEIS_ESTRUTURAIS,
     PerfilConteudo,
@@ -38,7 +38,11 @@ from .detectors import (
 )
 from .evidence import EIXO_DOMINIO, EIXO_PAPEL, Evidencia, escolher, ranquear
 from .tokens import expandir_abreviatura, normalizar, tokenizar
-from .vocabularios import carregar_vocabularios, vocabulario_temporario
+from .vocabularios import (
+    carregar_vocabularios,
+    exportar_modelo_de_correcoes,
+    vocabulario_temporario,
+)
 
 __all__ = [
     "Evidencia",
@@ -52,6 +56,7 @@ __all__ = [
     "semanticas_para_gap_analysis",
     "tokenizar",
     "carregar_vocabularios",
+    "exportar_modelo_de_correcoes",
     "ContextoSemantico",
     "vocabulario_temporario",
 ]
@@ -179,6 +184,14 @@ def inferir_semantica(
     `perfil` habilita os detectores de conteúdo (gazetteer e assinatura
     estrutural) — sem ele a inferência é só pelo nome, como antes.
     """
+    correcao = contexto_atual().correcoes_colunas.get(nome_col)
+    if correcao:
+        eixo = EIXO_PAPEL if correcao in PAPEIS_ESTRUTURAIS else EIXO_DOMINIO
+        resultado = _montar_resultado(
+            [Evidencia(correcao, eixo, 1.0, "correção explícita do vocabulário")], perfil
+        )
+        resultado["conclusiva"] = True
+        return resultado
     return _montar_resultado(_coletar_evidencias(nome_col, detectado_padrao, perfil), perfil)
 
 
@@ -195,11 +208,20 @@ def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[st
     evidencias_por_coluna: list[list[Evidencia]] = []
     resultados: list[dict[str, Any]] = []
     for entrada in entradas:
-        evidencias = _coletar_evidencias(
-            str(entrada["nome"]), entrada.get("padrao", "Nenhum"), entrada.get("perfil")
+        nome = str(entrada["nome"])
+        correcao = contexto_atual().correcoes_colunas.get(nome)
+        evidencias = (
+            [Evidencia(correcao, EIXO_PAPEL if correcao in PAPEIS_ESTRUTURAIS else EIXO_DOMINIO,
+                       1.0, "correção explícita do vocabulário")]
+            if correcao else _coletar_evidencias(
+                nome, entrada.get("padrao", "Nenhum"), entrada.get("perfil")
+            )
         )
         evidencias_por_coluna.append(evidencias)
-        resultados.append(_montar_resultado(evidencias, entrada.get("perfil")))
+        resultado = _montar_resultado(evidencias, entrada.get("perfil"))
+        if correcao:
+            resultado["conclusiva"] = True
+        resultados.append(resultado)
 
     contexto = _perfil_de_assunto(resultados)
     if not contexto:

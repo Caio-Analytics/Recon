@@ -2,6 +2,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -47,8 +48,9 @@ def carregar_vocabularios(
     gazetteers: list[dict[str, object]] = [
         {**item, "valores": set(item["valores"])} for item in contexto.gazetteers
     ]
+    correcoes = dict(contexto.correcoes_colunas)
     if not caminhos:
-        return criar_contexto(fortes, fuzzy, tuple(gazetteers))
+        return criar_contexto(fortes, fuzzy, tuple(gazetteers), correcoes)
     for caminho in (Path(p.strip()) for p in caminhos.split(",") if p.strip()):
         dados = yaml.safe_load(caminho.read_text(encoding="utf-8"))
         if not isinstance(dados, dict):
@@ -80,4 +82,31 @@ def carregar_vocabularios(
                 "peso": float(item.get("peso", 0.8)),
                 "max_distintos": int(item.get("max_distintos", 100)),
             })
-    return criar_contexto(fortes, fuzzy, tuple(gazetteers))
+        ajustes = dados.get("correcoes_colunas", {})
+        if not isinstance(ajustes, dict) or not all(
+            isinstance(coluna, str) and isinstance(semantica, str)
+            for coluna, semantica in ajustes.items()
+        ):
+            raise ValueError(f"'correcoes_colunas' em '{caminho}' precisa mapear coluna para texto.")
+        correcoes.update(ajustes)
+    return criar_contexto(fortes, fuzzy, tuple(gazetteers), correcoes)
+
+
+def exportar_modelo_de_correcoes(payload: dict[str, Any], caminho: str) -> None:
+    """Exporta um YAML revisável com a leitura atual de cada coluna.
+
+    O analista troca apenas os valores que conhece melhor que a inferência.
+    Ao voltar como ``--vocabularios``, a correção vale pelo nome exato da
+    coluna e fica isolada àquela execução.
+    """
+    correcoes = {
+        str(coluna["Coluna"]): str(coluna["Semantica_IA"])
+        for coluna in payload.get("colunas", [])
+    }
+    destino = Path(caminho)
+    texto = (
+        "# Ajuste somente as classificações que você revisou.\n"
+        "# Use este arquivo em --vocabularios na próxima análise.\n"
+        + yaml.safe_dump({"correcoes_colunas": correcoes}, allow_unicode=True, sort_keys=True)
+    )
+    destino.write_text(texto, encoding="utf-8")
