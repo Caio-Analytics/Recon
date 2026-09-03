@@ -232,6 +232,7 @@ def test_analise_temporal_agrega_por_periodo():
     
     
     assert resultado[0]["n_pontos"] == 120
+    assert resultado[0]["operacao"] == "soma"
 
 
 def test_analise_temporal_ignora_colunas_de_chave():
