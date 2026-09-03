@@ -1,9 +1,8 @@
 import re
-from functools import lru_cache
 
 from unidecode import unidecode
 
-from .. import config
+from .contexto import contexto_atual
 from .vocabulary import ABREVIATURAS
 
 _RE_CAMEL = re.compile(r"([a-z0-9])([A-Z])")
@@ -31,15 +30,8 @@ def tokenizar(nome_col: str) -> list[str]:
     return [p for p in _RE_SEPARADORES.split(nome) if p]
 
 
-@lru_cache(maxsize=1)
 def _vocabulario_expansao() -> tuple[str, ...]:
-    palavras: set[str] = set()
-    for grupo in (config.CATEGORIAS_FORTES, config.CATEGORIAS_FUZZY):
-        for lista in grupo.values():
-            palavras.update(lista)
-    for expansoes in ABREVIATURAS.values():
-        palavras.update(expansoes)
-    return tuple(sorted(palavras))
+    return contexto_atual().palavras_para_abreviatura
 
 
 def _e_subsequencia(abreviatura: str, palavra: str) -> bool:
@@ -47,7 +39,6 @@ def _e_subsequencia(abreviatura: str, palavra: str) -> bool:
     return all(letra in iterador for letra in abreviatura)
 
 
-@lru_cache(maxsize=4096)
 def expandir_abreviatura(token: str) -> tuple[tuple[str, float], ...]:
     if len(token) < _MIN_LEN_ABREVIATURA or not token.isalpha():
         return ()

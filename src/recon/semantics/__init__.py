@@ -1,6 +1,7 @@
 from typing import Any
 
 from .. import config
+from .contexto import ContextoSemantico
 from .detectors import (
     PAPEIS_ESTRUTURAIS,
     PerfilConteudo,
@@ -28,6 +29,7 @@ __all__ = [
     "semanticas_para_gap_analysis",
     "tokenizar",
     "carregar_vocabularios",
+    "ContextoSemantico",
     "vocabulario_temporario",
 ]
 
