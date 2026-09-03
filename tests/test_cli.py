@@ -19,7 +19,9 @@ def _csv(tmp_path, nome="dados.csv", n=30):
 def test_vocabularios_estao_disponiveis_em_todos_os_fluxos_de_multiplos_arquivos():
     """O vocabulário do negócio não pode desaparecer ao mudar de comando."""
     for comando in ("lote", "modelar", "pasta", "historico"):
-        resultado = runner.invoke(app, [comando, "--help"])
+        # O Rich quebra opções longas em terminais estreitos; uma largura
+        # explícita torna este teste de contrato independente do runner da CI.
+        resultado = runner.invoke(app, [comando, "--help"], terminal_width=200)
         assert resultado.exit_code == 0
         assert "--vocabularios" in resultado.output
 
