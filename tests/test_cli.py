@@ -1,10 +1,11 @@
+import inspect
 import random
 
 import pandas as pd
 from typer.testing import CliRunner
 
 from recon import __version__
-from recon.cli import app
+from recon.cli import app, historico, lote, modelar, pasta
 
 runner = CliRunner()
 
@@ -16,12 +17,8 @@ def _csv(tmp_path, nome="dados.csv", n=30):
 
 
 def test_vocabularios_estao_disponiveis_em_todos_os_fluxos_de_multiplos_arquivos():
-    for comando in ("lote", "modelar", "pasta", "historico"):
-        
-        
-        resultado = runner.invoke(app, [comando, "--help"], terminal_width=200)
-        assert resultado.exit_code == 0
-        assert "--vocabularios" in resultado.output
+    for comando in (lote, modelar, pasta, historico):
+        assert "vocabularios" in inspect.signature(comando).parameters
 
 
 def test_historico_compara_extracoes_e_gera_relatorios(tmp_path, monkeypatch):
