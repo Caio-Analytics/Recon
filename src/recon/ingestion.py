@@ -4,6 +4,9 @@ import csv
 import gzip
 import lzma
 import os
+import re
+import subprocess
+import sys
 import zipfile
 from collections.abc import Sequence
 from typing import Any, Literal
@@ -283,8 +286,22 @@ def _memoria_sistema_bytes() -> tuple[int | None, int | None]:
                 return int(estado.ullTotalPhys), int(estado.ullAvailPhys)
         except (AttributeError, OSError):
             pass
-    # macOS não expõe `MemAvailable` como Linux. Sem uma fonte confiável de
-    # memória livre, desabilitar a estimativa é mais honesto que inventar RAM.
+    if sys.platform == "darwin":
+        try:
+            total = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True).strip())
+            vm_stat = subprocess.check_output(["vm_stat"], text=True)
+            tamanho_pagina = int(re.search(r"page size of (\d+) bytes", vm_stat).group(1))
+            paginas = {
+                chave: int(valor.rstrip("."))
+                for chave, valor in re.findall(r"Pages (free|speculative|inactive):\s+(\d+)\.", vm_stat)
+            }
+            # Livre + especulativa + inativa é a aproximação que o macOS pode
+            # reutilizar sob pressão; mantém a mesma política conservadora da
+            # leitura Linux/Windows sem confundir RAM física com disponível.
+            disponivel = sum(paginas.get(chave, 0) for chave in ("free", "speculative", "inactive"))
+            return total, disponivel * tamanho_pagina
+        except (OSError, ValueError, AttributeError):
+            pass
     return None, None
 
 
@@ -514,8 +531,9 @@ def _carregar_aba_com_layout(
             "severidade": "🟡 MÉDIA",
             "mensagem": aviso_memoria,
         })
-    if aviso_memoria and engine == "openpyxl":
-        df, total_arquivo = _ler_xlsx_amostrado(caminho, aba, inicio, limite_linhas or 1)
+    if aviso_memoria and engine in {"openpyxl", "xlrd"}:
+        leitor = _ler_xlsx_amostrado if engine == "openpyxl" else _ler_xls_amostrado
+        df, total_arquivo = leitor(caminho, aba, inicio, limite_linhas or 1)
         df.attrs["linhas_originais"] = total_arquivo
         df.attrs["motivo_amostragem"] = aviso_memoria
     else:
@@ -524,10 +542,11 @@ def _carregar_aba_com_layout(
             nrows=limite_linhas if aviso_memoria else None,
         )
         df = lido if isinstance(lido, pd.DataFrame) else pd.DataFrame()
-    if aviso_memoria and engine != "openpyxl":
+    if aviso_memoria and engine == "pyxlsb":
         # Motores Excel não oferecem contagem barata e uniforme para todos os
         # formatos. A saída deixa explícito que são as primeiras linhas e que
-        # o total não foi contabilizado.
+        # o total não foi contabilizado. XLSB ainda não expõe um leitor de
+        # linhas tão estável quanto XLS/XLSX em todas as versões suportadas.
         df.attrs["motivo_amostragem"] = (
             aviso_memoria + " Neste formato legado, foram lidas as primeiras linhas; "
             "a amostra não é uniforme e o total não foi contabilizado."
@@ -588,6 +607,39 @@ def _ler_xlsx_amostrado(
         return pd.DataFrame(reserva, columns=_nomes_colunas_excel(cabecalho)), total
     finally:
         livro.close()
+
+
+def _ler_xls_amostrado(
+    caminho: str, aba: str, inicio: int, limite: int
+) -> tuple[pd.DataFrame, int]:
+    """Amostra uniformemente XLS legado por streaming do ``xlrd``."""
+    import xlrd
+
+    livro = xlrd.open_workbook(caminho, on_demand=True)
+    try:
+        planilha = livro.sheet_by_name(aba)
+        if planilha.nrows <= inicio:
+            return pd.DataFrame(), 0
+        cabecalho = tuple(planilha.row_values(inicio))
+        reserva: list[tuple[object, ...]] = []
+        gerador = np.random.default_rng(42)
+        total = 0
+        for linha_indice in range(inicio + 1, planilha.nrows):
+            total += 1
+            linha = tuple(planilha.row_values(linha_indice))
+            if len(reserva) < limite:
+                reserva.append(linha)
+                continue
+            indice = int(gerador.integers(0, total))
+            if indice < limite:
+                reserva[indice] = linha
+        logger.info(
+            f"Leitura XLS em streaming: {total:,} linhas na aba, "
+            f"{len(reserva):,} sorteadas para análise."
+        )
+        return pd.DataFrame(reserva, columns=_nomes_colunas_excel(cabecalho)), total
+    finally:
+        livro.release_resources()
 
 
 def _carregar_parquet(caminho: str) -> pd.DataFrame:

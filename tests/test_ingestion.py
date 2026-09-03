@@ -206,3 +206,28 @@ def test_xlsx_amostrado_percorre_a_aba_inteira(tmp_path):
     assert total == 30
     assert len(df) == 5
     assert any(valor >= 5 for valor in df["id"])
+
+
+def test_memoria_macos_usa_paginas_reutilizaveis(monkeypatch):
+    from recon import ingestion
+
+    def falhar_linux(*_args, **_kwargs):
+        raise OSError("sem proc")
+
+    saidas = {
+        ("sysctl", "-n", "hw.memsize"): "17179869184\n",
+        ("vm_stat",): (
+            "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n"
+            "Pages free:                               10.\n"
+            "Pages inactive:                           20.\n"
+            "Pages speculative:                         5.\n"
+        ),
+    }
+    monkeypatch.setattr(ingestion, "open", falhar_linux, raising=False)
+    monkeypatch.setattr(ingestion.sys, "platform", "darwin")
+    monkeypatch.setattr(ingestion.subprocess, "check_output", lambda comando, text: saidas[tuple(comando)])
+
+    total, disponivel = ingestion._memoria_sistema_bytes()
+
+    assert total == 16 * 1024**3
+    assert disponivel == 35 * 16384
