@@ -130,10 +130,9 @@ def _passos_por_coluna(payload: dict[str, Any]) -> list[str]:
 
         if coluna.get("Dado_Sensivel_LGPD", "Nenhum") != "Nenhum":
             passos.append((
-                f"dado pessoal ({coluna['Dado_Sensivel_LGPD']}) — LGPD",
+                f"dado pessoal ({coluna['Dado_Sensivel_LGPD']}) — pseudonimização",
                 f"df[{_literal(nome)}] = df[{_literal(nome)}].map(\n"
-                f"{_INDENTACAO}lambda v: hashlib.sha256(str(v).encode()).hexdigest()[:16]\n"
-                f"{_INDENTACAO}if pd.notna(v) else v\n)",
+                f"{_INDENTACAO}lambda v: _pseudonimizar(v) if pd.notna(v) else v\n)",
             ))
 
         if qualidade.get("mojibake", {}).get("tem_mojibake"):
@@ -252,10 +251,25 @@ def gerar_script_limpeza(payload: dict[str, Any], caminho_origem: str) -> str:
         "Revise antes de rodar: o profiler sugere, quem decide é você.",
         '"""',
         "import hashlib",
+        "import hmac",
+        "import os",
         "",
         "import pandas as pd",
         "",
     ]
+    if any(c.get("Dado_Sensivel_LGPD", "Nenhum") != "Nenhum" for c in payload["colunas"]):
+        cabecalho += [
+            "# Pseudonimização, não anonimização: preserve esta chave fora do arquivo.",
+            "_CHAVE_PSEUDONIMIZACAO = os.environ.get('RECON_PSEUDONYMIZATION_KEY')",
+            "if not _CHAVE_PSEUDONIMIZACAO:",
+            "    raise RuntimeError('Defina RECON_PSEUDONYMIZATION_KEY antes de executar este script.')",
+            "",
+            "def _pseudonimizar(valor):",
+            "    return hmac.new(",
+            "        _CHAVE_PSEUDONIMIZACAO.encode('utf-8'), str(valor).encode('utf-8'), hashlib.sha256",
+            "    ).hexdigest()",
+            "",
+        ]
 
     corpo = _leitura(payload, caminho_origem)
     corpo += _passos_de_tabela(payload)

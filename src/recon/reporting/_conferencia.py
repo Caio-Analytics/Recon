@@ -43,6 +43,16 @@ def exportar_conferencia_markdown(payload: dict[str, Any], caminho: str) -> None
         + (f" ({p['variacao_linhas']:+.1%})" if p.get("variacao_linhas") is not None else ""),
         f"- Colunas em comum: **{p['colunas_comuns']}**",
     ]
+    if p.get("linhas_a_total_desconhecido") or p.get("linhas_b_total_desconhecido"):
+        partes.append(
+            "- **Volume parcial:** ao menos uma leitura foi limitada; os totais originais não "
+            "foram contabilizados e a variação de volume não é calculada."
+        )
+    elif p.get("amostragem_a") or p.get("amostragem_b"):
+        partes.append(
+            "- **Amostragem aplicada:** os volumes são do arquivo inteiro, mas mudanças por "
+            "registro e por coluna descrevem as linhas amostradas."
+        )
     if p["colunas_so_em_a"]:
         partes.append(f"- Só na versão anterior: {', '.join(f'`{c}`' for c in p['colunas_so_em_a'])}")
     if p["colunas_so_em_b"]:
@@ -60,6 +70,8 @@ def exportar_conferencia_markdown(payload: dict[str, Any], caminho: str) -> None
         partes.append(f"- Em ambas as versões: **{p['chaves_em_ambas']:,}**")
         partes.append(f"- Saíram (só na anterior): **{p['chaves_so_em_a']:,}**")
         partes.append(f"- Entraram (só na nova): **{p['chaves_so_em_b']:,}**")
+        if p.get("comparacao_registros_amostral"):
+            partes.append("- Comparação de registros indicativa: ao menos uma versão foi amostrada.")
         for rotulo, chave in (("Saíram", "exemplos_sairam"), ("Entraram", "exemplos_entraram")):
             if p.get(chave):
                 partes.append(f"- {rotulo}, exemplos: {', '.join(f'`{v}`' for v in p[chave][:10])}")
@@ -111,6 +123,17 @@ def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
             _cartao("Registros entraram", f"{p['chaves_so_em_b']:,}"),
         ]
     partes.append(f'<div class="cartoes">{"".join(cartoes)}</div>')
+    if p.get("linhas_a_total_desconhecido") or p.get("linhas_b_total_desconhecido"):
+        partes.append(
+            "<p class='sub'><b>Volume parcial:</b> pelo menos uma leitura foi limitada e o "
+            "total original não pôde ser contado. Os cartões mostram linhas analisadas; por "
+            "isso a variação de volume não foi calculada.</p>"
+        )
+    elif p.get("amostragem_a") or p.get("amostragem_b"):
+        partes.append(
+            "<p class='sub'><b>Amostragem aplicada:</b> os volumes são do arquivo inteiro, "
+            "mas mudanças de registros e comportamento de colunas descrevem as linhas amostradas.</p>"
+        )
 
     if p.get("avisos"):
         partes.append("<h2>O que merece atenção</h2><ul>")
@@ -135,10 +158,14 @@ def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
 
     partes.append("<h2>Registros</h2>")
     if p.get("chave_comparada"):
+        aviso_amostra = (
+            " <b>Comparação indicativa:</b> ao menos uma versão foi analisada por amostragem."
+            if p.get("comparacao_registros_amostral") else ""
+        )
         partes.append(
             f"<p class='sub'>Comparados pela chave <code>{_e(p['chave_comparada'])}</code>: "
             f"{p['chaves_em_ambas']:,} em ambas, {p['chaves_so_em_a']:,} saíram, "
-            f"{p['chaves_so_em_b']:,} entraram.</p>"
+            f"{p['chaves_so_em_b']:,} entraram.{aviso_amostra}</p>"
         )
         for rotulo, chave in (("Saíram", "exemplos_sairam"), ("Entraram", "exemplos_entraram")):
             if p.get(chave):
@@ -154,14 +181,6 @@ def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
         corpo = "".join(
             "<tr>" + "".join(f"<td>{_e(c)}</td>" for c in linha) + "</tr>" for linha in linhas
         )
-
-    if p.get("drifts_de_distribuicao"):
-        partes.append("<h2>Mudanças de distribuição</h2><ul>")
-        partes.extend(
-            f"<li><code>{_e(d['coluna'])}</code> — {_e(d['descricao'])}</li>"
-            for d in p["drifts_de_distribuicao"]
-        )
-        partes.append("</ul>")
         partes.append(
             '<div class="tabela-wrap"><table><thead><tr>'
             + "".join(f"<th>{_e(c)}</th>" for c in cabecalho)
@@ -172,6 +191,14 @@ def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
             "<p class='sub'>Nenhuma. As colunas em comum mantiveram tipo, preenchimento e "
             "cardinalidade.</p>"
         )
+
+    if p.get("drifts_de_distribuicao"):
+        partes.append("<h2>Mudanças de distribuição</h2><ul>")
+        partes.extend(
+            f"<li><code>{_e(d['coluna'])}</code> — {_e(d['descricao'])}</li>"
+            for d in p["drifts_de_distribuicao"]
+        )
+        partes.append("</ul>")
 
     documento = (
         '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'

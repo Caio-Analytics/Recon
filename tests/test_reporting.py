@@ -2,6 +2,8 @@
 import json
 
 from recon.reporting import (
+    exportar_conferencia_html,
+    exportar_dicionario_xlsx,
     exportar_html,
     exportar_json,
     exportar_markdown,
@@ -299,3 +301,45 @@ def test_aviso_de_amostragem_aparece_nos_dois_formatos(tmp_path):
 
     assert "Amostragem aplicada" in md.read_text(encoding="utf-8")
     assert "Amostragem aplicada" in html.read_text(encoding="utf-8")
+
+
+def test_dicionario_neutraliza_formulas_vindas_da_base(tmp_path):
+    """Conteúdo externo nunca pode virar fórmula ao abrir o XLSX."""
+    from openpyxl import load_workbook
+
+    payload = _payload()
+    payload["metadados_execucao"]["tabela"] = "=TabelaExterna"
+    payload["colunas"][0]["Coluna"] = "=HIPERLINK(\"https://exemplo\")"
+    payload["colunas"][0]["Amostra_Valores"] = "+1+1"
+    caminho = tmp_path / "dicionario.xlsx"
+
+    exportar_dicionario_xlsx([payload], str(caminho))
+
+    planilha = load_workbook(caminho, data_only=False).active
+    assert planilha["A2"].data_type == "s"
+    assert planilha["J2"].data_type == "s"
+    assert planilha["A2"].value.startswith("'")
+    assert planilha["J2"].value == "'+1+1"
+
+
+def test_conferencia_html_renderiza_variacao_sem_drift_e_drift_sem_variacao(tmp_path):
+    base = {
+        "tabela_a": "antes", "tabela_b": "depois", "linhas_a": 10, "linhas_b": 12,
+        "variacao_linhas": 0.2, "colunas_comuns": 1, "colunas_so_em_a": [],
+        "colunas_so_em_b": [], "avisos": [], "chave_comparada": None,
+        "motivo_sem_chave": "Sem chave.",
+    }
+    variacao = {
+        "coluna": "status", "severidade": "🟡 MÉDIA", "pct_nulos_a": 0.0,
+        "pct_nulos_b": 10.0, "unicos_a": 2, "unicos_b": 3, "tipo_a": "Texto",
+        "tipo_b": "Texto", "mudou_tipo": False, "descricao": "Mais nulos.",
+    }
+    drift = {"coluna": "status", "tipo": "categórico", "descricao": "Categorias mudaram."}
+
+    somente_variacao = tmp_path / "variacao.html"
+    exportar_conferencia_html({**base, "variacoes_de_coluna": [variacao], "drifts_de_distribuicao": []}, str(somente_variacao))
+    assert "Mais nulos." in somente_variacao.read_text(encoding="utf-8")
+
+    somente_drift = tmp_path / "drift.html"
+    exportar_conferencia_html({**base, "variacoes_de_coluna": [], "drifts_de_distribuicao": [drift]}, str(somente_drift))
+    assert "Categorias mudaram." in somente_drift.read_text(encoding="utf-8")

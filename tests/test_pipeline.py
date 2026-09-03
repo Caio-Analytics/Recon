@@ -253,3 +253,21 @@ def test_amostragem_por_memoria_fica_explicita_no_payload():
     assert meta["amostragem_aplicada"] is True
     assert meta["linhas_originais_desconhecidas"] is True
     assert meta["motivo_amostragem"] == "Leitura integral acima do orçamento seguro."
+
+
+def test_script_de_limpeza_pseudonimiza_pii_com_hmac_e_chave_externa(tmp_path, monkeypatch):
+    origem = tmp_path / "pessoas.csv"
+    cpfs = gerar_cpfs(6)
+    pd.DataFrame({"cpf": cpfs}).to_csv(origem, index=False)
+    payload = DataProfiler().processar_dataframe(pd.DataFrame({"cpf": cpfs}), "pessoas")
+
+    script = codegen.gerar_script_limpeza(payload, str(origem))
+
+    assert "RECON_PSEUDONYMIZATION_KEY" in script
+    assert "hmac.new" in script
+    assert "hexdigest()[:16]" not in script
+    monkeypatch.setenv("RECON_PSEUDONYMIZATION_KEY", "segredo-de-teste")
+    escopo: dict = {}
+    exec(compile(script, "limpeza.py", "exec"), escopo)  # noqa: S102
+    assert escopo["df"]["cpf"].iloc[0] != cpfs[0]
+    assert len(escopo["df"]["cpf"].iloc[0]) == 64

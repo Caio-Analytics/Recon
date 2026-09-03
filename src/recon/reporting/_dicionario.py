@@ -28,6 +28,24 @@ _COLUNAS = (
 )
 _LARGURAS = (28, 18, 24, 22, 22, 26, 16, 10, 16, 52)
 _MAX_ABA = 31  # limite do Excel para nome de aba
+_PREFIXOS_DE_FORMULA = ("=", "+", "-", "@")
+
+
+def _texto_seguro_para_excel(valor: Any) -> Any:
+    """Impede que conteúdo da base seja interpretado como fórmula pelo Excel.
+
+    O dicionário é feito justamente para circular entre pessoas. Nomes de
+    coluna, exemplos e nomes de tabela vêm de um arquivo potencialmente
+    externo; uma célula começando com ``=`` não pode ganhar privilégios de
+    fórmula quando alguém abrir o XLSX.
+    """
+    if isinstance(valor, str) and valor.lstrip().startswith(_PREFIXOS_DE_FORMULA):
+        return "'" + valor
+    return valor
+
+
+def _quadro_seguro_para_excel(quadro: pd.DataFrame) -> pd.DataFrame:
+    return quadro.map(_texto_seguro_para_excel)
 
 
 def _linhas_da_tabela(payload: dict[str, Any]) -> pd.DataFrame:
@@ -36,11 +54,11 @@ def _linhas_da_tabela(payload: dict[str, Any]) -> pd.DataFrame:
         registro = {rotulo: coluna.get(chave, "") for rotulo, chave in _COLUNAS}
         registro["Exemplos"] = str(registro["Exemplos"])[:300]
         registros.append(registro)
-    return pd.DataFrame(registros)
+    return _quadro_seguro_para_excel(pd.DataFrame(registros))
 
 
 def _resumo(payloads: Sequence[dict[str, Any]]) -> pd.DataFrame:
-    return pd.DataFrame([
+    return _quadro_seguro_para_excel(pd.DataFrame([
         {
             "Tabela": p["metadados_execucao"]["tabela"],
             "Linhas": p["metadados_execucao"]["linhas_originais"],
@@ -51,7 +69,7 @@ def _resumo(payloads: Sequence[dict[str, Any]]) -> pd.DataFrame:
             "Recomendações": len(p.get("recomendacoes_etl", [])),
         }
         for p in payloads
-    ])
+    ]))
 
 
 def _nome_de_aba(nome: str, usados: set[str]) -> str:
