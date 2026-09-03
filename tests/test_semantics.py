@@ -95,6 +95,23 @@ def test_coluna_de_uf_e_localizacao():
     assert inferir_semantica("uf")["semantica"] == "Localização Geográfica"
 
 
+@pytest.mark.parametrize("coluna,dominio", [
+    ("centro_custo", "Financeiro / Custo"),
+    ("codigo_rastreio", "Logística / Estoque"),
+    ("codigo_cid", "Saúde"),
+    ("nome_orgao", "Estrutura Organizacional"),
+    ("numero_ticket", "Suporte / Operações"),
+])
+def test_corpus_semantico_de_dominios_diversos(coluna, dominio):
+    """Corpus mínimo de regressão além de RH e vendas.
+
+    O papel pode ser uma chave ou medida; o domínio é o que garante que a
+    classificação continua útil para financeiro, logística, saúde e setor
+    público quando o vocabulário evoluir.
+    """
+    assert inferir_semantica(coluna)["dominio"] == dominio
+
+
 # ── Expansão de abreviaturas ────────────────────────────────────────────────
 
 @pytest.mark.parametrize("abreviatura,esperado", [
