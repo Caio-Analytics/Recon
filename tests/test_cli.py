@@ -15,6 +15,40 @@ def _csv(tmp_path, nome="dados.csv", n=30):
     return caminho
 
 
+def test_vocabularios_estao_disponiveis_em_todos_os_fluxos_de_multiplos_arquivos():
+    for comando in ("lote", "modelar", "pasta", "historico"):
+        resultado = runner.invoke(app, [comando, "--help"])
+        assert resultado.exit_code == 0
+        assert "--vocabularios" in resultado.output
+
+
+def test_historico_compara_extracoes_e_gera_relatorios(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    primeiro = tmp_path / "janeiro.csv"
+    segundo = tmp_path / "fevereiro.csv"
+    pd.DataFrame({"id": range(10), "valor": range(10)}).to_csv(primeiro, index=False)
+    pd.DataFrame({"id": range(10), "valor": range(10), "canal": ["site"] * 10}).to_csv(
+        segundo, index=False
+    )
+
+    resultado = runner.invoke(
+        app,
+        [
+            "historico", str(primeiro), str(segundo), "--saida-base", "evolucao",
+            "--formatos", "json,markdown,html",
+        ],
+    )
+
+    assert resultado.exit_code == 0
+    payload = json.loads((tmp_path / "evolucao_historico.json").read_text(encoding="utf-8"))
+    assert [item["arquivo"] for item in payload["extracoes"]] == ["janeiro.csv", "fevereiro.csv"]
+    assert any("estrutura mudou" in alerta.lower() for alerta in payload["alertas"])
+    assert (tmp_path / "evolucao_historico.md").exists()
+    assert (tmp_path / "evolucao_historico.html").exists()
+
+
 def test_perfilar_gera_json_e_html_por_padrao(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     resultado = runner.invoke(app, ["perfilar", str(_csv(tmp_path)), "--saida-base", "saida"])

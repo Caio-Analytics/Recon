@@ -7,7 +7,7 @@ from loguru import logger
 
 from . import __version__
 
-VERSAO_CONTRATO = 1
+VERSAO_CONTRATO = 2
 
 
 
@@ -29,6 +29,11 @@ def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
             "tipo": coluna["Tipo_Inferred"],
             "obrigatoria": bool(coluna["Qtd_Nulos"] == 0),
             "max_pct_nulos": round(min(100.0, float(coluna["Pct_Nulos"]) + FOLGA_NULOS_PP), 2),
+            "permitir_valores_novos": False,
+            "severidades": {
+                "tipo": "🔴 ALTA", "nulos": "🟡 MÉDIA", "dominio": "🟡 MÉDIA",
+                "faixa": "🟡 MÉDIA",
+            },
         }
         if float(coluna.get("Ratio_Unicidade", 0)) >= 0.999:
             registro["unica"] = True
@@ -37,6 +42,8 @@ def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
         if "min" in extras and "max" in extras:
             registro["min"] = extras["min"]
             registro["max"] = extras["max"]
+            registro["min_permitido"] = extras["min"]
+            registro["max_permitido"] = extras["max"]
 
         
         
@@ -62,6 +69,7 @@ def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
         "gerado_em": datetime.now(UTC).isoformat(),
         "gerado_por": f"Recon {__version__}",
         "linhas_minimas": int(meta["linhas_originais"] * FOLGA_LINHAS),
+        "severidade_coluna_nova": "🟢 INFO",
         "colunas": colunas,
         "regras_negocio": regras,
         "_leia_me": (
@@ -90,6 +98,11 @@ def _violacao(severidade: str, tipo: str, coluna: str, mensagem: str) -> dict[st
     return {"severidade": severidade, "tipo": tipo, "coluna": coluna, "mensagem": mensagem}
 
 
+def _severidade(coluna: dict[str, Any], regra: str, padrao: str) -> str:
+    severidades = coluna.get("severidades") or {}
+    return str(severidades.get(regra, padrao))
+
+
 def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict[str, Any]:
     meta = payload["metadados_execucao"]
     por_nome = {c["Coluna"]: c for c in payload["colunas"]}
@@ -105,7 +118,7 @@ def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict
         ))
     for nome in novas:
         violacoes.append(_violacao(
-            "🟢 INFO", "Coluna nova", nome,
+            str(contrato.get("severidade_coluna_nova", "🟢 INFO")), "Coluna nova", nome,
             f"A coluna '{nome}' não está no contrato — nova na origem, ou renomeada.",
         ))
 
@@ -125,7 +138,7 @@ def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict
 
         if esperada.get("tipo") and atual["Tipo_Inferred"] != esperada["tipo"]:
             violacoes.append(_violacao(
-                "🔴 ALTA", "Tipo mudou", nome,
+                _severidade(esperada, "tipo", "🔴 ALTA"), "Tipo mudou", nome,
                 f"'{nome}' era {esperada['tipo']} e agora é {atual['Tipo_Inferred']}. "
                 "Cast implícito quebra join e comparação.",
             ))
@@ -133,13 +146,13 @@ def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict
         pct_nulos = float(atual["Pct_Nulos"])
         if esperada.get("obrigatoria") and atual["Qtd_Nulos"] > 0:
             violacoes.append(_violacao(
-                "🔴 ALTA", "Coluna obrigatória com nulo", nome,
+                _severidade(esperada, "nulos", "🔴 ALTA"), "Coluna obrigatória com nulo", nome,
                 f"'{nome}' não podia ter nulo e veio com {atual['Qtd_Nulos']:,} "
                 f"({pct_nulos:.1f}%).",
             ))
         elif pct_nulos > float(esperada.get("max_pct_nulos", 100.0)):
             violacoes.append(_violacao(
-                "🟡 MÉDIA", "Mais nulos que o previsto", nome,
+                _severidade(esperada, "nulos", "🟡 MÉDIA"), "Mais nulos que o previsto", nome,
                 f"'{nome}' está com {pct_nulos:.1f}% de nulos; o contrato admite até "
                 f"{esperada['max_pct_nulos']:.1f}%.",
             ))
@@ -152,15 +165,28 @@ def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict
             ))
 
         permitidos = esperada.get("valores_permitidos")
-        if permitidos:
+        if permitidos and not esperada.get("permitir_valores_novos", False):
             atuais = {v for v in (atual.get("Amostra_Valores") or "").split(", ") if v}
             fora = sorted(atuais - set(permitidos))
             if fora:
                 violacoes.append(_violacao(
-                    "🟡 MÉDIA", "Valor fora do domínio", nome,
+                    _severidade(esperada, "dominio", "🟡 MÉDIA"), "Valor fora do domínio", nome,
                     f"'{nome}' trouxe valor(es) que não constam do contrato: "
                     f"{', '.join(fora[:5])}.",
                 ))
+
+        extras = atual.get("Stats_Extra") or {}
+        minimo, maximo = extras.get("min"), extras.get("max")
+        if minimo is not None and esperada.get("min_permitido") is not None and minimo < esperada["min_permitido"]:
+            violacoes.append(_violacao(
+                _severidade(esperada, "faixa", "🟡 MÉDIA"), "Valor abaixo da faixa", nome,
+                f"'{nome}' trouxe mínimo {minimo}, abaixo do limite {esperada['min_permitido']}.",
+            ))
+        if maximo is not None and esperada.get("max_permitido") is not None and maximo > esperada["max_permitido"]:
+            violacoes.append(_violacao(
+                _severidade(esperada, "faixa", "🟡 MÉDIA"), "Valor acima da faixa", nome,
+                f"'{nome}' trouxe máximo {maximo}, acima do limite {esperada['max_permitido']}.",
+            ))
 
     regras_atuais = {r["regra"]: r for r in payload.get("regras_negocio", [])}
     for regra in contrato.get("regras_negocio", []):

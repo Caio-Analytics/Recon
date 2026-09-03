@@ -5,6 +5,14 @@ from loguru import logger
 _INDENTACAO = "    "
 
 
+def _comentario(valor: Any) -> str:
+    return " ".join(str(valor).splitlines())
+
+
+def _texto_docstring(valor: Any) -> str:
+    return _comentario(valor).replace("\\", "\\\\").replace('"""', '\\\"\\\"\\\"')
+
+
 def _var(nome: str) -> str:
     limpo = "".join(ch if ch.isalnum() else "_" for ch in str(nome).lower()).strip("_")
     return limpo or "tabela"
@@ -58,7 +66,9 @@ def _leitura(payload: dict[str, Any], caminho_origem: str) -> list[str]:
     linhas = ["# ── Leitura ─────────────────────────────────────────────────────"]
     if layout.get("avisos"):
         for aviso in layout["avisos"]:
-            linhas.append(f"# {aviso['tipo']}: {aviso['mensagem'][:100]}")
+            linhas.append(
+                f"# {_comentario(aviso['tipo'])}: {_comentario(aviso['mensagem'])[:100]}"
+            )
     linhas.append(f"df = {leitura}")
     return linhas
 
@@ -145,9 +155,9 @@ def _passos_por_coluna(payload: dict[str, Any]) -> list[str]:
 def _bloco(nome: str, passos: list[tuple[str, str]]) -> list[str]:
     if not passos:
         return []
-    linhas = [f"\n# ── {nome} ──"]
+    linhas = [f"\n# ── {_comentario(nome)} ──"]
     for motivo, codigo in passos:
-        linhas.append(f"# {motivo}")
+        linhas.append(f"# {_comentario(motivo)}")
         linhas.append(codigo)
     return linhas
 
@@ -167,7 +177,7 @@ def _passos_de_tabela(payload: dict[str, Any]) -> list[str]:
     redundantes = payload.get("colunas_redundantes") or []
     if redundantes:
         alvos = [r["coluna_redundante"] for r in redundantes]
-        linhas.append(f"# colunas idênticas a outra: {', '.join(alvos)}")
+        linhas.append(f"# colunas idênticas a outra: {_comentario(', '.join(alvos))}")
         linhas.append(f"df = df.drop(columns={alvos!r})")
 
     return linhas
@@ -204,7 +214,7 @@ def _avisos_nao_automatizaveis(payload: dict[str, Any]) -> list[str]:
         "# ── Pendências que este script NÃO resolve ──────────────────────",
         "# Precisam de decisão sua ou de correção na origem:",
     ]
-    linhas += [f"#   - {p}" for p in pendencias]
+    linhas += [f"#   - {_comentario(p)}" for p in pendencias]
     return linhas
 
 
@@ -213,8 +223,8 @@ def gerar_script_limpeza(payload: dict[str, Any], caminho_origem: str) -> str:
     cabecalho = [
         '"""Script de limpeza gerado pelo Recon.',
         "",
-        f"Tabela: {meta['tabela']}",
-        f"Origem: {caminho_origem}",
+        f"Tabela: {_texto_docstring(meta['tabela'])}",
+        f"Origem: {_texto_docstring(caminho_origem)}",
         f"Gerado em: {meta['timestamp_utc'][:19]} UTC (Recon {meta['versao_profiler']})",
         "",
         "Cada passo abaixo veio de um achado do perfil e está comentado com o motivo.",
@@ -345,8 +355,8 @@ def gerar_script_limpeza_m(payload: dict[str, Any], caminho_origem: str) -> str:
     corpo = ",\n".join(f'    #"{nome}" = {expressao}' for nome, expressao in passos)
     cabecalho = "\n".join([
         "// Passos de limpeza gerados pelo Recon.",
-        f"// Tabela: {meta['tabela']}",
-        f"// Origem: {caminho_origem}",
+        f"// Tabela: {_comentario(meta['tabela'])}",
+        f"// Origem: {_comentario(caminho_origem)}",
         f"// Gerado em: {meta['timestamp_utc'][:19]} UTC (Recon {meta['versao_profiler']})",
         "//",
         "// Cole no editor avançado do Power Query. Revise antes de aplicar: o mascaramento",

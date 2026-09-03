@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from recon import config, relationships
 
@@ -209,6 +210,7 @@ def test_analise_temporal_ausente_sem_coluna_de_data():
     assert relationships.analisar_series_temporais(df, meta) == []
 
 
+@pytest.mark.filterwarnings("ignore:.*divide by zero.*:RuntimeWarning")
 def test_analise_temporal_agrega_por_periodo():
     inicio = date(2022, 1, 1)
     datas, valores = [], []

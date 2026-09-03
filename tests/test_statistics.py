@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from recon import config
 from recon.statistics import analisar_estatisticas, detectar_mistura_tipos, sugerir_dtype
@@ -60,6 +61,8 @@ def test_dtype_nullable_int64_classificado_como_numero():
     assert "media" in resultado["estatisticas_adicionais"]
 
 
+@pytest.mark.filterwarnings("ignore:.*overflow encountered.*:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:.*invalid value encountered.*:RuntimeWarning")
 def test_coef_variacao_overflow_guard():
     serie = pd.Series([1e300, 1e300, 1e300, -1e-300], name="overflow_test")
     coef = analisar_estatisticas(serie, total_linhas=4)["estatisticas_adicionais"]["coef_variacao"]
@@ -109,6 +112,8 @@ def test_cnpj_detectado_quando_armazenado_como_inteiro():
     assert resultado["flags"]["detected_pattern"] == "CNPJ"
 
 
+@pytest.mark.filterwarnings("ignore:.*divide by zero.*:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:.*invalid value.*:RuntimeWarning")
 def test_timestamp_epoch_nao_vira_cnpj_falso_positivo():
     serie = pd.Series([1700000000000 + i * 997 for i in range(200)], name="ts_evento")
     assert analisar_estatisticas(serie, 200)["flags"]["detected_pattern"] == "Nenhum"
