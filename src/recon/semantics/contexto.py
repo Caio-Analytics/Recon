@@ -17,12 +17,14 @@ class ContextoSemantico:
     gazetteers: tuple[Mapping[str, Any], ...]
     indice_tokens_fortes: Mapping[str, tuple[str, ...]]
     palavras_para_abreviatura: tuple[str, ...]
+    correcoes_colunas: Mapping[str, str]
 
 
 def criar_contexto(
     categorias_fortes: Mapping[str, tuple[str, ...]] | None = None,
     categorias_fuzzy: Mapping[str, tuple[str, ...]] | None = None,
     gazetteers: tuple[Mapping[str, Any], ...] | None = None,
+    correcoes_colunas: Mapping[str, str] | None = None,
 ) -> ContextoSemantico:
     fortes = categorias_fortes or {
         categoria: tuple(termos) for categoria, termos in config.CATEGORIAS_FORTES.items()
@@ -44,6 +46,7 @@ def criar_contexto(
         gazetteers=tuple(MappingProxyType({**item, "valores": frozenset(item["valores"])}) for item in fontes_gazetteer),
         indice_tokens_fortes=MappingProxyType({chave: tuple(valor) for chave, valor in indice.items()}),
         palavras_para_abreviatura=tuple(sorted(palavras)),
+        correcoes_colunas=MappingProxyType(dict(correcoes_colunas or {})),
     )
 
 
