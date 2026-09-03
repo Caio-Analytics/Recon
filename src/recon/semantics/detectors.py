@@ -12,9 +12,9 @@ from typing import Any
 from rapidfuzz.distance import JaroWinkler
 
 from .. import config
+from .contexto import contexto_atual
 from .evidence import EIXO_DOMINIO, EIXO_PAPEL, Evidencia
 from .tokens import expandir_abreviatura, normalizar, tokens_expandidos
-from .vocabulary import GAZETTEERS
 
 # Papéis que definem sozinhos o tratamento de ETL da coluna: se a coluna é uma
 # chave ou uma data, isso importa mais para o pipeline do que o assunto dela.
@@ -37,19 +37,8 @@ _MAPA_PADRAO_SEMANTICA: dict[str, tuple[str, str]] = {
     "CEP":      ("Localização Geográfica",    EIXO_DOMINIO),
 }
 
-# Índice invertido token -> categorias fortes que o contêm.
-_INDICE_TOKEN_FORTE: dict[str, list[str]] = {}
-
-
 def reconstruir_indice_tokens_fortes() -> None:
-    """Atualiza o índice após carregar um vocabulário YAML opcional."""
-    _INDICE_TOKEN_FORTE.clear()
-    for categoria, palavras in config.CATEGORIAS_FORTES.items():
-        for palavra in palavras:
-            _INDICE_TOKEN_FORTE.setdefault(palavra, []).append(categoria)
-
-
-reconstruir_indice_tokens_fortes()
+    """Compatibilidade com a API antiga; o índice agora pertence ao contexto."""
 
 _DECAIMENTO_POSICIONAL = 0.03
 
@@ -113,7 +102,7 @@ def por_gazetteer(perfil: PerfilConteudo) -> list[Evidencia]:
         return []
 
     achados: list[Evidencia] = []
-    for gazetteer in GAZETTEERS:
+    for gazetteer in contexto_atual().gazetteers:
         if perfil.n_unicos > gazetteer["max_distintos"]:
             continue
         contidos = sum(1 for v in normalizados if v in gazetteer["valores"])
@@ -147,7 +136,7 @@ def _qualificador_de_borda(token: str, posicao: str) -> Evidencia | None:
     for palavra, confianca in candidatos:
         if palavra not in config.TOKENS_QUALIFICADORES:
             continue
-        categorias = _INDICE_TOKEN_FORTE.get(palavra, ())
+        categorias = contexto_atual().indice_tokens_fortes.get(palavra, ())
         if len(categorias) != 1:
             continue
         origem = (
@@ -186,7 +175,7 @@ def por_token_forte(tokens: list[str]) -> list[Evidencia]:
             evidencias.append(evidencia)
 
     for indice, (palavra, confianca_expansao, original) in enumerate(tokens_expandidos(tokens)):
-        for categoria in _INDICE_TOKEN_FORTE.get(palavra, ()):
+        for categoria in contexto_atual().indice_tokens_fortes.get(palavra, ()):
             peso_token = (
                 config.PESO_TOKEN_QUALIFICADOR
                 if palavra in config.TOKENS_QUALIFICADORES
@@ -236,9 +225,9 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
     # tendo papel de data com 0,96 de confiança vindo do mesmo token.
     candidatos_nome = [(nome_limpo, 1.0, nome_limpo)] + [
         c for c in tokens_expandidos(tokens)
-        if not (c[0] == c[2] and c[0] in _INDICE_TOKEN_FORTE)
+        if not (c[0] == c[2] and c[0] in contexto_atual().indice_tokens_fortes)
     ]
-    for categoria, palavras_chave in config.CATEGORIAS_FUZZY.items():
+    for categoria, palavras_chave in contexto_atual().categorias_fuzzy.items():
         for palavra in palavras_chave:
             palavra_norm = normalizar(palavra)
             threshold = (
@@ -344,7 +333,7 @@ def por_contexto_da_tabela(
     for palavra, confianca, original in tokens_expandidos(tokens):
         if palavra == original or confianca >= 0.85:
             continue  # expansão única já é forte o bastante sem contexto
-        for categoria in _INDICE_TOKEN_FORTE.get(palavra, ()):
+        for categoria in contexto_atual().indice_tokens_fortes.get(palavra, ()):
             chave = f"{categoria}|{palavra}"
             if chave in vistos or categoria not in dominios_da_tabela:
                 continue
@@ -355,9 +344,9 @@ def por_contexto_da_tabela(
                 f"contexto da tabela favorece '{original}' → '{palavra}'",
             ))
         for categoria, forca in dominios_da_tabela.items():
-            if categoria not in config.CATEGORIAS_FUZZY:
+            if categoria not in contexto_atual().categorias_fuzzy:
                 continue
-            if palavra in config.CATEGORIAS_FUZZY[categoria]:
+            if palavra in contexto_atual().categorias_fuzzy[categoria]:
                 chave = f"{categoria}|{palavra}"
                 if chave in vistos:
                     continue

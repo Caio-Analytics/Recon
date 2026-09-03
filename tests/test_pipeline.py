@@ -40,6 +40,30 @@ def test_vocabulario_customizado_nao_vaza_para_a_execucao_seguinte(tmp_path, df_
     assert "Categoria Temporaria" not in config.CATEGORIAS_FORTES
 
 
+def test_vocabularios_concorrentes_ficam_isolados_por_execucao(tmp_path):
+    """Duas análises da GUI não podem trocar dicionários no meio da execução."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    primeiro = tmp_path / "primeiro.yaml"
+    segundo = tmp_path / "segundo.yaml"
+    primeiro.write_text("categorias_fortes:\n  Domínio Aurora: [aurora_interna]\n", encoding="utf-8")
+    segundo.write_text("categorias_fortes:\n  Domínio Brisa: [brisa_interna]\n", encoding="utf-8")
+
+    def analisar(caminho, coluna):
+        payload = DataProfiler(vocabularios=str(caminho)).processar_dataframe(
+            pd.DataFrame({coluna: ["A", "B"] * 40}), "teste"
+        )
+        return payload["colunas"][0]["Semantica_IA"]
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        resultados = list(executor.map(
+            lambda args: analisar(*args),
+            [(primeiro, "aurora_interna"), (segundo, "brisa_interna")],
+        ))
+
+    assert resultados == ["Domínio Aurora", "Domínio Brisa"]
+
+
 def test_versao_do_payload_vem_do_pacote(df_rh_exemplo):
     """Regressão: a versão saía hardcoded como '2.0-Fase1' e divergia do
     pyproject."""
