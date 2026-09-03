@@ -16,6 +16,8 @@ coverage==7.16.0
     # via pytest-cov
 et-xmlfile==2.0.0
     # via openpyxl
+greenlet==3.5.5
+    # via playwright
 iniconfig==2.3.0
     # via pytest
 librt==0.15.0
@@ -59,12 +61,16 @@ patsy==1.0.3
     # via statsmodels
 pip-tools==7.6.1
     # via recon (pyproject.toml)
+playwright==1.62.0
+    # via recon (pyproject.toml)
 pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
 pyarrow==25.0.1
     # via recon (pyproject.toml)
+pyee==13.0.1
+    # via playwright
 pygments==2.21.0
     # via
     #   pytest
@@ -110,7 +116,9 @@ typer==0.27.1
 types-pyyaml==6.0.12.20250915
     # via recon (pyproject.toml)
 typing-extensions==4.16.0
-    # via mypy
+    # via
+    #   mypy
+    #   pyee
 unidecode==1.4.0
     # via recon (pyproject.toml)
 wheel==0.48.0
