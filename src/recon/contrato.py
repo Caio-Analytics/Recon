@@ -36,6 +36,7 @@ FOLGA_LINHAS = 0.5
 def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
     """Extrai do perfil o que deve continuar valendo nas próximas versões."""
     meta = payload["metadados_execucao"]
+    amostrado = bool(meta.get("amostragem_aplicada"))
     colunas: list[dict[str, Any]] = []
 
     for coluna in payload["colunas"]:
@@ -50,11 +51,13 @@ def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
                 "faixa": "🟡 MÉDIA",
             },
         }
-        if float(coluna.get("Ratio_Unicidade", 0)) >= 0.999:
+        # Uma amostra não prova unicidade nem domínio fechado. Congelar esses
+        # dois achados tornaria o contrato mais rígido que a evidência.
+        if not amostrado and float(coluna.get("Ratio_Unicidade", 0)) >= 0.999:
             registro["unica"] = True
 
         extras = coluna.get("Stats_Extra") or {}
-        if "min" in extras and "max" in extras:
+        if not amostrado and "min" in extras and "max" in extras:
             registro["min"] = extras["min"]
             registro["max"] = extras["max"]
             registro["min_permitido"] = extras["min"]
@@ -63,7 +66,8 @@ def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
         # Domínio fechado só vale a pena para categoria pequena, e nunca para
         # dado pessoal — a lista de valores permitidos seria a própria base.
         if (
-            coluna.get("Dado_Sensivel_LGPD", "Nenhum") == "Nenhum"
+            not amostrado
+            and coluna.get("Dado_Sensivel_LGPD", "Nenhum") == "Nenhum"
             and 1 < int(coluna.get("Qtd_Unicos", 0)) <= MAX_VALORES_DOMINIO
             and coluna["Tipo_Inferred"].startswith("Texto")
         ):
@@ -83,13 +87,23 @@ def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
         "tabela": meta["tabela"],
         "gerado_em": datetime.now(UTC).isoformat(),
         "gerado_por": f"Recon {__version__}",
-        "linhas_minimas": int(meta["linhas_originais"] * FOLGA_LINHAS),
+        "linhas_minimas": (
+            None if meta.get("linhas_originais_desconhecidas")
+            else int(meta["linhas_originais"] * FOLGA_LINHAS)
+        ),
+        "inferido_de_amostra": amostrado,
+        "cobertura_amostra_pct": meta.get("incerteza_amostra", {}).get("cobertura_pct"),
         "severidade_coluna_nova": "🟢 INFO",
         "colunas": colunas,
         "regras_negocio": regras,
         "_leia_me": (
             "Editar este arquivo é esperado: o Recon propõe, você decide. Apagar uma "
             "entrada é dizer que aquilo pode variar entre extrações."
+            + (
+                " Este contrato nasceu de uma amostra: unicidade, domínios e faixas não "
+                "foram inferidos automaticamente; complete-os só após validar a base inteira."
+                if amostrado else ""
+            )
         ),
     }
 
@@ -124,6 +138,17 @@ def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict
     meta = payload["metadados_execucao"]
     por_nome = {c["Coluna"]: c for c in payload["colunas"]}
     violacoes: list[dict[str, Any]] = []
+    avisos: list[str] = []
+    if meta.get("amostragem_aplicada"):
+        avisos.append(
+            "A extração atual foi analisada por amostragem. Ausência de violação não prova "
+            "que a base inteira atende ao contrato; confirmações de unicidade e domínio são parciais."
+        )
+    if contrato.get("inferido_de_amostra"):
+        avisos.append(
+            "O contrato de referência foi criado a partir de amostra; regras de unicidade, "
+            "domínio e faixa devem ser revisadas antes de automatizar bloqueios."
+        )
 
     esperadas = {c["nome"] for c in contrato["colunas"]}
     faltando = sorted(esperadas - set(por_nome))
@@ -229,6 +254,7 @@ def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict
         "qtd_violacoes": len(violacoes),
         "qtd_graves": graves,
         "violacoes": violacoes,
+        "avisos": avisos,
         "resumo": (
             "Nenhuma violação: a extração está de acordo com o contrato."
             if not violacoes else

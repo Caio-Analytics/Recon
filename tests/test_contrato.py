@@ -33,3 +33,17 @@ def test_contrato_pode_aceitar_categoria_nova():
     resultado = conferir_contrato(atual, contrato)
 
     assert not any(violacao["tipo"] == "Valor fora do domínio" for violacao in resultado["violacoes"])
+
+
+def test_contrato_de_amostra_nao_congela_unicidade_dominio_ou_faixa():
+    df = pd.DataFrame({"id": range(100), "status": ["A", "B"] * 50, "valor": range(100)})
+    base = DataProfiler(limite_amostra=10).processar_dataframe(df, "base")
+
+    contrato = gerar_contrato(base)
+
+    assert contrato["inferido_de_amostra"] is True
+    assert contrato["linhas_minimas"] == 50
+    for coluna in contrato["colunas"]:
+        assert "unica" not in coluna
+        assert "valores_permitidos" not in coluna
+        assert "min_permitido" not in coluna

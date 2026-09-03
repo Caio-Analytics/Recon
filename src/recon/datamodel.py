@@ -1053,13 +1053,32 @@ def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[st
     colunas_b = {c["Coluna"] for c in tabela_b.colunas}
     comuns = colunas_a & colunas_b
 
-    linhas_a, linhas_b = len(tabela_a.df), len(tabela_b.df)
+    meta_a = tabela_a.payload["metadados_execucao"]
+    meta_b = tabela_b.payload["metadados_execucao"]
+    total_a_desconhecido = bool(meta_a.get("linhas_originais_desconhecidas"))
+    total_b_desconhecido = bool(meta_b.get("linhas_originais_desconhecidas"))
+    # O DataFrame pode ser somente uma amostra. Para volume, a referência é o
+    # total contado na ingestão; se não foi possível contá-lo, não inventamos
+    # uma variação baseada no tamanho da amostra.
+    linhas_a = int(meta_a.get("linhas_originais", len(tabela_a.df)))
+    linhas_b = int(meta_b.get("linhas_originais", len(tabela_b.df)))
+    variacao_linhas = (
+        round((linhas_b - linhas_a) / linhas_a, 4)
+        if linhas_a and not total_a_desconhecido and not total_b_desconhecido
+        else None
+    )
     resultado: dict[str, Any] = {
         "tabela_a": tabela_a.nome,
         "tabela_b": tabela_b.nome,
         "linhas_a": linhas_a,
         "linhas_b": linhas_b,
-        "variacao_linhas": round((linhas_b - linhas_a) / linhas_a, 4) if linhas_a else None,
+        "variacao_linhas": variacao_linhas,
+        "linhas_a_analisadas": len(tabela_a.df),
+        "linhas_b_analisadas": len(tabela_b.df),
+        "linhas_a_total_desconhecido": total_a_desconhecido,
+        "linhas_b_total_desconhecido": total_b_desconhecido,
+        "amostragem_a": bool(meta_a.get("amostragem_aplicada")),
+        "amostragem_b": bool(meta_b.get("amostragem_aplicada")),
         "colunas_so_em_a": sorted(colunas_a - colunas_b),
         "colunas_so_em_b": sorted(colunas_b - colunas_a),
         "colunas_comuns": len(comuns),
@@ -1080,6 +1099,9 @@ def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[st
             "chaves_em_ambas": len(valores_a & valores_b),
             "exemplos_sairam": sorted(sairam)[:MAX_CHAVES_LISTADAS],
             "exemplos_entraram": sorted(entraram)[:MAX_CHAVES_LISTADAS],
+            "comparacao_registros_amostral": bool(
+                meta_a.get("amostragem_aplicada") or meta_b.get("amostragem_aplicada")
+            ),
         })
     else:
         resultado["chave_comparada"] = None

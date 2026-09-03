@@ -110,6 +110,22 @@ def test_tabelas_sem_relacao_nao_geram_falso_positivo():
     assert datamodel.detectar_relacionamentos([_tabela("a", a), _tabela("b", b)]) == []
 
 
+def test_conferencia_usa_volume_original_e_sinaliza_amostragem():
+    anterior = pd.DataFrame({"id": range(10)})
+    anterior.attrs["linhas_originais"] = 100
+    nova = pd.DataFrame({"id": range(10, 20)})
+    nova.attrs["linhas_originais"] = 200
+    perfil = DataProfiler(limite_amostra=10)
+    a = datamodel.TabelaCarregada("antes", anterior, perfil.processar_dataframe(anterior, "antes"))
+    b = datamodel.TabelaCarregada("depois", nova, perfil.processar_dataframe(nova, "depois"))
+
+    resultado = datamodel.reconciliar(a, b)
+
+    assert (resultado["linhas_a"], resultado["linhas_b"]) == (100, 200)
+    assert resultado["variacao_linhas"] == 1.0
+    assert resultado["comparacao_registros_amostral"] is True
+
+
 def test_conjunto_de_uma_tabela_nao_tem_relacionamentos(conjunto_rh):
     assert datamodel.detectar_relacionamentos(conjunto_rh[:1]) == []
 
