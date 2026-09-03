@@ -37,6 +37,7 @@ from .detectors import (
 )
 from .evidence import EIXO_DOMINIO, EIXO_PAPEL, Evidencia, escolher, ranquear
 from .tokens import expandir_abreviatura, normalizar, tokenizar
+from .vocabularios import carregar_vocabularios, vocabulario_temporario
 
 __all__ = [
     "Evidencia",
@@ -49,6 +50,8 @@ __all__ = [
     "perfil_de_registro",
     "semanticas_para_gap_analysis",
     "tokenizar",
+    "carregar_vocabularios",
+    "vocabulario_temporario",
 ]
 
 # Confiança mínima para um domínio da primeira passada entrar no contexto que

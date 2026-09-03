@@ -8,6 +8,7 @@ Usa contenção, não similaridade: uma FK está contida na PK (`FK ⊆ PK`), ma
 raramente é igual a ela. Jaccard subestimaria relações em que a dimensão tem
 valores não usados pelo fato, que é o caso normal.
 """
+import keyword
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -466,7 +467,21 @@ def classificar_papeis(
 
 def _variavel(nome: str) -> str:
     limpo = "".join(ch if ch.isalnum() else "_" for ch in normalizar(nome)).strip("_")
-    return limpo or "tabela"
+    if not limpo:
+        return "tabela"
+    if limpo[0].isdigit() or keyword.iskeyword(limpo):
+        return f"tabela_{limpo}"
+    return limpo
+
+
+def _literal_python(valor: str) -> str:
+    """Literal seguro para nomes externos em código pandas gerado."""
+    return repr(str(valor))
+
+
+def _identificador_sql(valor: str) -> str:
+    """Identificador SQL delimitado, inclusive quando contém aspas duplas."""
+    return '"' + str(valor).replace('"', '""') + '"'
 
 
 def _prioridade_atributo(meta: dict[str, Any] | None) -> tuple[int, int]:
@@ -492,20 +507,22 @@ def _codigo_pandas(
     linhas = [f"resultado = (\n    {_variavel(base)}"]
     for join in joins:
         linhas.append(
-            f'    .merge({_variavel(join["tabela"])}, '
-            f'left_on="{join["coluna_origem"]}", right_on="{join["coluna_destino"]}", '
-            f'how="left", suffixes=("", "_{_variavel(join["tabela"])[:6]}"))'
+            f"    .merge({_variavel(join['tabela'])}, "
+            f"left_on={_literal_python(join['coluna_origem'])}, "
+            f"right_on={_literal_python(join['coluna_destino'])}, "
+            f"how='left', suffixes=('', {_literal_python('_' + _variavel(join['tabela'])[:6])}))"
         )
     coluna_grupo = atributo["coluna"]
     if medida is None:
-        linhas.append(f'    .groupby("{coluna_grupo}", as_index=False).size()')
+        linhas.append(f"    .groupby({_literal_python(coluna_grupo)}, as_index=False).size()")
         linhas.append('    .rename(columns={"size": "qtd_registros"})')
         linhas.append('    .sort_values("qtd_registros", ascending=False)')
     else:
         linhas.append(
-            f'    .groupby("{coluna_grupo}", as_index=False)["{medida["coluna"]}"].{agregacao}()'
+            f"    .groupby({_literal_python(coluna_grupo)}, as_index=False)"
+            f"[{_literal_python(medida['coluna'])}].{agregacao}()"
         )
-        linhas.append(f'    .sort_values("{medida["coluna"]}", ascending=False)')
+        linhas.append(f"    .sort_values({_literal_python(medida['coluna'])}, ascending=False)")
     linhas.append(")")
     return "\n".join(linhas)
 
@@ -517,23 +534,24 @@ def _codigo_sql(
     alias = {base: "f"}
     for i, join in enumerate(joins):
         alias[join["tabela"]] = f"d{i + 1}"
-    coluna_grupo = f'{alias[atributo["tabela"]]}."{atributo["coluna"]}"'
+    coluna_grupo = f"{alias[atributo['tabela']]}.{_identificador_sql(atributo['coluna'])}"
     if medida is None:
         selecao = "COUNT(*) AS qtd_registros"
         ordem = "qtd_registros"
     else:
         agregador = "SUM" if agregacao == "sum" else "AVG"
         selecao = (
-            f'{agregador}({alias[medida["tabela"]]}."{medida["coluna"]}") '
-            f'AS {agregacao}_{medida["coluna"]}'
+            f"{agregador}({alias[medida['tabela']]}.{_identificador_sql(medida['coluna'])}) "
+            f"AS {_identificador_sql(agregacao + '_' + medida['coluna'])}"
         )
-        ordem = f'{agregacao}_{medida["coluna"]}'
-    partes = [f'SELECT {coluna_grupo} AS {atributo["coluna"]}, {selecao}',
-              f'FROM "{base}" f']
+        ordem = _identificador_sql(f"{agregacao}_{medida['coluna']}")
+    partes = [f"SELECT {coluna_grupo} AS {_identificador_sql(atributo['coluna'])}, {selecao}",
+              f"FROM {_identificador_sql(base)} f"]
     for join in joins:
         partes.append(
-            f'LEFT JOIN "{join["tabela"]}" {alias[join["tabela"]]} '
-            f'ON f."{join["coluna_origem"]}" = {alias[join["tabela"]]}."{join["coluna_destino"]}"'
+            f"LEFT JOIN {_identificador_sql(join['tabela'])} {alias[join['tabela']]} "
+            f"ON f.{_identificador_sql(join['coluna_origem'])} = "
+            f"{alias[join['tabela']]}.{_identificador_sql(join['coluna_destino'])}"
         )
     partes.append(f"GROUP BY {coluna_grupo}")
     partes.append(f"ORDER BY {ordem} DESC;")
@@ -661,9 +679,9 @@ def sugerir_analises(
                         {"tabela": nome_fato, "coluna": "__mes__"},
                         _agregacao_para(medida["coluna"]),
                     ).replace(
-                        '.groupby("__mes__"',
+                        ".groupby('__mes__'",
                         f'.assign(__mes__=lambda d: pd.to_datetime(d["{data}"]).dt.to_period("M").astype(str))\n'
-                        f'    .groupby("__mes__"',
+                        "    .groupby('__mes__'",
                     ),
                     # O agregador acompanha `_agregacao_para`: com `SUM` fixo,
                     # o SQL entregue ao lado do pandas somava a nota média — os
@@ -926,6 +944,8 @@ def analisar_cobertura_temporal(tabelas: list[TabelaCarregada]) -> dict[str, Any
 VARIACAO_NULOS_RELEVANTE = 5.0     # em pontos percentuais
 VARIACAO_CARDINALIDADE_RELEVANTE = 0.2   # 20% a mais ou a menos de valores distintos
 MAX_CHAVES_LISTADAS = 20
+LIMIAR_DRIFT_NUMERICO_IQR = 0.5
+LIMIAR_DRIFT_CATEGORICO = 0.2
 
 
 def _variacoes_de_coluna(
@@ -984,6 +1004,43 @@ def _variacoes_de_coluna(
     return variacoes
 
 
+def _drifts_de_distribuicao(
+    tabela_a: TabelaCarregada, tabela_b: TabelaCarregada, comuns: set[str]
+) -> list[dict[str, Any]]:
+    """Mudanças relevantes na distribuição, mesmo quando o schema não mudou."""
+    achados: list[dict[str, Any]] = []
+    for nome in sorted(comuns):
+        a, b = tabela_a.df[nome].dropna(), tabela_b.df[nome].dropna()
+        if len(a) < 10 or len(b) < 10:
+            continue
+        if pd.api.types.is_numeric_dtype(a) and pd.api.types.is_numeric_dtype(b):
+            mediana_a, mediana_b = float(a.median()), float(b.median())
+            iqr = float(a.quantile(0.75) - a.quantile(0.25))
+            if iqr <= 0:
+                continue
+            intensidade = abs(mediana_b - mediana_a) / iqr
+            if intensidade >= LIMIAR_DRIFT_NUMERICO_IQR:
+                achados.append({
+                    "coluna": nome, "tipo": "Distribuição numérica", "intensidade": round(intensidade, 3),
+                    "descricao": (
+                        f"Mediana mudou de {mediana_a:,.2f} para {mediana_b:,.2f} "
+                        f"({intensidade:.1f} IQR da versão anterior)."
+                    ),
+                })
+            continue
+        if a.nunique() > 50 or b.nunique() > 50:
+            continue
+        pa, pb = a.astype(str).value_counts(normalize=True), b.astype(str).value_counts(normalize=True)
+        categorias = pa.index.union(pb.index)
+        distancia = 0.5 * sum(abs(float(pa.get(c, 0)) - float(pb.get(c, 0))) for c in categorias)
+        if distancia >= LIMIAR_DRIFT_CATEGORICO:
+            achados.append({
+                "coluna": nome, "tipo": "Composição categórica", "intensidade": round(distancia, 3),
+                "descricao": f"A composição das categorias mudou {distancia:.0%} (distância total).",
+            })
+    return achados
+
+
 def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[str, Any]:
     """Compara duas versões da mesma base.
 
@@ -1007,6 +1064,7 @@ def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[st
         "colunas_so_em_b": sorted(colunas_b - colunas_a),
         "colunas_comuns": len(comuns),
         "variacoes_de_coluna": _variacoes_de_coluna(tabela_a, tabela_b, comuns),
+        "drifts_de_distribuicao": _drifts_de_distribuicao(tabela_a, tabela_b, comuns),
     }
 
     chaves_a = _chaves_primarias(tabela_a.colunas)
@@ -1078,6 +1136,15 @@ def _avisos_da_conferencia(resultado: dict[str, Any]) -> list[dict[str, Any]]:
                 f"{len(graves)} coluna(s) continuam no arquivo mas mudaram de tipo ou de "
                 f"preenchimento: {', '.join(v['coluna'] for v in graves[:6])}. "
                 "É o defeito de extração que passa despercebido, porque o nome não mudou."
+            ),
+        })
+    if resultado.get("drifts_de_distribuicao"):
+        avisos.append({
+            "severidade": "🟡 MÉDIA",
+            "tipo": "Distribuição mudou",
+            "mensagem": (
+                f"{len(resultado['drifts_de_distribuicao'])} coluna(s) mantiveram o schema, "
+                "mas mudaram materialmente de distribuição. Confirme se o recorte ou processo mudou."
             ),
         })
     return avisos

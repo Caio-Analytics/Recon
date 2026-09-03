@@ -210,7 +210,12 @@ def test_html_e_autocontido_e_sem_recurso_externo(tmp_path):
 
     assert conteudo.startswith("<!doctype html>")
     assert "<style>" in conteudo
-    assert "<script" not in conteudo
+    assert "<script" in conteudo
+    assert "Buscar coluna" in conteudo
+    assert "Navegar no relatório" in conteudo
+    assert "atualizarAtiva" in conteudo
+    assert "Resumo executivo" in conteudo
+    assert "Ver problemas prioritários" in conteudo
 
     buscados = (
         re.findall(r"""(?:src|href)\s*=\s*['"]\s*https?://""", conteudo)

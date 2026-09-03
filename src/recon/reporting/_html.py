@@ -10,6 +10,11 @@ from typing import Any
 from loguru import logger
 
 from .. import quality
+from ._explicacoes import (
+    explicar_dependencia_temporal,
+    explicar_estabilidade_temporal,
+    explicar_impacto_score,
+)
 from ._graficos import CSS_GRAFICOS, barra_completude, graficos_da_coluna
 
 _CSS = CSS_GRAFICOS + """
@@ -29,8 +34,34 @@ _CSS = CSS_GRAFICOS + """
 body {
   margin: 0; padding: 2rem 1.25rem 4rem; background: var(--fundo); color: var(--texto);
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  scroll-behavior: smooth;
 }
 main { max-width: 1180px; margin: 0 auto; }
+.cabecalho-relatorio { padding: .25rem 0 1.25rem; }
+.cabecalho-relatorio .marca { color: var(--acento); text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 700; }
+.navegacao { position: sticky; top: .75rem; z-index: 3; margin: 0 0 1.5rem; padding: .75rem;
+  background: color-mix(in srgb, var(--fundo) 94%, transparent); backdrop-filter: blur(12px);
+  border: 1px solid var(--borda); border-radius: 12px; box-shadow: 0 8px 24px color-mix(in srgb, #000 14%, transparent); }
+.navegacao-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 0 0 .55rem; }
+.navegacao-titulo { color: var(--texto); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.navegacao-ajuda { color: var(--texto-fraco); font-size: .78rem; }
+.navegacao-links { display: flex; gap: .45rem; overflow-x: auto; padding: .15rem .1rem .8rem;
+  scrollbar-gutter: stable both-edges; }
+.navegacao a { display: inline-flex; align-items: center; min-height: 32px; color: var(--texto-fraco); text-decoration: none;
+  white-space: nowrap; font-size: .82rem; padding: .32rem .65rem; border: 1px solid transparent; border-radius: 999px; }
+.navegacao a:hover { color: var(--texto); background: var(--fundo-alt); border-color: var(--borda); }
+.navegacao a.ativa { color: #fff; background: var(--acento); border-color: var(--acento); font-weight: 650; }
+.acoes-rapidas { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .85rem; }
+.acoes-rapidas button { cursor: pointer; color: var(--acento); border: 1px solid color-mix(in srgb, var(--acento) 45%, var(--borda));
+  background: transparent; border-radius: 7px; padding: .42rem .7rem; font: inherit; font-size: .82rem; font-weight: 600; }
+.acoes-rapidas button:hover { color: #fff; background: var(--acento); }
+.filtros { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 1rem 0; }
+.filtros input, .filtros select { padding: .45rem .6rem; border: 1px solid var(--borda); border-radius: 6px;
+  background: var(--fundo); color: var(--texto); }
+.coluna.oculta { display: none; }
+.coluna.compacta ul, .coluna.compacta svg, .coluna.compacta .legenda-completude { display: none; }
+.coluna h3 { cursor: pointer; }
+th.ordenavel { cursor: pointer; user-select: none; }
 h1 { font-size: 1.7rem; margin: 0 0 .25rem; }
 h2 { font-size: 1.2rem; margin: 2.5rem 0 .75rem; padding-bottom: .35rem;
      border-bottom: 1px solid var(--borda); }
@@ -46,6 +77,8 @@ code { background: var(--fundo-alt); padding: .1em .35em; border-radius: 4px;
 .cartao .valor { font-size: 1.5rem; font-weight: 600; margin-top: .15rem; }
 .score { display: flex; align-items: center; gap: 1.25rem; background: var(--fundo-alt);
          border: 1px solid var(--borda); border-radius: 12px; padding: 1.1rem 1.4rem; }
+.resumo-executivo { margin: 1.25rem 0 2rem; padding: 1.1rem; background: color-mix(in srgb, var(--fundo-alt) 70%, var(--fundo)); border: 1px solid var(--borda); border-radius: 14px; }
+.resumo-executivo h2 { margin: 0 0 .85rem; padding: 0; border: 0; font-size: 1rem; }
 .score .nota { font-size: 2.6rem; font-weight: 700; line-height: 1; }
 .score .barra { flex: 1; height: 10px; background: var(--borda); border-radius: 999px;
                 overflow: hidden; }
@@ -70,12 +103,72 @@ tbody tr:hover { background: var(--fundo-alt); }
 .alerta { color: var(--media); }
 .vazio { color: var(--texto-fraco); font-style: italic; }
 @media print {
-  body { padding: 0; } .coluna, .cartao, .score { break-inside: avoid; }
+  body { padding: 0; } .navegacao, .acoes-rapidas { display: none; } .coluna, .cartao, .score { break-inside: avoid; }
   th { position: static; }
 }
 """
 
 _MAX_PROBLEMAS_DESTAQUE = 6
+
+_SCRIPT_INTERATIVO = """
+(() => {
+  const slug = text => text.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const main = document.querySelector('main');
+  const secoes = [...document.querySelectorAll('main > h2, main > .resumo-executivo > h2')];
+  if (secoes.length) {
+    const nav = document.createElement('nav'); nav.className = 'navegacao'; nav.setAttribute('aria-label', 'Navegação do relatório');
+    const cabecalho = document.createElement('div'); cabecalho.className = 'navegacao-cabecalho';
+    cabecalho.innerHTML = '<span class="navegacao-titulo">Navegar no relatório</span><span class="navegacao-ajuda">A seção atual fica destacada</span>';
+    const links = document.createElement('div'); links.className = 'navegacao-links';
+    secoes.forEach((h, i) => {
+      h.id ||= `${slug(h.textContent)}-${i}`;
+      const a = document.createElement('a'); a.href = `#${h.id}`; a.textContent = h.textContent; a.dataset.secao = h.id;
+      if (i === 0) a.classList.add('ativa');
+      links.append(a);
+    });
+    nav.append(cabecalho, links); main.querySelector('.cabecalho-relatorio')?.after(nav);
+    const marcarAtiva = id => links.querySelectorAll('a').forEach(a =>
+      a.classList.toggle('ativa', a.dataset.secao === id));
+    const atualizarAtiva = () => {
+      const referencia = nav.getBoundingClientRect().bottom + 24;
+      let atual = secoes[0];
+      secoes.forEach(secao => { if (secao.getBoundingClientRect().top <= referencia) atual = secao; });
+      marcarAtiva(atual.id);
+    };
+    links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+      marcarAtiva(a.dataset.secao);
+      window.setTimeout(atualizarAtiva, 450);
+    }));
+    window.addEventListener('scroll', atualizarAtiva, {passive: true});
+    atualizarAtiva();
+    const acoes = document.createElement('div'); acoes.className = 'acoes-rapidas';
+    [['⚠ Ver problemas prioritários', 'Principais problemas'], ['⌕ Explorar colunas', 'Detalhe por coluna']].forEach(([rotulo, nome]) => {
+      const destino = secoes.find(h => h.textContent === nome); if (!destino) return;
+      const botao = document.createElement('button'); botao.type = 'button'; botao.textContent = rotulo;
+      botao.addEventListener('click', () => destino.scrollIntoView({behavior: 'smooth', block: 'start'})); acoes.append(botao);
+    });
+    main.querySelector('.cabecalho-relatorio')?.append(acoes);
+  }
+  const detalhe = document.querySelectorAll('.coluna');
+  if (detalhe.length) {
+    const filtros = document.createElement('div'); filtros.className = 'filtros';
+    filtros.innerHTML = '<label>Buscar coluna <input type="search" placeholder="nome, tipo ou semântica"></label><button type="button">Expandir tudo</button>';
+    const input = filtros.querySelector('input'), botao = filtros.querySelector('button');
+    const aplicar = () => { const termo = input.value.toLowerCase(); detalhe.forEach(c => c.classList.toggle('oculta', !c.textContent.toLowerCase().includes(termo))); };
+    input.addEventListener('input', aplicar);
+    botao.addEventListener('click', () => { const compacto = [...detalhe].some(c => c.classList.contains('compacta')); detalhe.forEach(c => c.classList.toggle('compacta', !compacto)); botao.textContent = compacto ? 'Recolher detalhes' : 'Expandir tudo'; });
+    const titulo = [...document.querySelectorAll('h2')].find(h => h.textContent === 'Detalhe por coluna'); titulo?.after(filtros);
+    detalhe.forEach(c => c.querySelector('h3')?.addEventListener('click', () => c.classList.toggle('compacta')));
+    detalhe.forEach(c => c.classList.add('compacta'));
+  }
+  document.querySelectorAll('th').forEach((th, index) => th.addEventListener('click', () => {
+    const tabela = th.closest('table'), corpo = tabela?.tBodies[0]; if (!corpo) return;
+    const asc = th.dataset.asc !== '1'; [...corpo.rows].sort((a,b) => a.cells[index].innerText.localeCompare(b.cells[index].innerText, 'pt-BR', {numeric:true}) * (asc ? 1 : -1)).forEach(l => corpo.append(l));
+    tabela.querySelectorAll('th').forEach(h => { delete h.dataset.asc; h.classList.remove('ordenavel'); }); th.dataset.asc = asc ? '1' : '0'; th.classList.add('ordenavel');
+  }));
+})();
+"""
 
 _CLASSE_PRIORIDADE = {
     quality.PRIORIDADE_ALTA: "p-alta",
@@ -243,12 +336,24 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
     duplicatas = meta.get("duplicatas", {})
     partes: list[str] = []
 
+    partes.append('<header class="cabecalho-relatorio"><div class="marca">Recon · perfil de dados</div>')
     partes.append(f"<h1>Perfilamento — {_e(meta['tabela'])}</h1>")
+    linhas_origem = (
+        "total não contabilizado (leitura limitada)" if meta.get("linhas_originais_desconhecidas")
+        else f'{meta["linhas_originais"]:,}'
+    )
     partes.append(
         f'<p class="sub">{meta["linhas_analisadas"]:,} linhas analisadas de '
-        f'{meta["linhas_originais"]:,} · {meta["total_colunas"]} colunas · '
+        f'{linhas_origem} · {meta["total_colunas"]} colunas · '
         f'gerado em {_e(meta["timestamp_utc"][:19])} UTC</p>'
     )
+    partes.append("</header>")
+
+    insights = payload.get("insights_textuais") or []
+    if insights:
+        partes.append('<section class="resumo-executivo"><h2>Leitura rápida da base</h2><ul>')
+        partes.extend(f"<li>{_e(insight)}</li>" for insight in insights)
+        partes.append("</ul></section>")
 
     if meta.get("amostragem_aplicada"):
         partes.append(
@@ -256,6 +361,15 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
             'unicidade, chave primária e duplicata valem para a amostra, não para a tabela '
             'inteira — numa amostra elas só podem ser subestimadas, o que gera "chave '
             'primária potencial" que não existe na base completa.</p>'
+        )
+        if meta.get("motivo_amostragem"):
+            partes.append(f'<p class="sub">Motivo: {_e(meta["motivo_amostragem"])}</p>')
+        incerteza = meta.get("incerteza_amostra") or {}
+        partes.append(
+            f'<p class="sub"><b>Limite da leitura:</b> {_e(incerteza.get("mensagem", ""))} '
+            f'Cobertura: {_e(incerteza.get("cobertura_pct", "—"))}% das linhas; '
+            f'eventos abaixo de aproximadamente {_e(incerteza.get("limiar_evento_raro_pct", "—"))}% '
+            "podem ficar fora da amostra.</p>"
         )
 
     abas_ignoradas = meta.get("abas_ignoradas") or []
@@ -267,22 +381,12 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
             "&quot;analisar todas as abas&quot; na janela ou use <code>--todas-abas</code>.</p>"
         )
 
-    risco = meta.get("risco_lgpd") or {}
-    if risco.get("colunas_sensiveis"):
-        colunas = ", ".join(
-            f"<code>{_e(c['coluna'])}</code> ({_e(c['tipo'])})"
-            for c in risco["colunas_sensiveis"][:6]
-        )
-        partes.append(
-            f'<h2>Exposição de dado pessoal — {_e(risco["nivel"])}</h2>'
-            f'<p class="sub">{colunas}. {_e(risco["recomendacao"])}</p>'
-        )
-
+    partes.append('<section class="resumo-executivo"><h2>Resumo executivo</h2>')
     if score:
         largura = max(0.0, min(100.0, float(score["score"])))
         cor = _cor_score(largura)
         penalidades = "".join(
-            f"<li><b>{_e(p['dimensao'])}</b> — {p['pontos_perdidos']} pontos</li>"
+            f"<li>{_e(explicar_impacto_score(p['dimensao'], p['pontos_perdidos']))}</li>"
             for p in score.get("penalidades", [])[:5]
         )
         partes.append(
@@ -294,19 +398,20 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
         )
         if penalidades:
             partes.append(
-                f"<p class='sub' style='margin-top:.75rem'>Principais penalidades:</p>"
+                "<p class='sub' style='margin-top:.75rem'><b>Por que a nota não é 100?</b> "
+                "A nota começa em 100 e diminui conforme problemas são encontrados.</p>"
                 f"<ul>{penalidades}</ul>"
             )
         criticas = score.get("colunas_criticas") or []
         if criticas:
             itens = "".join(
-                f"<li><code>{_e(c['coluna'])}</code> — {c['dano']:.0%} comprometida "
-                f"({_e(', '.join(c['motivos']))})</li>"
+                f"<li><code>{_e(c['coluna'])}</code> — {_e(', '.join(c['motivos']))}</li>"
                 for c in criticas[:5]
             )
             partes.append(
-                f"<p class='sub'>Colunas mais comprometidas "
-                f"({score.get('colunas_comprometidas', 0)} no total):</p><ul>{itens}</ul>"
+                f"<p class='sub'><b>Onde olhar primeiro</b> "
+                f"({score.get('colunas_comprometidas', 0)} coluna(s) com atenção necessária):</p>"
+                f"<ul>{itens}</ul>"
             )
 
     cartoes = [
@@ -326,6 +431,18 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
         )
         + "</div>"
     )
+    partes.append("</section>")
+
+    risco = meta.get("risco_lgpd") or {}
+    if risco.get("colunas_sensiveis"):
+        colunas = ", ".join(
+            f"<code>{_e(c['coluna'])}</code> ({_e(c['tipo'])})"
+            for c in risco["colunas_sensiveis"][:6]
+        )
+        partes.append(
+            f'<h2>Exposição de dado pessoal — {_e(risco["nivel"])}</h2>'
+            f'<p class="sub">{colunas}. {_e(risco["recomendacao"])}</p>'
+        )
 
     layout = meta.get("layout") or {}
     if layout.get("avisos"):
@@ -436,15 +553,16 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
         primeira = payload["analise_temporal_series"][0]
         partes.append("<h2>Análise temporal</h2>")
         partes.append(
-            f'<p class="sub">Séries agregadas por período ({_e(primeira["agregacao"])}), '
-            f'referência <code>{_e(primeira["coluna_temporal_referencia"])}</code>.</p>'
+            f'<p class="sub">Cada coluna abaixo foi resumida por período '
+            f'({_e(primeira["agregacao"])}) usando <code>{_e(primeira["coluna_temporal_referencia"])}</code>. '
+            "Esta seção observa a evolução de uma mesma coluna no tempo; não é uma correlação entre colunas.</p>"
         )
         partes.append(_tabela(
-            ["Coluna", "Pontos", "Estacionária", "Autocorrelacionada"],
+            ["Coluna resumida", "Períodos analisados", "Padrão no tempo", "Efeito entre períodos"],
             [[
-                f'<code>{_e(t["coluna"])}</code>', f'{t["n_pontos"]:,}',
-                _num(t["adf"].get("estacionaria")) if t["adf"].get("aplicavel") else "N/A",
-                _num(t["ljung_box"].get("autocorrelacionada")) if t["ljung_box"].get("aplicavel") else "N/A",
+                f'<code>{_e(t["coluna"])}</code>', f'{t["n_pontos"]:,} períodos',
+                _e(explicar_estabilidade_temporal(t["adf"])),
+                _e(explicar_dependencia_temporal(t["ljung_box"])),
             ] for t in payload["analise_temporal_series"]],
         ))
 
@@ -452,7 +570,7 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
         "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         f"<title>Perfilamento — {_e(meta['tabela'])}</title><style>{_CSS}</style></head>"
-        f"<body><main>{''.join(partes)}</main></body></html>"
+        f"<body><main>{''.join(partes)}</main><script>{_SCRIPT_INTERATIVO}</script></body></html>"
     )
 
     with open(caminho, "w", encoding="utf-8") as f:

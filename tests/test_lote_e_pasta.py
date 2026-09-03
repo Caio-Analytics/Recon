@@ -163,6 +163,20 @@ def test_pasta_com_um_arquivo_vira_individual(tmp_path, monkeypatch):
     assert (tmp_path / "out" / "in_unico.html").exists()
 
 
+def test_pasta_encontra_csv_gzip_suportado(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    entrada = tmp_path / "in"
+    entrada.mkdir()
+    pd.DataFrame({"id": range(60), "uf": ["SP", "RJ"] * 30}).to_csv(
+        entrada / "compactado.csv.gz", index=False, compression="gzip"
+    )
+
+    resultado = runner.invoke(app, ["pasta", str(entrada), "--saida", str(tmp_path / "out")])
+
+    assert resultado.exit_code == 0
+    assert (tmp_path / "out" / "in_compactado.html").exists()
+
+
 def test_pasta_com_varios_arquivos_vira_lote(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     entrada = tmp_path / "in"

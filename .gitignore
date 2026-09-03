@@ -60,3 +60,6 @@ desktop.ini
 Output/
 Input/
 *.html
+
+# Anotações pessoais de entendimento do código (não publicar)
+docs/GUIA_DO_CODIGO.md

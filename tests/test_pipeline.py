@@ -2,7 +2,7 @@
 import pandas as pd
 import pytest
 
-from recon import __version__, config
+from recon import __version__, codegen, config, ingestion
 from recon.pipeline import DataProfiler
 
 from .conftest import gerar_cpfs
@@ -20,6 +20,24 @@ def test_processar_dataframe_retorna_payload_completo(df_rh_exemplo):
                   "chaves_compostas", "correlacoes", "gap_analysis_kpis",
                   "analise_temporal_series"):
         assert chave in resultado
+
+
+def test_payload_traz_leitura_textual_com_evidencias(df_rh_exemplo):
+    resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "TB_TESTE")
+
+    assert resultado["insights_textuais"]
+    assert any("`" in insight for insight in resultado["insights_textuais"])
+
+
+def test_vocabulario_customizado_nao_vaza_para_a_execucao_seguinte(tmp_path, df_rh_exemplo):
+    """A GUI pode analisar domínios diferentes na mesma sessão."""
+    from recon import config
+
+    caminho = tmp_path / "dominio.yaml"
+    caminho.write_text("categorias_fortes:\n  Categoria Temporaria: [aurora_local]\n", encoding="utf-8")
+    DataProfiler(vocabularios=str(caminho)).processar_dataframe(df_rh_exemplo, "COM_VOCAB")
+
+    assert "Categoria Temporaria" not in config.CATEGORIAS_FORTES
 
 
 def test_versao_do_payload_vem_do_pacote(df_rh_exemplo):
@@ -168,3 +186,70 @@ def test_coluna_de_nome_sai_do_relatorio_mascarada():
     assert nome["Dado_Sensivel_LGPD"] == "Nome de pessoa"
     assert "MARIA" not in nome["Amostra_Valores"]
     assert "M****" in nome["Amostra_Valores"]
+
+
+def test_fluxos_de_arquivo_propagam_limite_para_a_ingestao(tmp_path, monkeypatch):
+    """Lote, modelo e conferência precisam limitar a leitura, não só o profiling."""
+    caminhos = []
+    for nome in ("a", "b"):
+        caminho = tmp_path / f"{nome}.csv"
+        pd.DataFrame({"id": range(12), "valor": range(12)}).to_csv(caminho, index=False)
+        caminhos.append(str(caminho))
+
+    original = ingestion.carregar_arquivo
+    chamadas: list[int | None] = []
+
+    def registrar(*args, **kwargs):
+        chamadas.append(kwargs.get("limite_linhas"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(ingestion, "carregar_arquivo", registrar)
+    profiler = DataProfiler(limite_amostra=5)
+    profiler.processar_lote(caminhos[:1], formatos=[])
+    profiler.modelar_conjunto(caminhos, formatos=[], perfis_individuais=False)
+    profiler.conferir_versoes(*caminhos, formatos=[])
+
+    assert chamadas == [5, 5, 5, 5, 5]
+
+
+def test_script_limpeza_nao_executa_codigo_vindo_do_cabecalho(tmp_path):
+    coluna_maliciosa = 'campo\nraise AssertionError("injetado") #'
+    origem = tmp_path / "entrada.csv"
+    pd.DataFrame({"id": [1, 2], coluna_maliciosa: [None, None]}).to_csv(origem, index=False)
+    payload = {
+        "metadados_execucao": {
+            "tabela": 'tabela\nraise AssertionError("injetado") #',
+            "timestamp_utc": "2026-01-01T00:00:00+00:00",
+            "versao_profiler": "3.0.0",
+            "layout": {},
+            "duplicatas": {},
+        },
+        "colunas": [{
+            "Coluna": coluna_maliciosa,
+            "Caracteristica": "⚠️ Coluna 100% Vazia",
+            "Alertas": {},
+            "Qualidade": {},
+            "Otimizacao": {},
+            "Dado_Sensivel_LGPD": "Nenhum",
+        }],
+        "colunas_redundantes": [],
+        "regras_negocio": [],
+    }
+
+    script = codegen.gerar_script_limpeza(payload, str(origem))
+    escopo: dict = {}
+    exec(compile(script, "limpeza.py", "exec"), escopo)  # noqa: S102
+
+    assert coluna_maliciosa not in escopo["df"].columns
+
+
+def test_amostragem_por_memoria_fica_explicita_no_payload():
+    df = pd.DataFrame({"id": range(20)})
+    df.attrs["motivo_amostragem"] = "Leitura integral acima do orçamento seguro."
+    df.attrs["linhas_originais_desconhecidas"] = True
+
+    meta = DataProfiler(limite_amostra=5).processar_dataframe(df, "amostra")["metadados_execucao"]
+
+    assert meta["amostragem_aplicada"] is True
+    assert meta["linhas_originais_desconhecidas"] is True
+    assert meta["motivo_amostragem"] == "Leitura integral acima do orçamento seguro."

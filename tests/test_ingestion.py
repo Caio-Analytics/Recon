@@ -153,3 +153,31 @@ def test_byte_corrompido_nao_derruba_a_analise(tmp_path, monkeypatch):
     assert "�" in df["VALOR"].iloc[0]
     avisos = df.attrs["layout"].avisos
     assert any(a["tipo"] == "encoding_substituido" for a in avisos)
+
+
+def test_leitura_em_blocos_amostra_o_arquivo_inteiro(tmp_path, monkeypatch):
+    """Não pode reter apenas os primeiros blocos de uma exportação ordenada."""
+    from recon import ingestion
+
+    caminho = _escrever(tmp_path, "grande.csv", "id\n" + "\n".join(map(str, range(9))) + "\n")
+    monkeypatch.setattr(ingestion, "_LINHAS_POR_BLOCO", 3)
+
+    df, total = ingestion._ler_csv_amostrado(str(caminho), "utf-8", ",", 0, 3)
+
+    assert total == 9
+    assert len(df) == 3
+    assert set(df["id"]) != {0, 1, 2}
+    assert any(valor >= 3 for valor in df["id"])
+
+
+def test_limite_de_memoria_dispara_amostragem(tmp_path, monkeypatch):
+    from recon import ingestion
+
+    caminho = _escrever(tmp_path, "dados.csv", "id\n1\n")
+    monkeypatch.setattr(ingestion, "_memoria_sistema_bytes", lambda: (1000, 1000))
+    monkeypatch.setattr(ingestion.os.path, "getsize", lambda _: 200)
+
+    aviso = ingestion._amostragem_por_memoria(str(caminho), "texto")
+
+    assert aviso is not None
+    assert "70%" in aviso

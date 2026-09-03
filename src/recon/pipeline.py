@@ -15,6 +15,7 @@ from . import (
     config,
     datamodel,
     ingestion,
+    insights,
     patterns,
     quality,
     relationships,
@@ -23,6 +24,7 @@ from . import (
     semantics,
     statistics,
 )
+from .tipos import LayoutPayload, MetadadosExecucao
 
 # HTML como padrão: um `.html` clicado abre renderizado no navegador de
 # qualquer máquina, enquanto um `.md` abre no bloco de notas mostrando a
@@ -114,9 +116,11 @@ class DataProfiler:
         self,
         limite_amostra: int = 2_000_000,
         regras_kpi: Sequence[dict[str, Any]] | None = None,
+        vocabularios: str | None = None,
     ):
         self.limite_amostra = limite_amostra
         self.regras_kpi = list(regras_kpi) if regras_kpi is not None else config.REGRAS_KPI_PADRAO
+        self.vocabularios = vocabularios
 
     # ── Análise ─────────────────────────────────────────────────────────
     def _analisar_colunas(self, df_alvo: pd.DataFrame, nome_tabela: str, linhas: int):
@@ -237,6 +241,11 @@ class DataProfiler:
         return lista_colunas, recomendacoes, semanticas_presentes
 
     def processar_dataframe(self, df: pd.DataFrame, nome_tabela: str) -> dict[str, Any]:
+        """Perfila uma tabela com vocabulário local isolado por execução."""
+        with semantics.vocabulario_temporario(self.vocabularios):
+            return self._processar_dataframe(df, nome_tabela)
+
+    def _processar_dataframe(self, df: pd.DataFrame, nome_tabela: str) -> dict[str, Any]:
         if df is None or df.empty:
             raise ValueError(f"DataFrame '{nome_tabela}' está vazio ou inválido.")
 
@@ -244,7 +253,7 @@ class DataProfiler:
         # chegar ao relatório porque explica *por que* a tabela analisada não
         # é literalmente o que está no arquivo.
         lay = df.attrs.get("layout")
-        layout_info = {
+        layout_info: LayoutPayload = {
             "linha_cabecalho": getattr(lay, "linha_cabecalho", 0),
             "linhas_rodape_removidas": getattr(lay, "linhas_rodape", 0),
             "colunas_vazias_removidas": getattr(lay, "colunas_vazias_removidas", []),
@@ -256,9 +265,24 @@ class DataProfiler:
         # Em arquivo grande a amostragem acontece durante a leitura (o arquivo
         # inteiro nunca cabe na memória), e o total real vem de lá.
         total_linhas = int(df.attrs.get("linhas_originais") or len(df))
-        amostrado = total_linhas > len(df) or total_linhas > self.limite_amostra
+        total_desconhecido = bool(df.attrs.get("linhas_originais_desconhecidas"))
+        motivo_amostragem = df.attrs.get("motivo_amostragem")
+        amostrado = (
+            total_desconhecido or total_linhas > len(df) or total_linhas > self.limite_amostra
+        )
         df_alvo = df.sample(n=self.limite_amostra, random_state=42) if amostrado else df
         linhas_analisadas = len(df_alvo)
+        cobertura_amostra = (linhas_analisadas / total_linhas) if total_linhas else 1.0
+        incerteza_amostra = {
+            "cobertura_pct": round(cobertura_amostra * 100, 3),
+            "limiar_evento_raro_pct": round((3 / linhas_analisadas) * 100, 4)
+            if linhas_analisadas else None,
+            "mensagem": (
+                "Amostra uniforme: resultados descrevem as linhas sorteadas. Eventos muito raros "
+                "podem não aparecer; confirme chaves, duplicatas e categorias críticas na base completa."
+                if amostrado else "A base inteira foi analisada."
+            ),
+        }
 
         logger.info(
             f"Iniciando profiling: '{nome_tabela}' | {linhas_analisadas:,}/{total_linhas:,} linhas"
@@ -309,15 +333,17 @@ class DataProfiler:
                 "Linhas_Afetadas": 0, "Pct_Impacto": "0%",
             })
 
-        return {
-            "metadados_execucao": {
+        metadados: MetadadosExecucao = {
                 "tabela": nome_tabela,
                 "timestamp_utc": datetime.now(UTC).isoformat(),
                 "versao_profiler": __version__,
                 "schema_version": config.SCHEMA_VERSION,
                 "linhas_originais": total_linhas,
+                "linhas_originais_desconhecidas": total_desconhecido,
                 "linhas_analisadas": linhas_analisadas,
                 "amostragem_aplicada": amostrado,
+                "motivo_amostragem": motivo_amostragem,
+                "incerteza_amostra": incerteza_amostra,
                 "total_colunas": len(lista_colunas),
                 "layout": layout_info,
                 "score_qualidade": score,
@@ -340,7 +366,9 @@ class DataProfiler:
                     "kpis_habilitados": sum(1 for g in gaps if "✅" in g["status"]),
                     "total_recomendacoes": len(recomendacoes),
                 },
-            },
+        }
+        resultado = {
+            "metadados_execucao": metadados,
             "colunas": lista_colunas,
             "recomendacoes_etl": recomendacoes,
             "dependencias_funcionais": dependencias,
@@ -354,6 +382,8 @@ class DataProfiler:
             "gap_analysis_kpis": gaps,
             "analise_temporal_series": analise_temporal,
         }
+        resultado["insights_textuais"] = insights.gerar_insights_textuais(resultado)
+        return resultado
 
     # ── Exportação ──────────────────────────────────────────────────────
     def processar_arquivo(
@@ -383,7 +413,9 @@ class DataProfiler:
         extensao = os.path.splitext(caminho)[1].lower()
         abas_ignoradas: list[str] = []
         if processar_todas_abas and extensao in EXTENSOES_EXCEL:
-            pares = ingestion.carregar_todas_abas_excel(caminho, detectar_layout)
+            pares = ingestion.carregar_todas_abas_excel(
+                caminho, detectar_layout, self.limite_amostra
+            )
         else:
             # O aviso mora aqui, e não na CLI, porque a janela e o menu também
             # chamam este método: perfilar em silêncio uma aba de cinco é a
@@ -449,7 +481,7 @@ class DataProfiler:
         """
         carregadas = []
         for caminho in (caminho_anterior, caminho_novo):
-            df, nome = ingestion.carregar_arquivo(caminho)
+            df, nome = ingestion.carregar_arquivo(caminho, limite_linhas=self.limite_amostra)
             if df is None or df.empty:
                 raise ValueError(f"'{caminho}' está vazio — não há o que conferir.")
             logger.info(f"Perfilando '{nome}' para a conferência...")
@@ -478,6 +510,64 @@ class DataProfiler:
             reporting.exportar_conferencia_html(resultado, f"{saida_base}_conferencia.html")
         return resultado
 
+    def analisar_historico(
+        self,
+        caminhos: Sequence[str],
+        saida_base: str = "historico",
+        formatos: Sequence[str] = FORMATOS_PADRAO,
+        json_compacto: bool = False,
+    ) -> dict[str, Any]:
+        """Compara a evolução de várias extrações da mesma base na ordem dada."""
+        if len(caminhos) < 2:
+            raise ValueError("O histórico precisa de ao menos duas extrações, em ordem cronológica.")
+        extracoes: list[dict[str, Any]] = []
+        alertas: list[str] = []
+        anterior: dict[str, Any] | None = None
+        for caminho in caminhos:
+            df, nome = ingestion.carregar_arquivo(caminho, limite_linhas=self.limite_amostra)
+            if df is None or df.empty:
+                raise ValueError(f"'{caminho}' está vazio — não há histórico a calcular.")
+            perfil = self.processar_dataframe(df, nome)
+            meta = perfil["metadados_execucao"]
+            atual = {
+                "arquivo": os.path.basename(caminho),
+                "linhas": meta["linhas_analisadas"],
+                "colunas": meta["total_colunas"],
+                "score": meta["score_qualidade"]["score"],
+                "colunas_com_nulos": meta["resumo_qualidade"]["colunas_com_nulos"],
+                "recomendacoes": meta["resumo_qualidade"]["total_recomendacoes"],
+            }
+            if anterior is not None:
+                queda = atual["score"] - anterior["score"]
+                if queda <= -5:
+                    alertas.append(
+                        f"A qualidade caiu {abs(queda):.1f} ponto(s): "
+                        f"{anterior['arquivo']} → {atual['arquivo']}."
+                    )
+                if atual["colunas"] != anterior["colunas"]:
+                    alertas.append(
+                        f"A estrutura mudou de {anterior['colunas']} para {atual['colunas']} coluna(s): "
+                        f"{anterior['arquivo']} → {atual['arquivo']}."
+                    )
+            extracoes.append(atual)
+            anterior = atual
+        resultado = {
+            "metadados_execucao": {"timestamp_utc": datetime.now(UTC).isoformat()},
+            "extracoes": extracoes,
+            "alertas": alertas,
+            "resumo": (
+                f"{len(extracoes)} extrações analisadas na ordem informada. "
+                f"{len(alertas)} alerta(s) de evolução encontrado(s)."
+            ),
+        }
+        if "json" in formatos:
+            reporting.exportar_json(resultado, f"{saida_base}_historico.json", json_compacto)
+        if "markdown" in formatos:
+            reporting.exportar_historico_markdown(resultado, f"{saida_base}_historico.md")
+        if "html" in formatos:
+            reporting.exportar_historico_html(resultado, f"{saida_base}_historico.html")
+        return resultado
+
     # ── Conjunto de arquivos ────────────────────────────────────────────
     def modelar_conjunto(
         self,
@@ -502,10 +592,14 @@ class DataProfiler:
             if extensao in (".xlsx", ".xls", ".xlsb"):
                 pares = [
                     (df, nome, f"{caminho}::{nome.split('__', 1)[-1]}")
-                    for df, nome in ingestion.carregar_todas_abas_excel(caminho)
+                    for df, nome in ingestion.carregar_todas_abas_excel(
+                        caminho, limite_linhas=self.limite_amostra
+                    )
                 ]
             else:
-                df, nome = ingestion.carregar_arquivo(caminho)
+                df, nome = ingestion.carregar_arquivo(
+                    caminho, limite_linhas=self.limite_amostra
+                )
                 pares = [(df, nome, caminho)]
 
             for df, nome_tabela, origem in pares:
@@ -571,9 +665,14 @@ class DataProfiler:
             try:
                 extensao = os.path.splitext(caminho)[1].lower()
                 if extensao in (".xlsx", ".xls", ".xlsb"):
-                    pares = ingestion.carregar_todas_abas_excel(caminho, detectar_layout)
+                    pares = ingestion.carregar_todas_abas_excel(
+                        caminho, detectar_layout, self.limite_amostra
+                    )
                 else:
-                    pares = [ingestion.carregar_arquivo(caminho, detectar_layout=detectar_layout)]
+                    pares = [ingestion.carregar_arquivo(
+                        caminho, detectar_layout=detectar_layout,
+                        limite_linhas=self.limite_amostra,
+                    )]
                 for df, nome_tabela in pares:
                     if df is None or df.empty:
                         falhas.append((f"{caminho} ({nome_tabela})", "tabela vazia"))

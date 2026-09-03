@@ -39,9 +39,17 @@ _MAPA_PADRAO_SEMANTICA: dict[str, tuple[str, str]] = {
 
 # Índice invertido token -> categorias fortes que o contêm.
 _INDICE_TOKEN_FORTE: dict[str, list[str]] = {}
-for _categoria, _palavras in config.CATEGORIAS_FORTES.items():
-    for _palavra in _palavras:
-        _INDICE_TOKEN_FORTE.setdefault(_palavra, []).append(_categoria)
+
+
+def reconstruir_indice_tokens_fortes() -> None:
+    """Atualiza o índice após carregar um vocabulário YAML opcional."""
+    _INDICE_TOKEN_FORTE.clear()
+    for categoria, palavras in config.CATEGORIAS_FORTES.items():
+        for palavra in palavras:
+            _INDICE_TOKEN_FORTE.setdefault(palavra, []).append(categoria)
+
+
+reconstruir_indice_tokens_fortes()
 
 _DECAIMENTO_POSICIONAL = 0.03
 

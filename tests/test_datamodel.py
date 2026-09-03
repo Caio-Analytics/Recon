@@ -201,6 +201,28 @@ def test_codigo_pandas_gerado_realmente_roda(conjunto_rh):
         assert len(resultado) > 0
 
 
+def test_codigo_sugerido_escapa_aspas_em_nomes_externos():
+    pandas = datamodel._codigo_pandas(
+        'fato"2026', [], {"tabela": 'fato"2026', "coluna": 'valor"bruto'},
+        {"tabela": 'fato"2026', "coluna": 'grupo"nome'}, "sum",
+    )
+    sql = datamodel._codigo_sql(
+        'fato"2026', [], {"tabela": 'fato"2026', "coluna": 'valor"bruto'},
+        {"tabela": 'fato"2026', "coluna": 'grupo"nome'}, "sum",
+    )
+    escopo = {
+        datamodel._variavel('fato"2026'): pd.DataFrame({
+            'grupo"nome': ["A", "B"], 'valor"bruto': [1, 2],
+        }),
+    }
+
+    exec(pandas, escopo)  # noqa: S102 — valida o código pandas entregue ao usuário
+
+    assert list(escopo["resultado"].columns) == ['grupo"nome', 'valor"bruto']
+    assert '"fato""2026"' in sql
+    assert '"grupo""nome"' in sql
+
+
 def test_sql_gerado_menciona_as_tabelas_e_o_join(conjunto_rh):
     relacoes = datamodel.detectar_relacionamentos(conjunto_rh)
     perfis = datamodel.classificar_papeis(conjunto_rh, relacoes)

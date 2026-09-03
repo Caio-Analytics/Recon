@@ -116,7 +116,8 @@ CATEGORIAS_FORTES: dict[str, list[str]] = {
         # (a-n-o ⊂ al-u-n-o), e `ANO_BASE` saía marcada como dado pessoal
         # (LGPD) com recomendação de mascarar — apagaria a série temporal
         # inteira se aplicada sem checar.
-        "ano",
+        "ano", "created", "updated", "modified", "deleted", "processed", "posted",
+        "emissao", "pagamento", "cancelamento", "abertura", "fechamento",
     ],
     "Status / Indicador / Flag": [
         "status", "flg", "flag", "is", "has", "state", "situacao",
@@ -126,17 +127,20 @@ CATEGORIAS_FORTES: dict[str, list[str]] = {
         "salario", "salary", "wage", "remuneracao", "vlr", "valor",
         "custo", "cost", "preco", "price", "receita", "revenue",
         "despesa", "expense", "budget", "orcamento", "bonus",
-        "comissao", "honorario", "verba", "provisao", "encargo",
+        "comissao", "honorario", "verba", "provisao", "encargo", "amount", "balance",
+        "saldo", "liquido", "bruto", "imposto", "tax", "frete", "freight", "desconto",
     ],
     "Quantidade / Métrica": [
         "qtd", "quantidade", "count", "total", "volume", "horas", "dias", "carga",
         "duracao", "frequencia", "score", "nota", "percentual", "pct",
-        "indice", "taxa", "ratio", "proporcao", "media",
+        "indice", "taxa", "ratio", "proporcao", "media", "rate", "margem", "margin",
+        "peso", "unidades", "itens", "tempo", "latencia", "sla",
     ],
     "Texto Descritivo Livre": [
         "desc", "descricao", "description", "obs", "observacao", "comentario",
         "justificativa", "detalhe", "motivo", "complemento", "historico",
-        "task", "function", "resumo", "anotacao", "mensagem",
+        "task", "function", "resumo", "anotacao", "mensagem", "note", "notes", "reason",
+        "erro", "error", "log", "payload", "observations",
     ],
     "Nome / Identificação Pessoal": [
         "nome", "name", "colaborador", "funcionario", "empregado",
@@ -215,6 +219,27 @@ CATEGORIAS_FUZZY: dict[str, list[str]] = {
         "trilha", "programa", "workshop", "disciplina", "tema",
         "course", "training", "learning", "certificacao",
     ],
+    "Comercial / CRM": [
+        "lead", "prospect", "oportunidade", "opportunity", "funil",
+        "pipeline", "canal", "channel", "campanha", "campaign", "vendedor", "seller",
+        "conversao", "deal", "negociacao",
+    ],
+    "Logística / Estoque": [
+        "estoque", "inventory", "armazem", "warehouse", "entrega", "delivery", "remessa",
+        "shipment", "transportadora", "carrier", "rastreio", "tracking", "pedido", "order",
+    ],
+    "Suporte / Operações": [
+        "chamado", "ticket", "incidente", "incident", "sla", "fila", "queue", "prioridade",
+        "resolucao", "resolution", "atendimento", "service", "falha", "outage",
+    ],
+    "Saúde": [
+        "consulta", "appointment", "procedimento", "diagnostico", "cid",
+        "hospital", "medico", "medicamento", "exame",
+    ],
+    "Educação": [
+        "turma", "classroom", "disciplina", "subject", "frequencia", "presenca", "aluno",
+        "student", "professor", "teacher", "semestre", "campus",
+    ],
 }
 
 # ── Qualificadores estruturais de nome de coluna ────────────────────────────
@@ -248,7 +273,7 @@ PESO_TOKEN_ENTIDADE: float = 1.0
 
 # Domínios que falam de gente. Só neles um papel "Nome" é nome de pessoa: em
 # `DEPARTMENT_NAME` (Estrutura Organizacional) o nome é de um departamento.
-DOMINIOS_DE_PESSOA: frozenset[str] = frozenset({"Perfil do Colaborador"})
+DOMINIOS_DE_PESSOA: frozenset[str] = frozenset({"Perfil do Colaborador", "Saúde", "Educação"})
 
 # Acima desta cardinalidade a coluna deixa de ser categoria e vira texto de
 # verdade. 79 mil linhas com 4 valores distintos são uma dimensão.

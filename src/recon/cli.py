@@ -106,6 +106,9 @@ _OPCAO_LINHA_CABECALHO = typer.Option(
 _OPCAO_KPIS = typer.Option(
     None, "--kpis", help="YAML com regras de gap analysis próprias (padrão: regras de RH)."
 )
+_OPCAO_VOCABULARIOS = typer.Option(
+    None, "--vocabularios", help="YAML(s) com termos e gazetteers do seu domínio, separados por vírgula."
+)
 
 
 def setup_logging(log_file: str | None = None) -> None:
@@ -134,8 +137,13 @@ def _parsear_formatos(formatos: str) -> list[str]:
     return escolhidos
 
 
-def _construir_profiler(limite_amostra: int, kpis: str | None) -> DataProfiler:
-    return DataProfiler(limite_amostra=limite_amostra, regras_kpi=carregar_regras_kpi(kpis))
+def _construir_profiler(
+    limite_amostra: int, kpis: str | None, vocabularios: str | None = None,
+) -> DataProfiler:
+    return DataProfiler(
+        limite_amostra=limite_amostra, regras_kpi=carregar_regras_kpi(kpis),
+        vocabularios=vocabularios,
+    )
 
 
 @app.command()
@@ -149,6 +157,7 @@ def perfilar(
     json_compacto: bool = _OPCAO_JSON_COMPACTO,
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
     sem_deteccao_layout: bool = _OPCAO_SEM_LAYOUT,
     linha_cabecalho: int | None = _OPCAO_LINHA_CABECALHO,
     gerar_limpeza: bool = _OPCAO_GERAR_LIMPEZA,
@@ -166,7 +175,7 @@ def perfilar(
     # janela e o menu interativo também o recebam.
     aba_valor: str | int = int(aba) if aba.lstrip("-").isdigit() else aba
     try:
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         profiler.processar_arquivo(
             caminho, aba_excel=aba_valor, processar_todas_abas=todas_abas,
             saida_base=saida_base, tambem_parquet=tambem_parquet,
@@ -187,6 +196,7 @@ def lote(
     json_compacto: bool = _OPCAO_JSON_COMPACTO,
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
     sem_deteccao_layout: bool = _OPCAO_SEM_LAYOUT,
     sem_consolidado: bool = typer.Option(
         False, "--sem-consolidado",
@@ -201,7 +211,7 @@ def lote(
     setup_logging()
     escolhidos = _parsear_formatos(formatos)
     try:
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
     except (OSError, ValueError) as e:
         typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
@@ -226,6 +236,7 @@ def modelar(
     json_compacto: bool = _OPCAO_JSON_COMPACTO,
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
     sem_perfis: bool = typer.Option(
         False, "--sem-perfis",
         help="Gera só o relatório do modelo, sem o perfil individual de cada tabela.",
@@ -240,7 +251,7 @@ def modelar(
     setup_logging()
     escolhidos = _parsear_formatos(formatos)
     try:
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         profiler.modelar_conjunto(
             caminhos, saida_base=saida_base, formatos=escolhidos,
             json_compacto=json_compacto, perfis_individuais=not sem_perfis,
@@ -262,6 +273,7 @@ def pasta(
     json_compacto: bool = _OPCAO_JSON_COMPACTO,
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
     sem_deteccao_layout: bool = _OPCAO_SEM_LAYOUT,
     gerar_limpeza: bool = _OPCAO_GERAR_LIMPEZA,
     sim: bool = typer.Option(False, "--sim", "-s", help="Aceita a sugestão sem perguntar."),
@@ -282,7 +294,7 @@ def pasta(
 
     arquivos = sorted(
         str(p) for p in pasta_entrada.iterdir()
-        if p.is_file() and p.suffix.lower() in _EXTENSOES_SUPORTADAS
+        if p.is_file() and p.name.lower().endswith(tuple(_EXTENSOES_SUPORTADAS))
     )
     if not arquivos:
         typer.secho(
@@ -300,7 +312,7 @@ def pasta(
     logger.info(f"{len(arquivos)} arquivo(s) encontrado(s) — modo '{escolhido}'")
 
     try:
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         if escolhido == "modelo":
             profiler.modelar_conjunto(
                 arquivos, saida_base=saida_base, formatos=escolhidos,
@@ -351,6 +363,30 @@ def conferir(
         profiler = _construir_profiler(limite_amostra, kpis)
         profiler.conferir_versoes(
             anterior, nova, saida_base=saida_base, formatos=escolhidos,
+            json_compacto=json_compacto,
+        )
+    except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
+        typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+
+@app.command()
+def historico(
+    caminhos: list[str],
+    saida_base: str = typer.Option("historico", "--saida-base"),
+    formatos: str = _OPCAO_FORMATOS,
+    json_compacto: bool = _OPCAO_JSON_COMPACTO,
+    limite_amostra: int = _OPCAO_LIMITE,
+    kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
+) -> None:
+    """Mostra a evolução de qualidade de 2+ extrações, na ordem informada."""
+    setup_logging()
+    escolhidos = _parsear_formatos(formatos)
+    try:
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
+        profiler.analisar_historico(
+            caminhos, saida_base=saida_base, formatos=escolhidos,
             json_compacto=json_compacto,
         )
     except (FileNotFoundError, IngestionError, ValueError, OSError) as e:

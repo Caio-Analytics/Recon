@@ -77,6 +77,12 @@ def exportar_conferencia_markdown(payload: dict[str, Any], caminho: str) -> None
     else:
         partes.append("## Colunas que mudaram de comportamento\n\nNenhuma.\n")
 
+    if p.get("drifts_de_distribuicao"):
+        partes.append("## Mudanças de distribuição\n")
+        for drift in p["drifts_de_distribuicao"]:
+            partes.append(f"- **{drift['coluna']}** ({drift['tipo']}) — {drift['descricao']}")
+        partes.append("")
+
     with open(caminho, "w", encoding="utf-8") as f:
         f.write("\n".join(partes))
     logger.info(f"✓ Conferência (Markdown) exportada: '{caminho}'")
@@ -148,6 +154,14 @@ def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
         corpo = "".join(
             "<tr>" + "".join(f"<td>{_e(c)}</td>" for c in linha) + "</tr>" for linha in linhas
         )
+
+    if p.get("drifts_de_distribuicao"):
+        partes.append("<h2>Mudanças de distribuição</h2><ul>")
+        partes.extend(
+            f"<li><code>{_e(d['coluna'])}</code> — {_e(d['descricao'])}</li>"
+            for d in p["drifts_de_distribuicao"]
+        )
+        partes.append("</ul>")
         partes.append(
             '<div class="tabela-wrap"><table><thead><tr>'
             + "".join(f"<th>{_e(c)}</th>" for c in cabecalho)

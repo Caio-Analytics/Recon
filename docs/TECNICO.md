@@ -14,8 +14,9 @@ Para *por que* foi desenhado assim, veja
 
 Ferramenta de reconhecimento de dados: roda **antes** da análise, sobre
 arquivos que você acabou de receber e não conhece. Não é componente de
-pipeline, não monitora nada ao longo do tempo, não depende de banco de dados
-nem de serviço externo.
+pipeline: o comando `historico` compara extrações fornecidas explicitamente,
+mas não agenda nem armazena monitoramento contínuo. Não depende de banco de
+dados nem de serviço externo.
 
 **Restrições de projeto**, que explicam várias decisões:
 
@@ -66,13 +67,13 @@ src/recon/
 ├── datamodel.py         chaves entre tabelas, fato × dimensão, grão, análises
 ├── quality.py           recomendações, gap analysis, score
 ├── codegen.py           script de limpeza
-├── reporting/           JSON, Markdown, HTML, Parquet, modelo do conjunto
+├── reporting/           JSON, Markdown, HTML, Parquet, lote, modelo e histórico
 ├── pipeline.py          DataProfiler — orquestração
 ├── interativo.py        menu do terminal (`recon` sem argumento)
 ├── gui.py               janela tkinter (`recon janela`, `Recon.pyw`)
 │                        tema escuro (paleta GitHub em `CORES`, tema `clam`),
 │                        navegação lateral e seletor de formato
-└── cli.py               perfilar · modelar · lote · pasta · janela · versao
+└── cli.py               perfilar · modelar · lote · pasta · conferir · histórico · contrato
 ```
 
 **Invariantes de arquitetura:**

@@ -139,14 +139,13 @@ class Acao:
 ACOES: tuple[Acao, ...] = (
     Acao(
         chave="individual",
-        aba="Um arquivo",
-        resumo="o relatório completo de uma tabela",
-        titulo="Analisar um arquivo",
+        aba="Analisar arquivos",
+        resumo="um ou vários, com relatório por arquivo",
+        titulo="Analisar arquivos",
         explicacao=(
-            "O relatório completo de uma tabela só: o que cada coluna é, o que está "
-            "sujo, o que dá para usar, quais colunas se repetem e a nota de qualidade "
-            "da base. É o modo para quando você recebeu um arquivo e não sabe o que "
-            "tem dentro dele."
+            "Gera um relatório completo para cada arquivo selecionado: tipos de "
+            "coluna, qualidade, dados ausentes, duplicidades e pontos de atenção. "
+            "Use para entender uma ou várias planilhas sem misturar os resultados."
         ),
         minimo=1,
         cor=CORES["roxo"],
@@ -154,27 +153,26 @@ ACOES: tuple[Acao, ...] = (
     ),
     Acao(
         chave="lote",
-        aba="Comparar vários",
-        resumo="por onde começar, entre muitos",
-        titulo="Comparar vários arquivos",
+        aba="Comparar arquivos",
+        resumo="priorize diferenças entre várias bases",
+        titulo="Comparar arquivos em lote",
         explicacao=(
-            "Um relatório só, com todos os arquivos ordenados do pior para o melhor. "
-            "É o modo para quando chegaram doze arquivos de uma vez e a pergunta é "
-            "por onde começar."
+            "Compara a qualidade dos arquivos em um resumo único e destaca onde há "
+            "mais problemas. É útil para priorizar uma pasta inteira de bases, sem "
+            "substituir os relatórios individuais de cada arquivo."
         ),
         minimo=2,
         cor=CORES["azul"],
     ),
     Acao(
         chave="modelo",
-        aba="Como se ligam",
-        resumo="as chaves entre as tabelas",
-        titulo="Descobrir como as tabelas se ligam",
+        aba="Modelar relações",
+        resumo="chaves, fatos e dimensões",
+        titulo="Entender relações entre tabelas",
         explicacao=(
-            "Procura as chaves que ligam um arquivo ao outro, diz qual tabela é fato "
-            "e qual é dimensão, e sugere cruzamentos com o código pronto. É o modo "
-            "para quando os arquivos são partes do mesmo assunto — empregados, "
-            "treinamentos e cursos, por exemplo."
+            "Procura chaves candidatas entre tabelas, identifica possíveis fatos e "
+            "dimensões e sugere cruzamentos com código pronto. Use quando arquivos "
+            "como vendas, clientes e produtos fazem parte do mesmo assunto."
         ),
         minimo=2,
         cor=CORES["ciano"],
@@ -1168,6 +1166,13 @@ def _silenciar_saida_ausente() -> None:
 
 
 def main() -> None:
+    """Abre a interface Qt moderna; Tkinter continua como fallback interno."""
+    try:
+        from .gui_qt import main as main_qt
+        main_qt()
+        return
+    except ImportError:
+        pass
     """Abre a janela. É o que o `Recon.pyw` e o comando `recon app` chamam."""
     _silenciar_saida_ausente()
     try:

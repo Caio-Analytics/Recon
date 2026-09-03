@@ -9,6 +9,11 @@ from typing import Any
 from loguru import logger
 
 from .. import quality
+from ._explicacoes import (
+    explicar_dependencia_temporal,
+    explicar_estabilidade_temporal,
+    explicar_impacto_score,
+)
 
 _MAX_PROBLEMAS_DESTAQUE = 6
 
@@ -248,6 +253,12 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
 
     partes: list[str] = [f"# Relatório de Perfilamento — {meta['tabela']}", ""]
 
+    insights = payload.get("insights_textuais") or []
+    if insights:
+        partes.append("## Leitura rápida da base\n")
+        partes.extend(f"- {insight}" for insight in insights)
+        partes.append("")
+
     abas_ignoradas = meta.get("abas_ignoradas") or []
     if abas_ignoradas:
         partes.append(
@@ -276,22 +287,25 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
             )
             for c in criticas[:5]:
                 partes.append(
-                    f"- `{c['coluna']}` — {c['dano']:.0%} comprometida "
-                    f"({', '.join(c['motivos'])})"
+                    f"- `{c['coluna']}` — {', '.join(c['motivos'])}"
                 )
             partes.append("")
 
         if score.get("penalidades"):
-            partes.append("O que mais pesou contra o score:\n")
+            partes.append(
+                "**Por que a nota não é 100?** A nota começa em 100 e diminui "
+                "conforme problemas são encontrados:\n"
+            )
             for p in score["penalidades"][:5]:
-                partes.append(
-                    f"- **{p['dimensao']}** — {p['pontos_perdidos']} pontos "
-                    f"(intensidade {_pct(p['intensidade'])})"
-                )
+                partes.append(f"- {explicar_impacto_score(p['dimensao'], p['pontos_perdidos'])}")
             partes.append("")
 
+    total_linhas = (
+        "não contabilizado (leitura limitada)" if meta.get("linhas_originais_desconhecidas")
+        else f"{meta['linhas_originais']:,}"
+    )
     linhas_resumo = [
-        f"- Linhas originais: {meta['linhas_originais']:,} | Analisadas: {meta['linhas_analisadas']:,}",
+        f"- Linhas originais: {total_linhas} | Analisadas: {meta['linhas_analisadas']:,}",
         f"- Colunas: {meta['total_colunas']} | Com nulos: {resumo['colunas_com_nulos']} | "
         f"100% vazias: {resumo['colunas_100pct_nulas']} | Sensíveis LGPD: {resumo['colunas_sensiveis_lgpd']}",
     ]
@@ -304,6 +318,14 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
         linhas_resumo.append(
             "- ⚠️ Amostragem aplicada: métricas de unicidade e duplicata referem-se à amostra, "
             "não à tabela inteira"
+        )
+        if meta.get("motivo_amostragem"):
+            linhas_resumo.append(f"  Motivo: {meta['motivo_amostragem']}")
+        incerteza = meta.get("incerteza_amostra") or {}
+        linhas_resumo.append(
+            f"  Limite da leitura: {incerteza.get('mensagem', '')} Cobertura: "
+            f"{incerteza.get('cobertura_pct', '—')}%; eventos abaixo de aproximadamente "
+            f"{incerteza.get('limiar_evento_raro_pct', '—')}% podem ficar fora da amostra."
         )
     linhas_resumo.append(
         f"- Semânticas mapeadas: {', '.join(resumo['semanticas_encontradas']) or 'Nenhuma'}"
@@ -422,19 +444,19 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
     ))
 
     if payload.get("analise_temporal_series"):
-        partes.append("\n## Análise Temporal (ADF / Ljung-Box)\n")
+        partes.append("\n## Análise Temporal\n")
         primeira = payload["analise_temporal_series"][0]
         partes.append(
-            f"Séries agregadas por período ({primeira['agregacao']}) usando "
-            f"`{primeira['coluna_temporal_referencia']}` como referência temporal.\n"
+            f"Cada coluna abaixo foi resumida por período ({primeira['agregacao']}) usando "
+            f"`{primeira['coluna_temporal_referencia']}`. Esta seção observa a evolução de "
+            "uma mesma coluna no tempo; não é uma correlação entre colunas.\n"
         )
         for t in payload["analise_temporal_series"]:
             adf, lb = t["adf"], t["ljung_box"]
-            estac = ("sim" if adf.get("estacionaria") else "não") if adf.get("aplicavel") else "N/A"
-            autoc = ("sim" if lb.get("autocorrelacionada") else "não") if lb.get("aplicavel") else "N/A"
             partes.append(
-                f"- `{t['coluna']}` ({t['n_pontos']} pontos) — estacionária: {estac} | "
-                f"autocorrelacionada: {autoc}"
+                f"- `{t['coluna']}` ({t['n_pontos']} períodos) — "
+                f"{explicar_estabilidade_temporal(adf)} "
+                f"{explicar_dependencia_temporal(lb)}"
             )
 
     with open(caminho, "w", encoding="utf-8") as f:

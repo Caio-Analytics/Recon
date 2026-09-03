@@ -8,6 +8,7 @@ import zipfile
 from collections.abc import Sequence
 from typing import Literal
 
+import numpy as np
 import pandas as pd
 from charset_normalizer import from_bytes
 from loguru import logger
@@ -204,6 +205,46 @@ _LINHAS_INSPECAO_LAYOUT = 40
 # máquina de 8 GB, e é justamente onde a amostra seria mais necessária.
 TAMANHO_LEITURA_EM_BLOCOS = 300 * 1024 * 1024
 _LINHAS_POR_BLOCO = 200_000
+_FRACAO_RAM_SEGURA = 0.70
+_FATOR_MEMORIA_TEXTO = 6
+_FATOR_MEMORIA_EXCEL = 8
+
+
+def _memoria_sistema_bytes() -> tuple[int | None, int | None]:
+    """Retorna (RAM total, RAM disponível), sem criar dependência externa."""
+    try:
+        total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        disponivel = total
+        with open("/proc/meminfo", encoding="utf-8") as arquivo:
+            campos = {
+                linha.split(":", 1)[0]: int(linha.split()[1]) * 1024
+                for linha in arquivo if ":" in linha
+            }
+        disponivel = campos.get("MemAvailable", disponivel)
+        return total, disponivel
+    except (AttributeError, OSError, ValueError):
+        return None, None
+
+
+def _amostragem_por_memoria(caminho: str, formato: str) -> str | None:
+    """Explica quando uma leitura integral ultrapassaria o orçamento de RAM."""
+    total, disponivel = _memoria_sistema_bytes()
+    if total is None or disponivel is None:
+        return None
+    fator = _FATOR_MEMORIA_EXCEL if formato == "excel" else _FATOR_MEMORIA_TEXTO
+    estimativa = os.path.getsize(caminho) * fator
+    # A referência é a RAM disponível agora — não a RAM física total. Assim,
+    # numa máquina de 16 GB já ocupada por outros programas, o Recon continua
+    # deixando 30% do que realmente está livre para o sistema e processos de
+    # fundo, em vez de assumir que os 16 GB inteiros estão à disposição.
+    orcamento = int(disponivel * _FRACAO_RAM_SEGURA)
+    if estimativa <= orcamento:
+        return None
+    return (
+        f"Leitura integral estimada em {estimativa / 1024**3:.1f} GB, acima do orçamento "
+        f"seguro de {orcamento / 1024**3:.1f} GB (70% da RAM disponível). "
+        "O Recon usou uma amostra para evitar esgotar a memória."
+    )
 
 
 def _ler_csv_amostrado(
@@ -211,28 +252,29 @@ def _ler_csv_amostrado(
 ) -> tuple[pd.DataFrame, int]:
     """Lê o CSV em blocos e devolve (amostra, total de linhas do arquivo).
 
-    A amostragem é sistemática por bloco — de cada bloco entra a mesma fração,
-    determinística. Não é uniforme sobre o arquivo inteiro como a amostra do
-    pipeline, mas preserva a ordem e a distribuição por faixa do arquivo, que
-    é o que importa quando o dado vem ordenado por data.
+    A amostra é uniforme sobre todas as linhas, sem carregar o arquivo
+    inteiro: cada linha recebe uma chave aleatória determinística e só as
+    ``limite`` menores chaves continuam na memória. Isso evita o viés de
+    analisar apenas o começo de exportações ordenadas por data.
     """
     total = 0
     pedacos: list[pd.DataFrame] = []
+    chaves_amostra = np.empty(0, dtype=float)
+    gerador = np.random.default_rng(42)
     leitor = pd.read_csv(
         caminho, encoding=encoding, sep=sep, skiprows=skiprows or None,
         chunksize=_LINHAS_POR_BLOCO, low_memory=False, encoding_errors="replace",
     )
-    guardadas = 0
     for bloco in leitor:
         total += len(bloco)
-        if guardadas >= limite:
-            continue
-        cabem = min(len(bloco), limite - guardadas)
-        if cabem == len(bloco):
-            pedacos.append(bloco)
-        else:
-            pedacos.append(bloco.sample(n=cabem, random_state=42).sort_index())
-        guardadas += cabem
+        chaves_bloco = gerador.random(len(bloco))
+        candidatos = pedacos + [bloco]
+        chaves_candidatas = np.concatenate((chaves_amostra, chaves_bloco))
+        quantidade = min(limite, len(chaves_candidatas))
+        indices = np.argpartition(chaves_candidatas, quantidade - 1)[:quantidade]
+        combinado: pd.DataFrame = pd.concat(candidatos, ignore_index=True)
+        pedacos = [combinado.iloc[indices].reset_index(drop=True)]
+        chaves_amostra = chaves_candidatas[indices]
 
     df = pd.concat(pedacos, ignore_index=True) if pedacos else pd.DataFrame()
     logger.info(
@@ -329,13 +371,22 @@ def _carregar_csv_com_layout(
             _matriz_crua_csv(caminho, encoding, sep, compactacao)
         )
 
+    aviso_memoria = _amostragem_por_memoria(caminho, "texto") if limite_linhas is not None else None
     grande = (
         limite_linhas is not None
-        and os.path.getsize(caminho) > TAMANHO_LEITURA_EM_BLOCOS
+        and (os.path.getsize(caminho) > TAMANHO_LEITURA_EM_BLOCOS or aviso_memoria is not None)
     )
     if grande and limite_linhas is not None:
+        if aviso_memoria:
+            avisos.append({
+                "tipo": "Amostragem por limite de memória",
+                "severidade": "🟡 MÉDIA",
+                "mensagem": aviso_memoria,
+            })
         df, total_arquivo = _ler_csv_amostrado(caminho, encoding, sep, inicio, limite_linhas)
         df.attrs["linhas_originais"] = total_arquivo
+        if aviso_memoria:
+            df.attrs["motivo_amostragem"] = aviso_memoria
         _avisar_se_encoding_teve_substituicao(df, avisos, encoding)
         df = layout_mod.converter_datas_iso(df)
         if detectar:
@@ -371,7 +422,7 @@ def _carregar_csv_com_layout(
 
 def _carregar_aba_com_layout(
     caminho: str, aba: str, engine: ExcelEngine, detectar: bool,
-    linha_cabecalho: int | None,
+    linha_cabecalho: int | None, limite_linhas: int | None = None,
 ) -> pd.DataFrame:
     inicio = linha_cabecalho or 0
     avisos: list = []
@@ -383,8 +434,23 @@ def _carregar_aba_com_layout(
         if isinstance(bruto, pd.DataFrame):
             inicio, avisos = layout_mod.detectar_linha_cabecalho(bruto)
 
-    lido = pd.read_excel(caminho, sheet_name=aba, engine=engine, header=inicio)
+    aviso_memoria = _amostragem_por_memoria(caminho, "excel") if limite_linhas else None
+    if aviso_memoria:
+        avisos.append({
+            "tipo": "Amostragem por limite de memória",
+            "severidade": "🟡 MÉDIA",
+            "mensagem": aviso_memoria,
+        })
+    lido = pd.read_excel(
+        caminho, sheet_name=aba, engine=engine, header=inicio,
+        nrows=limite_linhas if aviso_memoria else None,
+    )
     df = lido if isinstance(lido, pd.DataFrame) else pd.DataFrame()
+    if aviso_memoria:
+        # Motores Excel não oferecem contagem barata e uniforme para todos os
+        # formatos. A saída deixa explícito que o total não foi contabilizado.
+        df.attrs["motivo_amostragem"] = aviso_memoria
+        df.attrs["linhas_originais_desconhecidas"] = True
     if detectar and not df.empty:
         df, lay = _preparar_corpo(df, avisos)
         lay.linha_cabecalho = inicio
@@ -462,7 +528,7 @@ def carregar_arquivo(
         else:
             aba_alvo = str(aba_excel)
         df = _carregar_aba_com_layout(
-            caminho, str(aba_alvo), engine, detectar_layout, linha_cabecalho
+            caminho, str(aba_alvo), engine, detectar_layout, linha_cabecalho, limite_linhas
         )
         nome_tabela = f"{nome_base}__{aba_alvo}"
         logger.info(f"[{extensao}] Aba '{aba_alvo}' carregada | Shape: {df.shape}")
@@ -490,7 +556,7 @@ def listar_abas(caminho: str) -> list[str]:
 
 
 def carregar_todas_abas_excel(
-    caminho: str, detectar_layout: bool = True
+    caminho: str, detectar_layout: bool = True, limite_linhas: int | None = None,
 ) -> list[tuple[pd.DataFrame, str]]:
     if not os.path.exists(caminho):
         raise FileNotFoundError(f"Arquivo não encontrado: '{caminho}'")
@@ -504,7 +570,7 @@ def carregar_todas_abas_excel(
         resultado = []
         for aba in xl.sheet_names:
             df_aba = _carregar_aba_com_layout(
-                caminho, str(aba), engine, detectar_layout, None
+                caminho, str(aba), engine, detectar_layout, None, limite_linhas
             )
             logger.info(f"Aba '{aba}' carregada | Shape: {df_aba.shape}")
             resultado.append((df_aba, f"{nome_base}__{aba}"))
