@@ -1,4 +1,6 @@
 """Ingestão: detecção de encoding, separador e leitura de Excel."""
+import zipfile
+
 import pandas as pd
 import pytest
 
@@ -181,3 +183,26 @@ def test_limite_de_memoria_dispara_amostragem(tmp_path, monkeypatch):
 
     assert aviso is not None
     assert "70%" in aviso
+
+
+def test_zip_com_mais_de_um_arquivo_e_recusado(tmp_path):
+    caminho = tmp_path / "duplo.csv.zip"
+    with zipfile.ZipFile(caminho, "w") as arquivo:
+        arquivo.writestr("a.csv", "id\n1\n")
+        arquivo.writestr("b.csv", "id\n2\n")
+
+    with pytest.raises(FileFormatError, match="exatamente um"):
+        carregar_arquivo(str(caminho))
+
+
+def test_xlsx_amostrado_percorre_a_aba_inteira(tmp_path):
+    from recon import ingestion
+
+    caminho = tmp_path / "grande.xlsx"
+    pd.DataFrame({"id": range(30)}).to_excel(caminho, index=False)
+
+    df, total = ingestion._ler_xlsx_amostrado(str(caminho), "Sheet1", 0, 5)
+
+    assert total == 30
+    assert len(df) == 5
+    assert any(valor >= 5 for valor in df["id"])
