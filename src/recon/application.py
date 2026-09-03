@@ -23,6 +23,7 @@ class AcaoAnalise:
     minimo: int
     cor: str
     maximo: int | None = None
+    arquivo_auxiliar: str | None = None
 
 
 ACOES_INTERFACE: tuple[AcaoAnalise, ...] = (
@@ -36,6 +37,13 @@ ACOES_INTERFACE: tuple[AcaoAnalise, ...] = (
                 "Mostra o que mudou entre uma extração anterior e a nova: volume, schema e registros.", 2, "#fbbf24", 2),
     AcaoAnalise("historico", "Evolução", "Acompanhar histórico de qualidade",
                 "Compara duas ou mais extrações na ordem escolhida e destaca tendências de qualidade.", 2, "#34d399"),
+    AcaoAnalise("contrato", "Contrato", "Criar contrato de dados",
+                "Registra a estrutura esperada da base em YAML para revisar e reutilizar nas próximas cargas.", 1, "#fb7185", 1),
+    AcaoAnalise("validar", "Validar", "Validar contra contrato",
+                "Confere uma nova carga contra um contrato revisado e aponta o que saiu do esperado.", 1, "#f97316", 1,
+                "Contrato YAML de referência"),
+    AcaoAnalise("dicionario", "Documentar", "Gerar dicionário de dados",
+                "Cria uma planilha XLSX com tipos, exemplos, semântica e recomendações de cada coluna.", 1, "#38bdf8"),
 )
 
 FORMATOS_INTERFACE: tuple[tuple[str, str, str], ...] = (
@@ -72,6 +80,7 @@ def executar_analise(
     pasta_saida: Path,
     formatos: Sequence[str],
     vocabularios: str | None = None,
+    arquivo_auxiliar: str | None = None,
 ) -> tuple[list[Path], list[tuple[str, str]]]:
     """Executa uma intenção da interface e localiza artefatos para abrir."""
     from .pipeline import DataProfiler
@@ -94,6 +103,47 @@ def executar_analise(
         profiler.conferir_versoes(caminhos[0], caminhos[1], saida_base=saida_base, formatos=escolhidos)
     elif acao.chave == "historico":
         profiler.analisar_historico(caminhos, saida_base=saida_base, formatos=escolhidos)
+    elif acao.chave == "contrato":
+        from . import contrato as contrato_mod
+        from .ingestion import carregar_arquivo
+
+        quadro, nome = carregar_arquivo(caminhos[0], limite_linhas=profiler.limite_amostra)
+        contrato = contrato_mod.gerar_contrato(profiler.processar_dataframe(quadro, nome))
+        destino = pasta_saida / f"{PREFIXO_SAIDA}_contrato.yaml"
+        contrato_mod.salvar_contrato(contrato, str(destino))
+        return [destino], falhas
+    elif acao.chave == "validar":
+        from . import contrato as contrato_mod
+        from .ingestion import carregar_arquivo
+
+        if not arquivo_auxiliar:
+            raise ValueError("Escolha o contrato YAML de referência.")
+        quadro, nome = carregar_arquivo(caminhos[0], limite_linhas=profiler.limite_amostra)
+        resultado = contrato_mod.conferir_contrato(
+            profiler.processar_dataframe(quadro, nome), contrato_mod.carregar_contrato(arquivo_auxiliar)
+        )
+        destino = pasta_saida / f"{PREFIXO_SAIDA}_validacao.md"
+        linhas = ["# Validação de contrato", "", resultado["resumo"], ""]
+        if resultado.get("avisos"):
+            linhas.extend(["## Avisos", *[f"- {aviso}" for aviso in resultado["avisos"]], ""])
+        violacoes = [
+            f"- {item['severidade']} **{item['tipo']}** — {item['mensagem']}"
+            for item in resultado["violacoes"]
+        ]
+        linhas.extend(["## Violações", *(violacoes or ["- Nenhuma violação encontrada."])])
+        destino.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+        return [destino], falhas
+    elif acao.chave == "dicionario":
+        from . import reporting
+        from .ingestion import carregar_arquivo
+
+        payloads = []
+        for caminho in caminhos:
+            quadro, nome = carregar_arquivo(caminho, limite_linhas=profiler.limite_amostra)
+            payloads.append(profiler.processar_dataframe(quadro, nome))
+        destino = pasta_saida / f"{PREFIXO_SAIDA}_dicionario.xlsx"
+        reporting.exportar_dicionario_xlsx(payloads, str(destino))
+        return [destino], falhas
     else:
         raise ValueError(f"Ação de interface desconhecida: {acao.chave}.")
 

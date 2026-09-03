@@ -64,6 +64,9 @@ _DESCRICOES_MENU = {
     "modelo": "Mapeie chaves candidatas, fatos, dimensões e possíveis cruzamentos.",
     "conferencia": "Compare uma extração anterior com a nova e veja mudanças que exigem atenção.",
     "historico": "Acompanhe volume, qualidade e estrutura de várias extrações ao longo do tempo.",
+    "contrato": "Congele uma referência revisável para saber o que uma carga futura deve manter.",
+    "validar": "Use um contrato existente para verificar se a nova extração continua dentro do combinado.",
+    "dicionario": "Documente uma ou várias bases em uma planilha pronta para filtrar e compartilhar.",
 }
 
 _DETALHES_MENU = {
@@ -87,6 +90,18 @@ _DETALHES_MENU = {
         "Exemplo prático",
         "Quero acompanhar as cargas mensais e identificar quando a qualidade começou a cair.",
     ),
+    "contrato": (
+        "Exemplo prático",
+        "A base de clientes está correta hoje; quero registrar colunas, tipos e limites antes da próxima carga.",
+    ),
+    "validar": (
+        "Exemplo prático",
+        "Recebi a carga de hoje e quero saber se ela respeita o contrato de clientes revisado pela equipe.",
+    ),
+    "dicionario": (
+        "Exemplo prático",
+        "Preciso entregar uma descrição clara dos campos de vendas, clientes e produtos para outra área.",
+    ),
 }
 
 
@@ -105,6 +120,7 @@ class Trabalho(QObject):
         formatos: list[str],
         nivel_diagnostico: str,
         vocabularios: str | None,
+        arquivo_auxiliar: str | None,
     ) -> None:
         super().__init__()
         self.acao = acao
@@ -113,6 +129,7 @@ class Trabalho(QObject):
         self.formatos = formatos
         self.nivel_diagnostico = nivel_diagnostico
         self.vocabularios = vocabularios
+        self.arquivo_auxiliar = arquivo_auxiliar
 
     def executar(self) -> None:
         niveis = {"Normal": "WARNING", "Detalhado": "INFO", "Técnico": "DEBUG"}
@@ -126,6 +143,7 @@ class Trabalho(QObject):
             gerados, falhas = application.executar_analise(
                 self.acao, self.arquivos, self.saida, formatos=self.formatos,
                 vocabularios=self.vocabularios,
+                arquivo_auxiliar=self.arquivo_auxiliar,
             )
             self.terminou.emit([str(caminho) for caminho in gerados], falhas)
         except Exception:
@@ -313,6 +331,23 @@ class JanelaReconQt(QMainWindow):
         linha_vocabulario.addWidget(escolher_vocabulario)
         layout.addLayout(linha_vocabulario)
 
+        self.rotulo_auxiliar = QLabel()
+        self.rotulo_auxiliar.setObjectName("cartao_titulo")
+        self.rotulo_auxiliar.setVisible(False)
+        layout.addWidget(self.rotulo_auxiliar)
+        self.arquivo_auxiliar = QLineEdit()
+        self.arquivo_auxiliar.setVisible(False)
+        self.botao_auxiliar = QPushButton("Escolher YAML…")
+        self.botao_auxiliar.clicked.connect(self.escolher_arquivo_auxiliar)
+        self.botao_auxiliar.setVisible(False)
+        linha_auxiliar = QHBoxLayout()
+        linha_auxiliar.addWidget(self.arquivo_auxiliar, 1)
+        linha_auxiliar.addWidget(self.botao_auxiliar)
+        self.widget_auxiliar = QWidget()
+        self.widget_auxiliar.setLayout(linha_auxiliar)
+        self.widget_auxiliar.setVisible(False)
+        layout.addWidget(self.widget_auxiliar)
+
         formato = QLabel("3. Escolha o relatório")
         formato.setObjectName("cartao_titulo")
         layout.addWidget(formato)
@@ -364,6 +399,12 @@ class JanelaReconQt(QMainWindow):
         self.acao_atual = acao
         self.titulo_acao.setText(acao.titulo)
         self.descricao_acao.setText(acao.explicacao)
+        usa_auxiliar = bool(acao.arquivo_auxiliar)
+        self.rotulo_auxiliar.setVisible(usa_auxiliar)
+        self.widget_auxiliar.setVisible(usa_auxiliar)
+        if usa_auxiliar:
+            self.rotulo_auxiliar.setText(f"2. {acao.arquivo_auxiliar}")
+            self.arquivo_auxiliar.setPlaceholderText("Escolha o arquivo YAML já revisado")
         self.paginas.setCurrentIndex(1)
 
     def escolher_arquivos(self) -> None:
@@ -387,6 +428,13 @@ class JanelaReconQt(QMainWindow):
         )
         if caminho:
             self.vocabularios.setText(caminho)
+
+    def escolher_arquivo_auxiliar(self) -> None:
+        caminho, _ = QFileDialog.getOpenFileName(
+            self, "Escolha o contrato de referência", "", "YAML (*.yaml *.yml)"
+        )
+        if caminho:
+            self.arquivo_auxiliar.setText(caminho)
 
     def abrir_pasta_saida(self) -> None:
         if self.ultima_saida is not None:
@@ -436,6 +484,7 @@ class JanelaReconQt(QMainWindow):
         self.trabalho = Trabalho(
             self.acao_atual, self.arquivos, pasta_saida, formatos, self.nivel.currentText(),
             self.vocabularios.text().strip() or None,
+            self.arquivo_auxiliar.text().strip() or None,
         )
         self.trabalho.moveToThread(self.worker_thread)
         self.worker_thread.started.connect(self.trabalho.executar)

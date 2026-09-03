@@ -39,3 +39,21 @@ def test_interface_executa_conferencia_e_historico(tmp_path):
     assert not falhas_conferencia and not falhas_historico
     assert any(caminho.name.endswith("_conferencia.html") for caminho in gerados_conferencia)
     assert any(caminho.name.endswith("_historico.html") for caminho in gerados_historico)
+
+
+def test_interface_expoe_contrato_validacao_e_dicionario(tmp_path):
+    dados = tmp_path / "clientes.csv"
+    pd.DataFrame({"id_cliente": range(20), "status": ["ativo"] * 20}).to_csv(dados, index=False)
+
+    contrato, falhas = executar_analise(_acao("contrato"), [str(dados)], tmp_path, ["html"])
+    assert not falhas
+    assert contrato[0].name == "recon_contrato.yaml"
+
+    validacao, falhas = executar_analise(
+        _acao("validar"), [str(dados)], tmp_path, ["html"], arquivo_auxiliar=str(contrato[0])
+    )
+    dicionario, falhas_dicionario = executar_analise(_acao("dicionario"), [str(dados)], tmp_path, ["html"])
+
+    assert not falhas and not falhas_dicionario
+    assert "Validação de contrato" in validacao[0].read_text(encoding="utf-8")
+    assert dicionario[0].name == "recon_dicionario.xlsx"
