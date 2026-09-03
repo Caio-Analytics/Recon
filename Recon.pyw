@@ -8,7 +8,7 @@ if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 try:
-    from recon.gui import main
+    from recon.gui_qt import main
 except ImportError as erro:  
     import tkinter.messagebox as caixa
     from tkinter import Tk
@@ -17,9 +17,9 @@ except ImportError as erro:
     raiz.withdraw()
     caixa.showerror(
         "Recon",
-        "O Recon ainda não está instalado neste computador.\n\n"
+        "O Recon ou a interface gráfica ainda não está instalado neste computador.\n\n"
         "Abra o terminal na pasta do projeto e rode uma vez:\n\n"
-        "    pip install --user -e .\n\n"
+        "    pip install -e \".[gui]\"\n\n"
         f"Detalhe técnico: {erro}",
     )
     raise SystemExit(1) from None

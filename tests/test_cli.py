@@ -5,7 +5,7 @@ import pandas as pd
 from typer.testing import CliRunner
 
 from recon import __version__
-from recon.cli import app, historico, lote, modelar, pasta
+from recon.cli import app, conferir, contrato, dicionario, historico, lote, modelar, pasta, validar
 
 runner = CliRunner()
 
@@ -17,7 +17,7 @@ def _csv(tmp_path, nome="dados.csv", n=30):
 
 
 def test_vocabularios_estao_disponiveis_em_todos_os_fluxos_de_multiplos_arquivos():
-    for comando in (lote, modelar, pasta, historico):
+    for comando in (lote, modelar, pasta, historico, conferir, contrato, validar, dicionario):
         assert "vocabularios" in inspect.signature(comando).parameters
 
 

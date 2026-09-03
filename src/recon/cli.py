@@ -319,11 +319,12 @@ def conferir(
     json_compacto: bool = _OPCAO_JSON_COMPACTO,
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
 ) -> None:
     setup_logging()
     escolhidos = _parsear_formatos(formatos)
     try:
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         profiler.conferir_versoes(
             anterior, nova, saida_base=saida_base, formatos=escolhidos,
             json_compacto=json_compacto,
@@ -362,10 +363,11 @@ def contrato(
     saida: str = typer.Option("contrato.yaml", "--saida", help="Arquivo YAML a gravar."),
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
 ) -> None:
     setup_logging()
     try:
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         df, nome = _carregar(caminho)
         payload = profiler.processar_dataframe(df, nome)
         acordo = contrato_mod.gerar_contrato(payload)
@@ -386,11 +388,12 @@ def validar(
     contrato_arquivo: str = typer.Option(..., "--contrato", help="YAML gerado por `recon contrato`."),
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
 ) -> None:
     setup_logging()
     try:
         acordo = contrato_mod.carregar_contrato(contrato_arquivo)
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         df, nome = _carregar(caminho)
         payload = profiler.processar_dataframe(df, nome)
         resultado = contrato_mod.conferir_contrato(payload, acordo)
@@ -401,6 +404,8 @@ def validar(
     for violacao in resultado["violacoes"]:
         cor = typer.colors.RED if "ALTA" in violacao["severidade"] else typer.colors.YELLOW
         typer.secho(f"{violacao['severidade']} [{violacao['tipo']}] {violacao['mensagem']}", fg=cor)
+    for aviso in resultado.get("avisos", []):
+        typer.secho(f"Aviso: {aviso}", fg=typer.colors.YELLOW)
     typer.secho(
         resultado["resumo"],
         fg=typer.colors.GREEN if resultado["aprovado"] else typer.colors.RED,
@@ -415,11 +420,12 @@ def dicionario(
     saida: str = typer.Option("dicionario.xlsx", "--saida", help="Arquivo XLSX a gravar."),
     limite_amostra: int = _OPCAO_LIMITE,
     kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
 ) -> None:
     setup_logging()
     payloads = []
     try:
-        profiler = _construir_profiler(limite_amostra, kpis)
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
         for caminho in caminhos:
             df, nome = _carregar(caminho)
             payloads.append(profiler.processar_dataframe(df, nome))
@@ -432,7 +438,16 @@ def dicionario(
 
 @app.command()
 def janela() -> None:
-    from .gui import main
+    try:
+        from .gui_qt import main
+    except ImportError as e:
+        typer.secho(
+            "A interface gráfica não está instalada. Reinstale o Recon com o extra de GUI: "
+            'pip install "recon[gui]".',
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from e
     main()
 
 
