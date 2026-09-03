@@ -1,0 +1,41 @@
+"""Casos de uso que a interface Qt chama, sem abrir janela gráfica."""
+import pandas as pd
+
+from recon.application import (
+    ACOES_INTERFACE,
+    executar_analise,
+    resolver_pasta_saida,
+    validar_selecao,
+)
+
+
+def _acao(chave: str):
+    return next(acao for acao in ACOES_INTERFACE if acao.chave == chave)
+
+
+def test_validacao_da_interface_respeita_ordem_e_quantidade(tmp_path):
+    primeiro, segundo, terceiro = (tmp_path / nome for nome in ("a.csv", "b.csv", "c.csv"))
+    for caminho in (primeiro, segundo, terceiro):
+        caminho.write_text("id\n1\n", encoding="utf-8")
+
+    assert validar_selecao(_acao("conferencia"), [str(primeiro)])
+    assert validar_selecao(_acao("conferencia"), [str(primeiro), str(segundo), str(terceiro)])
+    assert validar_selecao(_acao("conferencia"), [str(primeiro), str(segundo)]) is None
+    assert resolver_pasta_saida("", [str(primeiro)]) == tmp_path
+
+
+def test_interface_executa_conferencia_e_historico(tmp_path):
+    primeiro, segundo = tmp_path / "jan.csv", tmp_path / "fev.csv"
+    pd.DataFrame({"id": range(20), "valor": range(20)}).to_csv(primeiro, index=False)
+    pd.DataFrame({"id": range(30), "valor": range(30)}).to_csv(segundo, index=False)
+
+    gerados_conferencia, falhas_conferencia = executar_analise(
+        _acao("conferencia"), [str(primeiro), str(segundo)], tmp_path / "conferencia", ["html"]
+    )
+    gerados_historico, falhas_historico = executar_analise(
+        _acao("historico"), [str(primeiro), str(segundo)], tmp_path / "historico", ["html"]
+    )
+
+    assert not falhas_conferencia and not falhas_historico
+    assert any(caminho.name.endswith("_conferencia.html") for caminho in gerados_conferencia)
+    assert any(caminho.name.endswith("_historico.html") for caminho in gerados_historico)

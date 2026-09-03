@@ -345,6 +345,7 @@ def executar_analise(
     pasta_saida: Path,
     gerar_limpeza: bool = False,
     formatos: Sequence[str] = (FORMATO_PADRAO,),
+    vocabularios: str | None = None,
 ) -> tuple[list[Path], list[tuple[str, str]]]:
     """Roda a análise e devolve (relatórios gerados, falhas por arquivo).
 
@@ -358,7 +359,7 @@ def executar_analise(
     saida_base = str(pasta_saida / PREFIXO_SAIDA)
     caminhos = [str(a) for a in arquivos]
     escolhidos = list(formatos) or [FORMATO_PADRAO]
-    profiler = DataProfiler()
+    profiler = DataProfiler(vocabularios=vocabularios)
     falhas: list[tuple[str, str]] = []
 
     if acao.chave == "modelo":

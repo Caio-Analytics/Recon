@@ -6,6 +6,7 @@ import traceback
 from collections.abc import Callable
 from pathlib import Path
 
+from loguru import logger
 from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -28,7 +30,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import gui
+from . import application
 
 _ESTILO = """
 QMainWindow { background: #0b1120; color: #e5e7eb; font-family: Segoe UI, Inter, Ubuntu, sans-serif; font-size: 14px; }
@@ -60,6 +62,8 @@ _DESCRICOES_MENU = {
     "individual": "Crie um perfil completo de cada arquivo, mesmo selecionando vários de uma vez.",
     "lote": "Veja diferenças de qualidade e priorize onde investigar primeiro.",
     "modelo": "Mapeie chaves candidatas, fatos, dimensões e possíveis cruzamentos.",
+    "conferencia": "Compare uma extração anterior com a nova e veja mudanças que exigem atenção.",
+    "historico": "Acompanhe volume, qualidade e estrutura de várias extrações ao longo do tempo.",
 }
 
 _DETALHES_MENU = {
@@ -75,6 +79,14 @@ _DETALHES_MENU = {
         "Exemplo prático",
         "Tenho vendas, clientes e produtos; quero identificar a tabela fato, dimensões e chaves para cruzá-las.",
     ),
+    "conferencia": (
+        "Exemplo prático",
+        "Recebi a carga de fevereiro e preciso saber o que mudou em relação à carga de janeiro.",
+    ),
+    "historico": (
+        "Exemplo prático",
+        "Quero acompanhar as cargas mensais e identificar quando a qualidade começou a cair.",
+    ),
 }
 
 
@@ -87,33 +99,46 @@ class Trabalho(QObject):
 
     def __init__(
         self,
-        acao: gui.Acao,
+        acao: application.AcaoAnalise,
         arquivos: list[str],
         saida: Path,
         formatos: list[str],
+        nivel_diagnostico: str,
+        vocabularios: str | None,
     ) -> None:
         super().__init__()
         self.acao = acao
         self.arquivos = arquivos
         self.saida = saida
         self.formatos = formatos
+        self.nivel_diagnostico = nivel_diagnostico
+        self.vocabularios = vocabularios
 
     def executar(self) -> None:
+        niveis = {"Normal": "WARNING", "Detalhado": "INFO", "Técnico": "DEBUG"}
+        sink = logger.add(
+            lambda mensagem: self.progresso.emit(mensagem.rstrip()),
+            level=niveis.get(self.nivel_diagnostico, "INFO"),
+            format="[{time:HH:mm:ss}] {level}: {message}",
+        )
         try:
             self.progresso.emit(f"Iniciando {self.acao.titulo.lower()}…")
-            gerados, falhas = gui.executar_analise(
-                self.acao, self.arquivos, self.saida, formatos=self.formatos
+            gerados, falhas = application.executar_analise(
+                self.acao, self.arquivos, self.saida, formatos=self.formatos,
+                vocabularios=self.vocabularios,
             )
             self.terminou.emit([str(caminho) for caminho in gerados], falhas)
         except Exception:
             self.falhou.emit(traceback.format_exc())
+        finally:
+            logger.remove(sink)
 
 
 class CartaoModo(QFrame):
     """Cartão da tela inicial que explica uma ação sem jargão técnico."""
 
     def __init__(
-        self, acao: gui.Acao, ao_escolher: Callable[[gui.Acao], None]
+        self, acao: application.AcaoAnalise, ao_escolher: Callable[[application.AcaoAnalise], None]
     ) -> None:
         super().__init__()
         self.setObjectName("cartao")
@@ -121,7 +146,7 @@ class CartaoModo(QFrame):
         layout.setContentsMargins(22, 20, 22, 20)
         layout.setSpacing(10)
 
-        numero = gui.ACOES.index(acao) + 1
+        numero = application.ACOES_INTERFACE.index(acao) + 1
         marcador = QLabel(f"{numero:02d}  ·  {acao.aba.upper()}")
         marcador.setStyleSheet(f"color: {acao.cor}; font-weight: 700; font-size: 11px;")
         layout.addWidget(marcador)
@@ -155,7 +180,8 @@ class JanelaReconQt(QMainWindow):
         self.setWindowTitle("Recon — reconhecimento de dados")
         self.resize(1120, 740)
         self.arquivos: list[str] = []
-        self.acao_atual: gui.Acao | None = None
+        self.acao_atual: application.AcaoAnalise | None = None
+        self.ultima_saida: Path | None = None
         self.worker_thread: QThread | None = None
         self.trabalho: Trabalho | None = None
         self._montar()
@@ -203,10 +229,12 @@ class JanelaReconQt(QMainWindow):
         subtitulo.setObjectName("subtitulo")
         layout.addWidget(subtitulo)
 
-        cartoes = QHBoxLayout()
+        cartoes = QGridLayout()
         cartoes.setSpacing(14)
-        for acao in gui.ACOES:
-            cartoes.addWidget(CartaoModo(acao, self.abrir_fluxo))
+        for indice, acao in enumerate(application.ACOES_INTERFACE):
+            cartoes.addWidget(CartaoModo(acao, self.abrir_fluxo), indice // 2, indice % 2)
+        cartoes.setColumnStretch(0, 1)
+        cartoes.setColumnStretch(1, 1)
         layout.addLayout(cartoes, 1)
         ajuda = QLabel("Dica: na dúvida, comece por “Analisar arquivos”.")
         ajuda.setObjectName("subtitulo")
@@ -273,10 +301,22 @@ class JanelaReconQt(QMainWindow):
         linha_saida.addWidget(pasta)
         layout.addLayout(linha_saida)
 
+        vocabulario = QLabel("Vocabulário do seu negócio (opcional)")
+        vocabulario.setObjectName("cartao_titulo")
+        layout.addWidget(vocabulario)
+        self.vocabularios = QLineEdit()
+        self.vocabularios.setPlaceholderText("YAML com termos próprios, se existir")
+        escolher_vocabulario = QPushButton("Escolher YAML…")
+        escolher_vocabulario.clicked.connect(self.escolher_vocabulario)
+        linha_vocabulario = QHBoxLayout()
+        linha_vocabulario.addWidget(self.vocabularios, 1)
+        linha_vocabulario.addWidget(escolher_vocabulario)
+        layout.addLayout(linha_vocabulario)
+
         formato = QLabel("3. Escolha o relatório")
         formato.setObjectName("cartao_titulo")
         layout.addWidget(formato)
-        self.formatos = {nome: QCheckBox(rotulo) for nome, rotulo, _ in gui.FORMATOS}
+        self.formatos = {nome: QCheckBox(rotulo) for nome, rotulo, _ in application.FORMATOS_INTERFACE}
         self.formatos["html"].setChecked(True)
         linha_formatos = QHBoxLayout()
         for caixa in self.formatos.values():
@@ -287,6 +327,10 @@ class JanelaReconQt(QMainWindow):
         self.executar.setObjectName("primario")
         self.executar.clicked.connect(self.iniciar)
         layout.addWidget(self.executar)
+        self.abrir_saida = QPushButton("Abrir pasta de relatórios")
+        self.abrir_saida.setEnabled(False)
+        self.abrir_saida.clicked.connect(self.abrir_pasta_saida)
+        layout.addWidget(self.abrir_saida)
         return painel
 
     def _criar_painel_diagnostico(self) -> QFrame:
@@ -316,7 +360,7 @@ class JanelaReconQt(QMainWindow):
         layout.addWidget(self.progresso)
         return painel
 
-    def abrir_fluxo(self, acao: gui.Acao) -> None:
+    def abrir_fluxo(self, acao: application.AcaoAnalise) -> None:
         self.acao_atual = acao
         self.titulo_acao.setText(acao.titulo)
         self.descricao_acao.setText(acao.explicacao)
@@ -337,6 +381,17 @@ class JanelaReconQt(QMainWindow):
         if pasta:
             self.saida.setText(pasta)
 
+    def escolher_vocabulario(self) -> None:
+        caminho, _ = QFileDialog.getOpenFileName(
+            self, "Escolha o vocabulário do negócio", "", "YAML (*.yaml *.yml)"
+        )
+        if caminho:
+            self.vocabularios.setText(caminho)
+
+    def abrir_pasta_saida(self) -> None:
+        if self.ultima_saida is not None:
+            application.abrir_no_explorador(self.ultima_saida)
+
     def limpar_arquivos(self) -> None:
         self.arquivos.clear()
         self._atualizar_lista()
@@ -356,12 +411,12 @@ class JanelaReconQt(QMainWindow):
     def iniciar(self) -> None:
         if self.acao_atual is None:
             return
-        erro = gui.validar_selecao(self.acao_atual, self.arquivos)
+        erro = application.validar_selecao(self.acao_atual, self.arquivos)
         if erro:
             QMessageBox.warning(self, "Revise a seleção", erro)
             return
         try:
-            pasta_saida = gui.resolver_pasta_saida(self.saida.text(), self.arquivos)
+            pasta_saida = application.resolver_pasta_saida(self.saida.text(), self.arquivos)
         except ValueError as erro_saida:
             QMessageBox.warning(self, "Saída", str(erro_saida))
             return
@@ -372,12 +427,16 @@ class JanelaReconQt(QMainWindow):
             return
 
         self.executar.setEnabled(False)
+        self.abrir_saida.setEnabled(False)
         self.progresso.setRange(0, 0)
         self.log.clear()
         self._registrar(f"Modo: {self.acao_atual.titulo}")
         self._registrar(f"Arquivos: {len(self.arquivos)} | Saída: {pasta_saida}")
         self.worker_thread = QThread(self)
-        self.trabalho = Trabalho(self.acao_atual, self.arquivos, pasta_saida, formatos)
+        self.trabalho = Trabalho(
+            self.acao_atual, self.arquivos, pasta_saida, formatos, self.nivel.currentText(),
+            self.vocabularios.text().strip() or None,
+        )
         self.trabalho.moveToThread(self.worker_thread)
         self.worker_thread.started.connect(self.trabalho.executar)
         self.trabalho.progresso.connect(self._registrar)
@@ -391,6 +450,8 @@ class JanelaReconQt(QMainWindow):
     def concluido(self, gerados: list[str], falhas: list) -> None:
         self.progresso.setRange(0, 1)
         self.executar.setEnabled(True)
+        self.ultima_saida = application.resolver_pasta_saida(self.saida.text(), self.arquivos)
+        self.abrir_saida.setEnabled(True)
         self._registrar("Concluído.")
         self._registrar("Arquivos gerados:\n" + "\n".join(gerados))
         if falhas:
