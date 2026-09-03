@@ -85,6 +85,17 @@ def test_coluna_de_uf_e_localizacao():
     assert inferir_semantica("uf")["semantica"] == "Localização Geográfica"
 
 
+@pytest.mark.parametrize("coluna,dominio", [
+    ("centro_custo", "Financeiro / Custo"),
+    ("codigo_rastreio", "Logística / Estoque"),
+    ("codigo_cid", "Saúde"),
+    ("nome_orgao", "Estrutura Organizacional"),
+    ("numero_ticket", "Suporte / Operações"),
+])
+def test_corpus_semantico_de_dominios_diversos(coluna, dominio):
+    assert inferir_semantica(coluna)["dominio"] == dominio
+
+
 
 
 @pytest.mark.parametrize("abreviatura,esperado", [
