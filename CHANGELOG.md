@@ -3,6 +3,13 @@
 Resumo de alto nível da evolução do Recon, por tema (não por versão — consulte
 `git log` para o histórico completo de commits).
 
+## Evoluções em desenvolvimento
+
+- Isolamento de vocabulários semânticos por execução, inclusive em análises concorrentes.
+- Interface Qt com fluxos de perfil, lote, relações, conferência de versões e histórico.
+- Histórico visual de qualidade, score com metodologia explícita e agregação temporal coerente com a semântica da métrica.
+- CI em Python 3.12, 3.13 e 3.14, cobertura mínima de 75% e construção do pacote.
+
 ## Fundação (Fase 1)
 
 - Cria a arquitetura inicial de profiling de dados, com o scaffolding do pacote e as taxonomias e limiares consolidados numa fonte única.
@@ -58,4 +65,3 @@ Resumo de alto nível da evolução do Recon, por tema (não por versão — con
 ## Acabamento da v3
 
 - `python -m recon` sem depender do PATH, licença CC BY-NC 4.0, remoção de dados reais de teste/exemplo, correções finais de classificação (CNPJ, ano, abreviação) e diagrama de arquitetura no README.
-

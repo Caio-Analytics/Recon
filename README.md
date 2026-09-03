@@ -22,7 +22,7 @@ git clone https://github.com/Caio-Analytics/Recon.git
 cd Recon
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install -e ".[gui]"
 ```
 
 Abra a interface gráfica:
@@ -64,6 +64,8 @@ O Recon reserva 30% da RAM disponível. Se uma leitura integral exceder o orçam
 
 Relatórios podem conter metadados corporativos. Valores classificados como pessoais são mascarados, mas os outputs devem continuar sendo tratados como documentos internos.
 
+O script de limpeza usa pseudonimização com HMAC para dados pessoais e exige a variável de ambiente `RECON_PSEUDONYMIZATION_KEY`. Guarde essa chave fora do script e dos relatórios; pseudonimizar não é o mesmo que anonimizar.
+
 ## Documentação
 
 | Documento | Para quê |
@@ -71,6 +73,8 @@ Relatórios podem conter metadados corporativos. Valores classificados como pess
 | [Guia de uso](docs/GUIA.md) | Instalação, GUI e exemplos passo a passo. |
 | [Documentação técnica](docs/TECNICO.md) | Arquitetura, payload, critérios e extensões. |
 | [Backlog](docs/BACKLOG.md) | Melhorias planejadas e limites conhecidos. |
+| [Contribuição](CONTRIBUTING.md) | Como alterar e validar o projeto. |
+| [Segurança e privacidade](SECURITY.md) | Como tratar dados e reportar vulnerabilidades. |
 
 ## Desenvolvimento
 
