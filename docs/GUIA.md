@@ -11,6 +11,7 @@ Com o ambiente virtual ativo, execute `recon janela`. Na primeira tela, escolha 
 5. **Acompanhar histórico de qualidade** mostra a evolução de várias extrações, na ordem escolhida.
 
 Depois, adicione os arquivos, escolha a pasta de saída e clique em **Analisar agora**. O relatório HTML abre em qualquer navegador.
+Marque **PDF** quando precisar de uma cópia estática para anexar, imprimir ou guardar em processo; o HTML continua sendo a opção interativa para explorar filtros e detalhes.
 Se sua área usa siglas ou campos próprios, escolha também o YAML de vocabulário nessa mesma tela; ele vale apenas para aquela execução.
 
 ## Pelo terminal

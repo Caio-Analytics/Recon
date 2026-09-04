@@ -29,8 +29,20 @@ from .tipos import IncertezaAmostra, LayoutPayload, MetadadosExecucao
 
 
 FORMATOS_PADRAO = ("json", "html")
-FORMATOS_VALIDOS = ("json", "markdown", "html", "parquet")
+FORMATOS_VALIDOS = ("json", "markdown", "html", "pdf", "parquet")
 EXTENSOES_EXCEL = (".xlsx", ".xls", ".xlsb")
+
+
+def _exportar_html_e_pdf(
+    payload: dict[str, Any], caminho_html: str, formatos: Sequence[str]
+) -> None:
+    if "html" not in formatos and "pdf" not in formatos:
+        return
+    reporting.exportar_html(payload, caminho_html)
+    if "pdf" in formatos:
+        reporting.exportar_pdf_de_html(caminho_html, os.path.splitext(caminho_html)[0] + ".pdf")
+    if "html" not in formatos:
+        os.unlink(caminho_html)
 
 
 def abas_fora_da_analise(caminho: str, aba_excel: str | int | None) -> list[str]:
@@ -415,8 +427,7 @@ class DataProfiler:
                 reporting.exportar_json(payload, f"{saida_base}_{nome_safe}.json", json_compacto)
             if "markdown" in formatos:
                 reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
-            if "html" in formatos:
-                reporting.exportar_html(payload, f"{saida_base}_{nome_safe}.html")
+            _exportar_html_e_pdf(payload, f"{saida_base}_{nome_safe}.html", formatos)
             if "parquet" in formatos:
                 reporting.exportar_parquet(payload, saida_base, nome_safe)
             if gerar_limpeza:
@@ -447,8 +458,7 @@ class DataProfiler:
             reporting.exportar_json(payload, f"{saida_base}_{nome_safe}.json", json_compacto)
         if "markdown" in formatos:
             reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
-        if "html" in formatos:
-            reporting.exportar_html(payload, f"{saida_base}_{nome_safe}.html")
+        _exportar_html_e_pdf(payload, f"{saida_base}_{nome_safe}.html", formatos)
         if "parquet" in formatos:
             reporting.exportar_parquet(payload, saida_base, nome_safe)
         return payload

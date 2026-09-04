@@ -21,6 +21,7 @@ dependencies = [
     "rich==15.0.0",
     "tqdm==4.70.0",
     "duckdb==1.5.5",
+    "weasyprint==69.0",
 ]
 
 [project.optional-dependencies]
