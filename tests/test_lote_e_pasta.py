@@ -132,6 +132,20 @@ def test_lote_ordena_do_pior_para_o_melhor(tmp_path, monkeypatch):
     assert '<details class="tabela" open>' in html
 
 
+def test_lote_pdf_nao_deixa_html_temporario(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    limpa = pd.DataFrame({"id": range(30)})
+    limpa.to_csv(tmp_path / "a.csv", index=False)
+    limpa.to_csv(tmp_path / "b.csv", index=False)
+
+    DataProfiler().processar_lote(
+        [str(tmp_path / "a.csv"), str(tmp_path / "b.csv")], saida_base="l", formatos=["pdf"]
+    )
+
+    assert (tmp_path / "l_consolidado.pdf").read_bytes().startswith(b"%PDF")
+    assert not (tmp_path / "l_consolidado.html").exists()
+
+
 def test_lote_continua_apos_falha_e_reporta(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     pd.DataFrame({"a": range(50)}).to_csv(tmp_path / "bom.csv", index=False)

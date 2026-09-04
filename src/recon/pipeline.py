@@ -1,8 +1,9 @@
 """Orquestração do profiling: liga ingestion, semantics, statistics,
 relationships, quality e reporting."""
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
+from functools import partial
 from typing import Any
 
 import pandas as pd
@@ -36,12 +37,12 @@ EXTENSOES_EXCEL = (".xlsx", ".xls", ".xlsb")
 
 
 def _exportar_html_e_pdf(
-    payload: dict[str, Any], caminho_html: str, formatos: Sequence[str]
+    gerar_html: Callable[[str], None], caminho_html: str, formatos: Sequence[str]
 ) -> None:
     """Gera HTML visível e/ou PDF, apagando a cópia temporária quando preciso."""
     if "html" not in formatos and "pdf" not in formatos:
         return
-    reporting.exportar_html(payload, caminho_html)
+    gerar_html(caminho_html)
     if "pdf" in formatos:
         reporting.exportar_pdf_de_html(caminho_html, os.path.splitext(caminho_html)[0] + ".pdf")
     if "html" not in formatos:
@@ -462,7 +463,9 @@ class DataProfiler:
                 reporting.exportar_json(payload, f"{saida_base}_{nome_safe}.json", json_compacto)
             if "markdown" in formatos:
                 reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
-            _exportar_html_e_pdf(payload, f"{saida_base}_{nome_safe}.html", formatos)
+            _exportar_html_e_pdf(
+                partial(reporting.exportar_html, payload), f"{saida_base}_{nome_safe}.html", formatos
+            )
             if "parquet" in formatos:
                 reporting.exportar_parquet(payload, saida_base, nome_safe)
             if gerar_limpeza:
@@ -494,7 +497,9 @@ class DataProfiler:
             reporting.exportar_json(payload, f"{saida_base}_{nome_safe}.json", json_compacto)
         if "markdown" in formatos:
             reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
-        _exportar_html_e_pdf(payload, f"{saida_base}_{nome_safe}.html", formatos)
+        _exportar_html_e_pdf(
+            partial(reporting.exportar_html, payload), f"{saida_base}_{nome_safe}.html", formatos
+        )
         if "parquet" in formatos:
             reporting.exportar_parquet(payload, saida_base, nome_safe)
         return payload
@@ -542,8 +547,10 @@ class DataProfiler:
             reporting.exportar_conferencia_markdown(
                 resultado, f"{saida_base}_conferencia.md"
             )
-        if "html" in formatos:
-            reporting.exportar_conferencia_html(resultado, f"{saida_base}_conferencia.html")
+        _exportar_html_e_pdf(
+            partial(reporting.exportar_conferencia_html, resultado),
+            f"{saida_base}_conferencia.html", formatos,
+        )
         return resultado
 
     def analisar_historico(
@@ -596,8 +603,10 @@ class DataProfiler:
             reporting.exportar_json(resultado, f"{saida_base}_historico.json", json_compacto)
         if "markdown" in formatos:
             reporting.exportar_historico_markdown(resultado, f"{saida_base}_historico.md")
-        if "html" in formatos:
-            reporting.exportar_historico_html(resultado, f"{saida_base}_historico.html")
+        _exportar_html_e_pdf(
+            partial(reporting.exportar_historico_html, resultado),
+            f"{saida_base}_historico.html", formatos,
+        )
         return resultado
 
     # ── Conjunto de arquivos ────────────────────────────────────────────
@@ -647,8 +656,10 @@ class DataProfiler:
                         )
                     if "markdown" in formatos:
                         reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
-                    if "html" in formatos:
-                        reporting.exportar_html(payload, f"{saida_base}_{nome_safe}.html")
+                    _exportar_html_e_pdf(
+                        partial(reporting.exportar_html, payload),
+                        f"{saida_base}_{nome_safe}.html", formatos,
+                    )
                 tabelas.append(datamodel.TabelaCarregada(
                     nome=nome_tabela, df=df, payload=payload, origem=origem
                 ))
@@ -666,8 +677,9 @@ class DataProfiler:
             reporting.exportar_json(modelo, f"{saida_base}_modelo.json", json_compacto)
         if "markdown" in formatos:
             reporting.exportar_modelo_markdown(modelo, f"{saida_base}_modelo.md")
-        if "html" in formatos:
-            reporting.exportar_modelo_html(modelo, f"{saida_base}_modelo.html")
+        _exportar_html_e_pdf(
+            partial(reporting.exportar_modelo_html, modelo), f"{saida_base}_modelo.html", formatos
+        )
         return modelo
 
 
@@ -718,14 +730,22 @@ class DataProfiler:
                         )
                     if "markdown" in formatos:
                         reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
+                    _exportar_html_e_pdf(
+                        partial(reporting.exportar_html, payload),
+                        f"{saida_base}_{nome_safe}.html", formatos,
+                    )
                     if "parquet" in formatos:
                         reporting.exportar_parquet(payload, saida_base, nome_safe)
             except (FileNotFoundError, ingestion.IngestionError, ValueError, OSError) as e:
                 falhas.append((caminho, str(e)))
                 logger.error(f"Falha em '{caminho}': {e}")
 
-        if payloads and consolidado and "html" in formatos:
-            reporting.exportar_lote_html(
-                payloads, f"{saida_base}_consolidado.html", os.path.basename(saida_base) or "lote"
+        if payloads and consolidado:
+            _exportar_html_e_pdf(
+                partial(
+                    reporting.exportar_lote_html, payloads,
+                    titulo=os.path.basename(saida_base) or "lote",
+                ),
+                f"{saida_base}_consolidado.html", formatos,
             )
         return payloads, falhas

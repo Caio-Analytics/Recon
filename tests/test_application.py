@@ -41,6 +41,16 @@ def test_interface_executa_conferencia_e_historico(tmp_path):
     assert any(caminho.name.endswith("_historico.html") for caminho in gerados_historico)
 
 
+def test_interface_localiza_pdf_quando_e_o_unico_formato(tmp_path):
+    dados = tmp_path / "dados.csv"
+    pd.DataFrame({"id": range(20)}).to_csv(dados, index=False)
+
+    gerados, falhas = executar_analise(_acao("individual"), [str(dados)], tmp_path, ["pdf"])
+
+    assert not falhas
+    assert any(caminho.suffix == ".pdf" for caminho in gerados)
+
+
 def test_interface_expoe_contrato_validacao_e_dicionario(tmp_path):
     dados = tmp_path / "clientes.csv"
     pd.DataFrame({"id_cliente": range(20), "status": ["ativo"] * 20}).to_csv(dados, index=False)

@@ -148,7 +148,10 @@ def executar_analise(
     else:
         raise ValueError(f"Ação de interface desconhecida: {acao.chave}.")
 
-    for padrao in (f"{PREFIXO_SAIDA}*.html", f"{PREFIXO_SAIDA}*.md", f"{PREFIXO_SAIDA}*.json"):
+    for padrao in (
+        f"{PREFIXO_SAIDA}*.html", f"{PREFIXO_SAIDA}*.pdf", f"{PREFIXO_SAIDA}*.md",
+        f"{PREFIXO_SAIDA}*.json",
+    ):
         gerados = sorted(pasta_saida.glob(padrao))
         if gerados:
             return gerados, falhas
