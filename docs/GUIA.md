@@ -39,6 +39,23 @@ Informe o arquivo no comando:
 recon perfilar dados.csv --vocabularios meu-dominio.yaml
 ```
 
+### Bancos locais, APIs e arquivos em nuvem
+
+CSV, JSON e Parquet publicados por HTTPS podem ser perfilados diretamente — isso inclui links assinados de S3, Azure Blob ou Google Cloud Storage:
+
+```bash
+recon perfilar "https://servidor.exemplo/export/vendas.csv?assinatura=..."
+```
+
+Para banco local, use uma consulta somente de leitura. SQLite e DuckDB são suportados sem cadastrar credenciais:
+
+```bash
+recon fonte sqlite:///dados/vendas.db --sql "SELECT * FROM vendas"
+recon fonte duckdb:///dados/lake.duckdb --sql "SELECT * FROM fatos_venda"
+```
+
+Não coloque tokens, senhas ou strings de conexão de servidores remotos no relatório nem no Git.
+
 O mesmo parâmetro está disponível em todos os comandos que analisam uma base: perfil, lote, modelo, pasta, conferência, histórico, contrato, validação e dicionário. O vocabulário vale somente para aquela execução.
 
 ## Contratos de dados

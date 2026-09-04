@@ -9,7 +9,9 @@ import subprocess
 import sys
 import zipfile
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -81,6 +83,62 @@ class FileFormatError(IngestionError):
 
 class EncodingDetectionError(IngestionError):
     """Falha ao detectar o encoding de um arquivo CSV."""
+
+
+def _eh_url(caminho: str) -> bool:
+    return urlparse(caminho).scheme in {"http", "https"}
+
+
+def _carregar_url(url: str, limite_linhas: int | None = None) -> tuple[pd.DataFrame, str]:
+    """Lê CSV, JSON ou Parquet exposto por URL HTTPS/HTTP.
+
+    Links assinados de S3, Azure Blob e Google Cloud Storage funcionam porque
+    para o Recon continuam sendo URLs HTTPS. Autenticação fica com o provedor:
+    nunca registramos tokens na configuração da ferramenta.
+    """
+    caminho = urlparse(url).path.lower()
+    try:
+        if caminho.endswith(".parquet"):
+            quadro = pd.read_parquet(url)
+        elif caminho.endswith(".json") or caminho.endswith(".jsonl"):
+            quadro = pd.read_json(url, lines=caminho.endswith(".jsonl"))
+        else:
+            quadro = pd.read_csv(url, nrows=limite_linhas)
+    except Exception as erro:
+        raise FileFormatError(f"Falha ao ler URL '{url}': {erro}") from erro
+    nome = os.path.basename(urlparse(url).path).rsplit(".", 1)[0] or urlparse(url).netloc
+    if limite_linhas and len(quadro) >= limite_linhas:
+        quadro.attrs["motivo_amostragem"] = "Leitura de URL limitada pelo teto de amostra configurado."
+    return quadro, nome
+
+
+def carregar_consulta(conexao: str, sql: str) -> tuple[pd.DataFrame, str]:
+    """Executa somente consultas de leitura em SQLite ou DuckDB locais.
+
+    ``sqlite:///caminho/base.db`` e ``duckdb:///caminho/base.duckdb`` evitam
+    depender de servidores ou credenciais no Recon. A consulta deve iniciar
+    por ``SELECT`` ou ``WITH``; operações de escrita são bloqueadas.
+    """
+    if not sql.lstrip().lower().startswith(("select", "with")):
+        raise ValueError("A fonte SQL aceita apenas consultas SELECT ou WITH de leitura.")
+    if conexao.startswith("sqlite:///"):
+        import sqlite3
+
+        caminho = conexao.removeprefix("sqlite:///")
+        with sqlite3.connect(caminho) as banco:
+            return pd.read_sql_query(sql, banco), f"consulta_{Path(caminho).stem}"
+    if conexao.startswith("duckdb:///"):
+        try:
+            import duckdb
+        except ImportError as erro:
+            raise FileFormatError("DuckDB não está instalado; reinstale o Recon com as dependências atuais.") from erro
+        caminho = conexao.removeprefix("duckdb:///")
+        banco_duck = duckdb.connect(caminho, read_only=True)
+        try:
+            return banco_duck.execute(sql).fetchdf(), f"consulta_{Path(caminho).stem}"
+        finally:
+            banco_duck.close()
+    raise ValueError("Conexão não suportada. Use sqlite:///arquivo.db ou duckdb:///arquivo.duckdb.")
 
 
 def _validar_zip(caminho: str) -> zipfile.ZipInfo:
@@ -666,6 +724,8 @@ def carregar_arquivo(
     `detectar_layout=False` volta ao comportamento cru (cabeçalho na primeira
     linha, nada removido); `linha_cabecalho` força a linha manualmente.
     """
+    if _eh_url(caminho):
+        return _carregar_url(caminho, limite_linhas)
     if not os.path.exists(caminho):
         raise FileNotFoundError(f"Arquivo não encontrado: '{caminho}'")
 

@@ -1,4 +1,5 @@
 """Ingestão: detecção de encoding, separador e leitura de Excel."""
+import sqlite3
 import zipfile
 
 import pandas as pd
@@ -231,3 +232,37 @@ def test_memoria_macos_usa_paginas_reutilizaveis(monkeypatch):
 
     assert total == 16 * 1024**3
     assert disponivel == 35 * 16384
+
+
+def test_consulta_sqlite_e_duckdb_sao_somente_leitura(tmp_path):
+    from recon.ingestion import carregar_consulta
+
+    sqlite = tmp_path / "dados.db"
+    with sqlite3.connect(sqlite) as banco:
+        banco.execute("CREATE TABLE vendas (id INTEGER, valor REAL)")
+        banco.execute("INSERT INTO vendas VALUES (1, 10.0), (2, 20.0)")
+    quadro, nome = carregar_consulta(f"sqlite:///{sqlite}", "SELECT * FROM vendas")
+    assert len(quadro) == 2
+    assert nome == "consulta_dados"
+
+    duckdb = pytest.importorskip("duckdb")
+    banco_duck = tmp_path / "dados.duckdb"
+    with duckdb.connect(str(banco_duck)) as banco:
+        banco.execute("CREATE TABLE vendas (id INTEGER, valor DOUBLE)")
+        banco.execute("INSERT INTO vendas VALUES (1, 10.0), (2, 20.0)")
+    quadro, _ = carregar_consulta(f"duckdb:///{banco_duck}", "SELECT * FROM vendas")
+    assert quadro["valor"].sum() == 30.0
+    with pytest.raises(ValueError, match="apenas consultas"):
+        carregar_consulta(f"sqlite:///{sqlite}", "DELETE FROM vendas")
+
+
+def test_url_csv_usa_leitor_do_pandas(monkeypatch):
+    from recon import ingestion
+
+    esperado = pd.DataFrame({"id": [1, 2]})
+    monkeypatch.setattr(ingestion.pd, "read_csv", lambda url, nrows: esperado)
+
+    quadro, nome = ingestion.carregar_arquivo("https://dados.exemplo/exports/vendas.csv?assinatura=x")
+
+    assert quadro.equals(esperado)
+    assert nome == "vendas"

@@ -519,6 +519,37 @@ def revisar_semantica(
 
 
 @app.command()
+def fonte(
+    conexao: str = typer.Argument(
+        ..., help="sqlite:///arquivo.db ou duckdb:///arquivo.duckdb (banco local)."
+    ),
+    sql: str = typer.Option(..., "--sql", help="Consulta SELECT ou WITH a analisar."),
+    saida_base: str = _OPCAO_SAIDA,
+    formatos: str = _OPCAO_FORMATOS,
+    json_compacto: bool = _OPCAO_JSON_COMPACTO,
+    limite_amostra: int = _OPCAO_LIMITE,
+    kpis: str | None = _OPCAO_KPIS,
+    vocabularios: str | None = _OPCAO_VOCABULARIOS,
+) -> None:
+    """Perfila uma consulta de leitura em SQLite ou DuckDB local.
+
+    Para CSV, JSON ou Parquet hospedado, inclusive links assinados de nuvem,
+    use diretamente ``recon perfilar https://...``. Credenciais e comandos de
+    escrita não fazem parte deste fluxo.
+    """
+    setup_logging()
+    try:
+        profiler = _construir_profiler(limite_amostra, kpis, vocabularios)
+        profiler.processar_consulta(
+            conexao, sql, saida_base=saida_base,
+            formatos=_parsear_formatos(formatos), json_compacto=json_compacto,
+        )
+    except (FileNotFoundError, IngestionError, ValueError, OSError) as e:
+        typer.secho(f"Erro: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+
+@app.command()
 def janela() -> None:
     """Abre o Recon em janela, sem terminal.
 

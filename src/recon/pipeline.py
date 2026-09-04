@@ -464,6 +464,30 @@ class DataProfiler:
             resultados.append(payload)
         return resultados
 
+    def processar_consulta(
+        self,
+        conexao: str,
+        sql: str,
+        saida_base: str = "profiler_output",
+        formatos: Sequence[str] = FORMATOS_PADRAO,
+        json_compacto: bool = False,
+    ) -> dict[str, Any]:
+        """Perfila uma consulta de leitura em banco local suportado."""
+        quadro, nome_tabela = ingestion.carregar_consulta(conexao, sql)
+        if quadro.empty:
+            raise ValueError("A consulta não retornou linhas para analisar.")
+        payload = self.processar_dataframe(quadro, nome_tabela)
+        nome_safe = reporting.gerar_nome_unico(nome_tabela, set())
+        if "json" in formatos:
+            reporting.exportar_json(payload, f"{saida_base}_{nome_safe}.json", json_compacto)
+        if "markdown" in formatos:
+            reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
+        if "html" in formatos:
+            reporting.exportar_html(payload, f"{saida_base}_{nome_safe}.html")
+        if "parquet" in formatos:
+            reporting.exportar_parquet(payload, saida_base, nome_safe)
+        return payload
+
 
     # ── Conferência entre versões ───────────────────────────────────────
     def conferir_versoes(
