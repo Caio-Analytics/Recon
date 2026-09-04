@@ -343,3 +343,15 @@ def test_conferencia_html_renderiza_variacao_sem_drift_e_drift_sem_variacao(tmp_
     somente_drift = tmp_path / "drift.html"
     exportar_conferencia_html({**base, "variacoes_de_coluna": [], "drifts_de_distribuicao": [drift]}, str(somente_drift))
     assert "Categorias mudaram." in somente_drift.read_text(encoding="utf-8")
+
+
+def test_perfil_pdf_e_gerado_a_partir_do_html(tmp_path):
+    from recon.pipeline import DataProfiler
+
+    origem = tmp_path / "vendas.csv"
+    origem.write_text("id,valor\n1,10\n2,20\n", encoding="utf-8")
+
+    DataProfiler().processar_arquivo(str(origem), saida_base=str(tmp_path / "perfil"), formatos=["pdf"])
+
+    pdf = tmp_path / "perfil_vendas.pdf"
+    assert pdf.read_bytes().startswith(b"%PDF")

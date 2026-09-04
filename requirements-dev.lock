@@ -6,18 +6,26 @@
 #
 annotated-doc==0.0.5
     # via typer
+brotli==1.2.0
+    # via fonttools
 build==1.6.0
     # via pip-tools
+cffi==2.1.1
+    # via weasyprint
 charset-normalizer==3.5.0
     # via recon (pyproject.toml)
 click==8.5.0
     # via pip-tools
 coverage==7.16.0
     # via pytest-cov
+cssselect2==0.10.1
+    # via weasyprint
 duckdb==1.5.5
     # via recon (pyproject.toml)
 et-xmlfile==2.0.0
     # via openpyxl
+fonttools==4.64.0
+    # via weasyprint
 greenlet==3.5.5
     # via playwright
 iniconfig==2.3.0
@@ -61,6 +69,8 @@ pathspec==1.1.1
     # via mypy
 patsy==1.0.3
     # via statsmodels
+pillow==12.3.0
+    # via weasyprint
 pip-tools==7.6.1
     # via recon (pyproject.toml)
 playwright==1.62.0
@@ -71,12 +81,18 @@ pluggy==1.6.0
     #   pytest-cov
 pyarrow==25.0.1
     # via recon (pyproject.toml)
+pycparser==3.0
+    # via cffi
+pydyf==0.12.1
+    # via weasyprint
 pyee==13.0.1
     # via playwright
 pygments==2.21.0
     # via
     #   pytest
     #   rich
+pyphen==0.18.1
+    # via weasyprint
 pyproject-hooks==1.2.0
     # via
     #   build
@@ -111,6 +127,12 @@ six==1.17.0
     # via python-dateutil
 statsmodels==0.14.6
     # via recon (pyproject.toml)
+tinycss2==1.5.1
+    # via
+    #   cssselect2
+    #   weasyprint
+tinyhtml5==2.1.0
+    # via weasyprint
 tqdm==4.70.0
     # via recon (pyproject.toml)
 typer==0.27.1
@@ -123,10 +145,19 @@ typing-extensions==4.16.0
     #   pyee
 unidecode==1.4.0
     # via recon (pyproject.toml)
+weasyprint==69.0
+    # via recon (pyproject.toml)
+webencodings==0.6.1
+    # via
+    #   cssselect2
+    #   tinycss2
+    #   tinyhtml5
 wheel==0.48.0
     # via pip-tools
 xlrd==2.0.2
     # via recon (pyproject.toml)
+zopfli==0.4.3
+    # via fonttools
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip

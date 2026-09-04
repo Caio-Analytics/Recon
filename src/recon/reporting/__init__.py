@@ -9,6 +9,7 @@ from ._html import exportar_html
 from ._lote import exportar_lote_html
 from ._markdown import exportar_markdown
 from ._modelo import exportar_modelo_html, exportar_modelo_markdown
+from ._pdf import exportar_pdf_de_html
 from ._serialize import (
     exportar_json,
     exportar_parquet,
@@ -30,6 +31,7 @@ __all__ = [
     "exportar_modelo_html",
     "exportar_modelo_markdown",
     "exportar_parquet",
+    "exportar_pdf_de_html",
     "gerar_nome_unico",
     "nome_seguro",
     "sanear_floats",

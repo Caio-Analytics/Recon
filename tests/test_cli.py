@@ -94,7 +94,7 @@ def test_perfilar_com_formatos_customizados(tmp_path, monkeypatch):
 def test_formato_invalido_e_rejeitado(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     resultado = runner.invoke(
-        app, ["perfilar", str(_csv(tmp_path)), "--formatos", "pdf"]
+        app, ["perfilar", str(_csv(tmp_path)), "--formatos", "xml"]
     )
     assert resultado.exit_code != 0
 

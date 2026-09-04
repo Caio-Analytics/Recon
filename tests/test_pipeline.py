@@ -209,7 +209,7 @@ def test_formato_invalido_levanta_value_error(tmp_path):
     pd.DataFrame({"a": range(10)}).to_csv(caminho, index=False)
 
     with pytest.raises(ValueError, match="inválido"):
-        DataProfiler().processar_arquivo(str(caminho), formatos=["pdf"])
+        DataProfiler().processar_arquivo(str(caminho), formatos=["xml"])
 
 
 def test_coluna_de_nome_sai_do_relatorio_mascarada():

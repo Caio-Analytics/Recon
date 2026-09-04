@@ -50,6 +50,7 @@ FORMATOS_INTERFACE: tuple[tuple[str, str, str], ...] = (
     ("html", "HTML", "abre no navegador — é o relatório para ler e compartilhar"),
     ("json", "JSON", "dados estruturados para integrações ou automação"),
     ("markdown", "Markdown", "texto para wiki, ticket ou documentação"),
+    ("pdf", "PDF", "versão estática para anexar ou imprimir"),
 )
 PREFIXO_SAIDA = "recon"
 
