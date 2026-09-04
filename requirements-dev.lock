@@ -14,6 +14,8 @@ click==8.5.0
     # via pip-tools
 coverage==7.16.0
     # via pytest-cov
+duckdb==1.5.5
+    # via recon (pyproject.toml)
 et-xmlfile==2.0.0
     # via openpyxl
 greenlet==3.5.5
