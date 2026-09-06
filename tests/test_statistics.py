@@ -43,6 +43,29 @@ def test_coluna_chave_primaria_potencial():
     assert "Chave Primária Potencial" in resultado["caracteristica"]
 
 
+def test_chave_potencial_separa_ausencias_de_duplicidade():
+    resultado = analisar_estatisticas(
+        pd.Series([f"pessoa_{i}" for i in range(951)] + [None] * 49, name="codigo_pessoa"),
+        total_linhas=1000,
+    )
+
+    assert "Chave Primária Potencial" in resultado["caracteristica"]
+    assert "4.9% ausentes" in resultado["caracteristica"]
+    assert resultado["ratio_unicidade"] == 0.951
+    assert resultado["ratio_unicidade_preenchidos"] == 1.0
+
+
+def test_chave_potencial_desconsidera_sentinela_de_ausencia():
+    resultado = analisar_estatisticas(
+        pd.Series([f"pessoa_{i}" for i in range(980)] + ["N/A"] * 20, name="codigo_pessoa"),
+        total_linhas=1000,
+    )
+
+    assert "Chave Primária Potencial" in resultado["caracteristica"]
+    assert "2.0% ausentes" in resultado["caracteristica"]
+    assert resultado["ratio_unicidade_preenchidos"] == 1.0
+
+
 def test_metrica_continua_nao_e_classificada_como_quase_chave():
     rng = np.random.default_rng(3)
     serie = pd.Series(np.round(rng.lognormal(8.5, 0.4, 5000), 2), name="salario_bruto")

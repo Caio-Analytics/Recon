@@ -197,6 +197,7 @@ class DataProfiler:
                 "Semantica_Hipoteses": sem["hipoteses"],
                 "Qtd_Unicos": stats["valores_unicos"],
                 "Ratio_Unicidade": stats["ratio_unicidade"],
+                "Ratio_Unicidade_Preenchidos": stats["ratio_unicidade_preenchidos"],
                 "Qtd_Nulos": stats["nulos_qtd"],
                 "Pct_Nulos": stats["nulos_pct"],
                 "Caracteristica": statistics.ajustar_caracteristica_com_semantica(

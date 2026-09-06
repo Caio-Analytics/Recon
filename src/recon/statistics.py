@@ -218,6 +218,7 @@ def _classificar_caracteristica(
     ratio_unicidade: float,
     top_freq: float,
     tipo_amigavel: str,
+    n_ausentes: int = 0,
 ) -> str:
     if n_validos == 0:
         return "⚠️ Coluna 100% Vazia"
@@ -231,7 +232,17 @@ def _classificar_caracteristica(
     
     elegivel_chave = tipo_amigavel in config.TIPOS_ELEGIVEIS_CHAVE
     if elegivel_chave and total_linhas > 1:
-        if ratio_unicidade == 1.0:
+        
+        
+        
+        
+        if n_unicos == n_validos:
+            if n_ausentes:
+                pct_ausentes = n_ausentes / total_linhas if total_linhas else 0.0
+                return (
+                    "🔑 Chave Primária Potencial "
+                    f"({pct_ausentes:.1%} ausentes desconsiderados)"
+                )
             return "🔑 Chave Primária Potencial"
         if ratio_unicidade >= config.THRESHOLD_QUASE_CHAVE:
             
@@ -459,13 +470,6 @@ def analisar_estatisticas(
                 qualidade["formato"] = patterns.inferir_formato(amostra_str)
 
     
-    ratio_unicidade = n_unicos / total_linhas if total_linhas > 0 else 0.0
-    top_freq = float(contagens.iloc[0]) / n_validos if (n_validos > 0 and n_unicos > 1) else 0.0
-
-    caracteristica = _classificar_caracteristica(
-        n_validos, n_unicos, total_linhas, ratio_unicidade, top_freq, tipo_amigavel
-    )
-
     
     
     
@@ -474,6 +478,23 @@ def analisar_estatisticas(
     qualidade["nulos_efetivos_qtd"] = nulos_efetivos
     qualidade["nulos_efetivos_pct"] = (
         round(nulos_efetivos / total_linhas * 100, 4) if total_linhas > 0 else 0.0
+    )
+
+    
+    
+    
+    
+    qtd_valores_sentinela = len(qualidade.get("sentinelas", {}).get("valores", []))
+    n_validos_chave = max(0, n_validos - sentinela_qtd)
+    n_unicos_chave = max(0, n_unicos - qtd_valores_sentinela)
+    ratio_unicidade = n_unicos / total_linhas if total_linhas > 0 else 0.0
+    ratio_unicidade_preenchidos = (
+        n_unicos_chave / n_validos_chave if n_validos_chave > 0 else 0.0
+    )
+    top_freq = float(contagens.iloc[0]) / n_validos if (n_validos > 0 and n_unicos > 1) else 0.0
+    caracteristica = _classificar_caracteristica(
+        n_validos_chave, n_unicos_chave, total_linhas, ratio_unicidade_preenchidos,
+        top_freq, tipo_amigavel, nulos_efetivos,
     )
 
     valores_amostra: list[str] = []
@@ -502,6 +523,7 @@ def analisar_estatisticas(
         "nulos_pct": nulos_pct,
         "caracteristica": caracteristica,
         "ratio_unicidade": round(ratio_unicidade, 4),
+        "ratio_unicidade_preenchidos": round(ratio_unicidade_preenchidos, 4),
         "amostra_representativa": valores_amostra,
         "estatisticas_adicionais": estatisticas_extra,
         "qualidade": qualidade,

@@ -216,6 +216,7 @@ def gerar_recomendacoes_etl(
     
     
     if "Chave Primária Potencial" in caracteristica:
+        ausentes = int(qualidade.get("nulos_efetivos_qtd", stats["nulos_qtd"]))
         if sensivel:
             recomendacoes.append(_base(
                 nome_tabela, coluna, PRIORIDADE_MEDIA, "Silver",
@@ -225,10 +226,15 @@ def gerar_recomendacoes_etl(
                 n_validos, pct_validos,
             ))
         else:
+            ressalva = (
+                f" Os valores preenchidos são únicos, mas há {ausentes:,} ausência(s); "
+                "trate a completude antes de impor NOT NULL."
+                if ausentes else ""
+            )
             recomendacoes.append(_base(
                 nome_tabela, coluna, PRIORIDADE_MEDIA, "Silver",
                 f"Promover '{coluna}' como PK. {stats['valores_unicos']:,} valores únicos "
-                "garantem integridade.",
+                f"não se repetem entre os registros preenchidos.{ressalva}",
                 n_validos, pct_validos,
             ))
 

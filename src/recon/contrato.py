@@ -38,7 +38,7 @@ def gerar_contrato(payload: dict[str, Any]) -> dict[str, Any]:
         }
         
         
-        if not amostrado and float(coluna.get("Ratio_Unicidade", 0)) >= 0.999:
+        if not amostrado and float(coluna.get("Ratio_Unicidade_Preenchidos", coluna.get("Ratio_Unicidade", 0))) >= 0.999:
             registro["unica"] = True
 
         extras = coluna.get("Stats_Extra") or {}
@@ -182,7 +182,7 @@ def conferir_contrato(payload: dict[str, Any], contrato: dict[str, Any]) -> dict
                 f"{esperada['max_pct_nulos']:.1f}%.",
             ))
 
-        if esperada.get("unica") and float(atual.get("Ratio_Unicidade", 0)) < 0.999:
+        if esperada.get("unica") and float(atual.get("Ratio_Unicidade_Preenchidos", atual.get("Ratio_Unicidade", 0))) < 0.999:
             violacoes.append(_violacao(
                 "🔴 ALTA", "Chave duplicada", nome,
                 f"'{nome}' era única e agora repete valores "
