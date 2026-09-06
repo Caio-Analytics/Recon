@@ -13,28 +13,40 @@ from ._graficos import CSS_GRAFICOS, barra_completude, graficos_da_coluna
 
 _CSS = CSS_GRAFICOS + """
 :root {
-  --fundo: #ffffff; --fundo-alt: #f6f7f9; --borda: #e2e5ea;
-  --texto: #1a1d21; --texto-fraco: #5c636e; --acento: #2563eb;
+  color-scheme: light dark;
+  --fundo: #f8fafc; --fundo-alt: #ffffff; --superficie-suave: #eef4ff; --borda: #d8e2f0;
+  --texto: #10233f; --texto-fraco: #4b607b; --acento: #1e40af;
   --alta: #dc2626; --media: #d97706; --baixa: #059669;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fundo: #14171a; --fundo-alt: #1c2024; --borda: #2c3138;
-    --texto: #e6e8eb; --texto-fraco: #9aa2ad; --acento: #60a5fa;
+    --fundo: #08111f; --fundo-alt: #0e1b2e; --superficie-suave: #102642; --borda: #294567;
+    --texto: #edf4ff; --texto-fraco: #b5c6dc; --acento: #60a5fa;
     --alta: #f87171; --media: #fbbf24; --baixa: #34d399;
   }
 }
+:root[data-tema="claro"] {
+  --fundo: #f8fafc; --fundo-alt: #ffffff; --superficie-suave: #eef4ff; --borda: #d8e2f0;
+  --texto: #10233f; --texto-fraco: #4b607b; --acento: #1e40af;
+  --alta: #dc2626; --media: #d97706; --baixa: #059669;
+}
+:root[data-tema="escuro"] {
+  --fundo: #08111f; --fundo-alt: #0e1b2e; --superficie-suave: #102642; --borda: #294567;
+  --texto: #edf4ff; --texto-fraco: #b5c6dc; --acento: #60a5fa;
+  --alta: #f87171; --media: #fbbf24; --baixa: #34d399;
+}
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
   margin: 0; padding: 2rem 1.25rem 4rem; background: var(--fundo); color: var(--texto);
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  scroll-behavior: smooth;
 }
 main { max-width: 1180px; margin: 0 auto; }
-.cabecalho-relatorio { padding: .25rem 0 1.25rem; }
+.cabecalho-relatorio { padding: 1.4rem 1.5rem; margin-bottom: 1.25rem; background: var(--fundo-alt);
+  border: 1px solid var(--borda); border-radius: 18px; box-shadow: 0 12px 30px color-mix(in srgb, #10233f 7%, transparent); }
 .cabecalho-relatorio .marca { color: var(--acento); text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 700; }
 .navegacao { position: sticky; top: .75rem; z-index: 3; margin: 0 0 1.5rem; padding: .75rem;
-  background: color-mix(in srgb, var(--fundo) 94%, transparent); backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--fundo-alt) 94%, transparent); backdrop-filter: blur(12px);
   border: 1px solid var(--borda); border-radius: 12px; box-shadow: 0 8px 24px color-mix(in srgb, #000 14%, transparent); }
 .navegacao-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 0 0 .55rem; }
 .navegacao-titulo { color: var(--texto); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
@@ -47,31 +59,43 @@ main { max-width: 1180px; margin: 0 auto; }
 .navegacao a.ativa { color: #fff; background: var(--acento); border-color: var(--acento); font-weight: 650; }
 .acoes-rapidas { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .85rem; }
 .acoes-rapidas button { cursor: pointer; color: var(--acento); border: 1px solid color-mix(in srgb, var(--acento) 45%, var(--borda));
-  background: transparent; border-radius: 7px; padding: .42rem .7rem; font: inherit; font-size: .82rem; font-weight: 600; }
+  background: var(--superficie-suave); border-radius: 7px; padding: .42rem .7rem; font: inherit; font-size: .82rem; font-weight: 600; }
 .acoes-rapidas button:hover { color: #fff; background: var(--acento); }
+.painel-exploracao { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: 1rem;
+  padding-top: 1rem; border-top: 1px solid var(--borda); }
+.painel-exploracao .rotulo-painel { color: var(--texto-fraco); font-size: .78rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; margin-right: .15rem; }
+.painel-exploracao button { cursor: pointer; color: var(--texto); background: var(--fundo-alt); border: 1px solid var(--borda);
+  border-radius: 7px; padding: .42rem .7rem; font: inherit; font-size: .82rem; font-weight: 600; }
+.painel-exploracao button:hover { color: #fff; background: var(--acento); border-color: var(--acento); }
 .filtros { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 1rem 0; }
 .filtros input, .filtros select { padding: .45rem .6rem; border: 1px solid var(--borda); border-radius: 6px;
-  background: var(--fundo); color: var(--texto); }
+  background: var(--fundo-alt); color: var(--texto); }
+.filtros button { cursor: pointer; color: var(--texto); background: var(--fundo-alt); border: 1px solid var(--borda);
+  border-radius: 6px; padding: .45rem .7rem; font: inherit; font-weight: 600; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible,
+th[role="button"]:focus-visible, .coluna h3[role="button"]:focus-visible { outline: 3px solid var(--acento); outline-offset: 3px; }
 .coluna.oculta { display: none; }
+.sem-graficos .coluna svg, .sem-graficos .coluna .legenda-completude { display: none; }
 .coluna.compacta ul, .coluna.compacta svg, .coluna.compacta .legenda-completude { display: none; }
 .coluna h3 { cursor: pointer; }
-th.ordenavel { cursor: pointer; user-select: none; }
-h1 { font-size: 1.7rem; margin: 0 0 .25rem; }
-h2 { font-size: 1.2rem; margin: 2.5rem 0 .75rem; padding-bottom: .35rem;
+th.ordenavel, th[role="button"] { cursor: pointer; user-select: none; }
+h1 { font-size: clamp(1.65rem, 4vw, 2.25rem); line-height: 1.15; margin: .25rem 0 .4rem; }
+h2 { font-size: 1.25rem; margin: 2.5rem 0 .75rem; padding-bottom: .35rem;
      border-bottom: 1px solid var(--borda); }
 h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
 p.sub { color: var(--texto-fraco); margin: 0 0 1.5rem; }
-code { background: var(--fundo-alt); padding: .1em .35em; border-radius: 4px;
+code { background: var(--superficie-suave); padding: .1em .35em; border-radius: 4px;
        font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.cartoes { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0 0; }
+.cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; margin: 1rem 0 0; }
 .cartao { flex: 1 1 150px; background: var(--fundo-alt); border: 1px solid var(--borda);
-          border-radius: 10px; padding: .8rem 1rem; }
+          border-radius: 12px; padding: .9rem 1rem; }
 .cartao .rotulo { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
                   color: var(--texto-fraco); }
 .cartao .valor { font-size: 1.5rem; font-weight: 600; margin-top: .15rem; }
 .score { display: flex; align-items: center; gap: 1.25rem; background: var(--fundo-alt);
          border: 1px solid var(--borda); border-radius: 12px; padding: 1.1rem 1.4rem; }
-.resumo-executivo { margin: 1.25rem 0 2rem; padding: 1.1rem; background: color-mix(in srgb, var(--fundo-alt) 70%, var(--fundo)); border: 1px solid var(--borda); border-radius: 14px; }
+.resumo-executivo { margin: 1.25rem 0 2rem; padding: 1.1rem 1.25rem; background: var(--superficie-suave); border: 1px solid var(--borda); border-radius: 14px; }
 .resumo-executivo h2 { margin: 0 0 .85rem; padding: 0; border: 0; font-size: 1rem; }
 .score .nota { font-size: 2.6rem; font-weight: 700; line-height: 1; }
 .score .barra { flex: 1; height: 10px; background: var(--borda); border-radius: 999px;
@@ -81,14 +105,14 @@ code { background: var(--fundo-alt); padding: .1em .35em; border-radius: 4px;
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 th, td { text-align: left; padding: .5rem .65rem; border-bottom: 1px solid var(--borda);
          vertical-align: top; }
-th { position: sticky; top: 0; background: var(--fundo); font-weight: 600;
+th { position: sticky; top: 0; background: var(--fundo-alt); font-weight: 600;
      color: var(--texto-fraco); font-size: .78rem; text-transform: uppercase;
      letter-spacing: .03em; }
 tbody tr:hover { background: var(--fundo-alt); }
 .tag { display: inline-block; padding: .1em .5em; border-radius: 999px; font-size: .72rem;
        font-weight: 600; border: 1px solid currentColor; white-space: nowrap; }
 .p-alta { color: var(--alta); } .p-media { color: var(--media); } .p-baixa { color: var(--baixa); }
-.coluna { border: 1px solid var(--borda); border-radius: 10px; padding: .9rem 1.1rem;
+.coluna { border: 1px solid var(--borda); border-radius: 12px; padding: .9rem 1.1rem;
           margin-bottom: .75rem; background: var(--fundo-alt); }
 .coluna h3 { margin: 0 0 .1rem; font-size: .98rem; }
 .coluna .meta { color: var(--texto-fraco); font-size: .82rem; margin-bottom: .5rem; }
@@ -96,8 +120,19 @@ tbody tr:hover { background: var(--fundo-alt); }
 .coluna li { margin: .15rem 0; }
 .alerta { color: var(--media); }
 .vazio { color: var(--texto-fraco); font-style: italic; }
+.resultado-filtro { color: var(--texto-fraco); font-size: .85rem; }
+@media (max-width: 640px) {
+  body { padding: 1rem .75rem 2.5rem; font-size: 14px; }
+  .cabecalho-relatorio { padding: 1.1rem; border-radius: 14px; }
+  .navegacao { top: .35rem; margin-bottom: 1rem; }
+  .navegacao-cabecalho { align-items: flex-start; flex-direction: column; gap: .15rem; }
+  .score { align-items: flex-start; flex-direction: column; gap: .75rem; }
+  .cartoes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  th, td { padding: .45rem .55rem; }
+}
 @media print {
-  body { padding: 0; } .navegacao, .acoes-rapidas { display: none; } .coluna, .cartao, .score { break-inside: avoid; }
+  body { padding: 0; background: #fff; color: #111; font-size: 11pt; } .navegacao, .acoes-rapidas, .painel-exploracao, .filtros { display: none; }
+  .cabecalho-relatorio, .coluna, .cartao, .score, .resumo-executivo { break-inside: avoid; box-shadow: none; }
   th { position: static; }
 }
 """
@@ -137,30 +172,54 @@ _SCRIPT_INTERATIVO = """
     window.addEventListener('scroll', atualizarAtiva, {passive: true});
     atualizarAtiva();
     const acoes = document.createElement('div'); acoes.className = 'acoes-rapidas';
-    [['⚠ Ver problemas prioritários', 'Principais problemas'], ['⌕ Explorar colunas', 'Detalhe por coluna']].forEach(([rotulo, nome]) => {
+    [['Ver problemas prioritários', 'Principais problemas'], ['Explorar colunas', 'Detalhe por coluna']].forEach(([rotulo, nome]) => {
       const destino = secoes.find(h => h.textContent === nome); if (!destino) return;
       const botao = document.createElement('button'); botao.type = 'button'; botao.textContent = rotulo;
       botao.addEventListener('click', () => destino.scrollIntoView({behavior: 'smooth', block: 'start'})); acoes.append(botao);
     });
     main.querySelector('.cabecalho-relatorio')?.append(acoes);
+    const painel = document.createElement('div'); painel.className = 'painel-exploracao';
+    painel.innerHTML = '<span class="rotulo-painel">Explorar relatório</span><button type="button" data-acao="tema">Alternar tema</button><button type="button" data-acao="graficos">Ocultar gráficos</button><button type="button" data-acao="imprimir">Imprimir ou salvar em PDF</button>';
+    const raiz = document.documentElement;
+    const tema = painel.querySelector('[data-acao="tema"]');
+    const aplicarTema = valor => { if (valor) raiz.dataset.tema = valor; else delete raiz.dataset.tema; tema.textContent = raiz.dataset.tema === 'escuro' ? 'Usar tema claro' : 'Usar tema escuro'; };
+    try { aplicarTema(localStorage.getItem('recon-tema')); } catch (_) { aplicarTema(null); }
+    tema.addEventListener('click', () => { const proximo = raiz.dataset.tema === 'escuro' ? 'claro' : 'escuro'; aplicarTema(proximo); try { localStorage.setItem('recon-tema', proximo); } catch (_) {} });
+    const graficos = painel.querySelector('[data-acao="graficos"]');
+    graficos.addEventListener('click', () => { main.classList.toggle('sem-graficos'); graficos.textContent = main.classList.contains('sem-graficos') ? 'Mostrar gráficos' : 'Ocultar gráficos'; });
+    painel.querySelector('[data-acao="imprimir"]').addEventListener('click', () => window.print());
+    main.querySelector('.cabecalho-relatorio')?.append(painel);
   }
   const detalhe = document.querySelectorAll('.coluna');
   if (detalhe.length) {
     const filtros = document.createElement('div'); filtros.className = 'filtros';
-    filtros.innerHTML = '<label>Buscar coluna <input type="search" placeholder="nome, tipo ou semântica"></label><button type="button">Expandir tudo</button>';
-    const input = filtros.querySelector('input'), botao = filtros.querySelector('button');
-    const aplicar = () => { const termo = input.value.toLowerCase(); detalhe.forEach(c => c.classList.toggle('oculta', !c.textContent.toLowerCase().includes(termo))); };
+    filtros.innerHTML = '<label for="busca-colunas">Buscar coluna</label><input id="busca-colunas" type="search" placeholder="nome, tipo ou semântica"><label for="filtro-colunas">Mostrar</label><select id="filtro-colunas"><option value="todas">Todas</option><option value="atencao">Com atenção</option><option value="lgpd">Com dado pessoal</option></select><button type="button">Expandir tudo</button><span class="resultado-filtro" aria-live="polite"></span>';
+    const input = filtros.querySelector('input'), seletor = filtros.querySelector('select'), botao = filtros.querySelector('button'), resultado = filtros.querySelector('.resultado-filtro');
+    const aplicar = () => { const termo = input.value.toLowerCase(); let visiveis = 0; detalhe.forEach(c => { const correspondeTexto = c.textContent.toLowerCase().includes(termo); const correspondeTipo = seletor.value === 'todas' || (seletor.value === 'atencao' && c.dataset.atencao === 'true') || (seletor.value === 'lgpd' && c.dataset.sensivel === 'true'); const mostrar = correspondeTexto && correspondeTipo; c.classList.toggle('oculta', !mostrar); if (mostrar) visiveis += 1; }); resultado.textContent = `${visiveis} coluna(s) exibida(s)`; };
     input.addEventListener('input', aplicar);
+    seletor.addEventListener('change', aplicar);
     botao.addEventListener('click', () => { const compacto = [...detalhe].some(c => c.classList.contains('compacta')); detalhe.forEach(c => c.classList.toggle('compacta', !compacto)); botao.textContent = compacto ? 'Recolher detalhes' : 'Expandir tudo'; });
     const titulo = [...document.querySelectorAll('h2')].find(h => h.textContent === 'Detalhe por coluna'); titulo?.after(filtros);
-    detalhe.forEach(c => c.querySelector('h3')?.addEventListener('click', () => c.classList.toggle('compacta')));
-    detalhe.forEach(c => c.classList.add('compacta'));
+    detalhe.forEach(c => {
+      const titulo = c.querySelector('h3'); if (!titulo) return;
+      const alternar = () => { c.classList.toggle('compacta'); titulo.setAttribute('aria-expanded', String(!c.classList.contains('compacta'))); };
+      titulo.setAttribute('role', 'button'); titulo.setAttribute('tabindex', '0'); titulo.setAttribute('aria-expanded', 'false');
+      titulo.addEventListener('click', alternar);
+      titulo.addEventListener('keydown', evento => { if (evento.key === 'Enter' || evento.key === ' ') { evento.preventDefault(); alternar(); } });
+      c.classList.add('compacta');
+    });
+    aplicar();
   }
-  document.querySelectorAll('th').forEach((th, index) => th.addEventListener('click', () => {
+  document.querySelectorAll('th').forEach((th, index) => {
+    th.setAttribute('role', 'button'); th.setAttribute('tabindex', '0'); th.setAttribute('aria-label', `${th.textContent}: ordenar tabela`);
+    const ordenar = () => {
     const tabela = th.closest('table'), corpo = tabela?.tBodies[0]; if (!corpo) return;
     const asc = th.dataset.asc !== '1'; [...corpo.rows].sort((a,b) => a.cells[index].innerText.localeCompare(b.cells[index].innerText, 'pt-BR', {numeric:true}) * (asc ? 1 : -1)).forEach(l => corpo.append(l));
     tabela.querySelectorAll('th').forEach(h => { delete h.dataset.asc; h.classList.remove('ordenavel'); }); th.dataset.asc = asc ? '1' : '0'; th.classList.add('ordenavel');
-  }));
+    };
+    th.addEventListener('click', ordenar);
+    th.addEventListener('keydown', evento => { if (evento.key === 'Enter' || evento.key === ' ') { evento.preventDefault(); ordenar(); } });
+  });
 })();
 """
 
@@ -297,7 +356,8 @@ def _bloco_coluna(coluna: dict[str, Any]) -> str:
             f"{_num(otim.get('economia_mb'))} MB ({_pct(otim.get('economia_pct'))})"
         )
 
-    for alerta in _alertas_coluna(coluna):
+    alertas = _alertas_coluna(coluna)
+    for alerta in alertas:
         itens.append(f'<span class="alerta">{_e(alerta)}</span>')
 
     semantica = _e(coluna["Semantica_IA"])
@@ -314,8 +374,11 @@ def _bloco_coluna(coluna: dict[str, Any]) -> str:
     ) if completude else ""
 
     lista = "".join(f"<li>{item}</li>" for item in itens)
+    tem_atencao = bool(alertas) or float(coluna.get("Pct_Nulos", 0) or 0) > 0
+    sensivel = coluna.get("Dado_Sensivel_LGPD", "Nenhum") != "Nenhum"
     return (
-        f'<div class="coluna"><h3><code>{_e(coluna["Coluna"])}</code></h3>'
+        f'<div class="coluna" data-atencao="{str(tem_atencao).lower()}" '
+        f'data-sensivel="{str(sensivel).lower()}"><h3><code>{_e(coluna["Coluna"])}</code></h3>'
         f'<div class="meta">{_e(coluna["Tipo_Inferred"])} · {semantica} · '
         f'{_e(coluna["Caracteristica"])}</div>'
         f'{completude}{legenda}{graficos_da_coluna(coluna)}'

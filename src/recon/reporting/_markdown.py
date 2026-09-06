@@ -245,7 +245,13 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
     score = meta.get("score_qualidade", {})
     duplicatas = meta.get("duplicatas", {})
 
-    partes: list[str] = [f"# Relatório de Perfilamento — {meta['tabela']}", ""]
+    partes: list[str] = [
+        f"# Relatório de Perfilamento — {meta['tabela']}",
+        "",
+        "> **Como ler:** comece pela leitura rápida e pela qualidade geral. Depois, "
+        "priorize os problemas e consulte o detalhe por coluna quando precisar investigar.",
+        "",
+    ]
 
     insights = payload.get("insights_textuais") or []
     if insights:

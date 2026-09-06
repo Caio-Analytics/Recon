@@ -28,6 +28,25 @@ def test_payload_traz_leitura_textual_com_evidencias(df_rh_exemplo):
     assert any("`" in insight for insight in resultado["insights_textuais"])
 
 
+def test_insight_temporal_de_admissao_nao_sugere_causalidade():
+    from recon.insights import gerar_insights_textuais
+
+    payload = {
+        "colunas": [
+            {"Coluna": "date_of_birth", "Semantica_IA": config.SEMANTICA_DATA_CALENDARIO},
+            {"Coluna": "hire_date", "Semantica_IA": config.SEMANTICA_DATA_CALENDARIO},
+            {"Coluna": "salary", "Semantica_IA": "Valor Financeiro"},
+        ],
+        "analise_temporal_series": [{"coluna": "salary", "coluna_temporal_referencia": "hire_date"}],
+        "metadados_execucao": {},
+    }
+
+    textos = gerar_insights_textuais(payload)
+
+    assert any("coortes de admissão" in texto and "causalidade" in texto for texto in textos)
+    assert not any("date_of_birth" in texto for texto in textos)
+
+
 def test_vocabulario_customizado_nao_vaza_para_a_execucao_seguinte(tmp_path, df_rh_exemplo):
     from recon import config
 

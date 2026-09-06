@@ -166,9 +166,10 @@ def exportar_lote_html(payloads: list[dict[str, Any]], caminho: str, titulo: str
         )
 
     partes = [
-        f"<h1>Perfilamento em lote — {_e(titulo)}</h1>",
+        '<header class="cabecalho-relatorio"><div class="marca">Recon · comparação de qualidade</div>'
+        f"<h1>Perfilamento em lote — {_e(titulo)}</h1>"
         f'<p class="sub">{len(perfis)} arquivo(s) · {total_linhas:,} linhas no total. '
-        "A tabela abaixo ordena do pior para o melhor: comece por cima.</p>",
+        "A tabela abaixo ordena do pior para o melhor: comece por cima.</p></header>",
         '<div class="cartoes">'
         + "".join(
             f'<div class="cartao"><div class="rotulo">{_e(r)}</div>'

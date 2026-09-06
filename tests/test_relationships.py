@@ -257,6 +257,28 @@ def test_analise_temporal_ignora_colunas_de_chave():
     assert "valor" in colunas
 
 
+def test_analise_temporal_nao_usa_nascimento_quando_ha_admissao():
+    n = 200
+    inicio = date(2020, 1, 1)
+    df = pd.DataFrame({
+        "date_of_birth": pd.to_datetime([date(1970, 1, 1) + timedelta(days=i) for i in range(n)]),
+        "hire_date": pd.to_datetime([inicio + timedelta(days=i) for i in range(n)]),
+        "salary": np.linspace(3_000, 7_000, n),
+    })
+    meta = [
+        _meta_temporal("date_of_birth", config.TIPO_DATA_HORA, config.SEMANTICA_DATA_CALENDARIO,
+                       "📅 Série Temporal"),
+        _meta_temporal("hire_date", config.TIPO_DATA_HORA, config.SEMANTICA_DATA_CALENDARIO,
+                       "📅 Série Temporal"),
+        _meta_temporal("salary", "Número Decimal", "Valor Financeiro"),
+    ]
+
+    resultado = relationships.analisar_series_temporais(df, meta)
+
+    assert resultado
+    assert {serie["coluna_temporal_referencia"] for serie in resultado} == {"hire_date"}
+
+
 def test_analise_temporal_data_iso_como_texto_nao_emite_warning(recwarn):
     n = 200
     datas = [(date(2022, 1, 1) + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(n)]

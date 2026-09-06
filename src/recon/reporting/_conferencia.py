@@ -32,6 +32,9 @@ def exportar_conferencia_markdown(payload: dict[str, Any], caminho: str) -> None
     partes = [
         f"# Conferência — `{p['tabela_a']}` × `{p['tabela_b']}`",
         "",
+        "> **Como ler:** veja primeiro o que merece atenção; em seguida, confira "
+        "alterações de schema, registros e comportamento das colunas.",
+        "",
         f"- Linhas: **{p['linhas_a']:,}** → **{p['linhas_b']:,}**"
         + (f" ({p['variacao_linhas']:+.1%})" if p.get("variacao_linhas") is not None else ""),
         f"- Colunas em comum: **{p['colunas_comuns']}**",
@@ -96,9 +99,10 @@ def exportar_conferencia_markdown(payload: dict[str, Any], caminho: str) -> None
 def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
     p = payload
     partes: list[str] = [
-        f"<h1>Conferência — {_e(p['tabela_a'])} × {_e(p['tabela_b'])}</h1>",
+        '<header class="cabecalho-relatorio"><div class="marca">Recon · comparação de versões</div>'
+        f"<h1>Conferência — {_e(p['tabela_a'])} × {_e(p['tabela_b'])}</h1>"
         '<p class="sub">O que mudou entre as duas versões da mesma base: schema, '
-        "volume, registros e comportamento das colunas.</p>",
+        "volume, registros e comportamento das colunas.</p></header>",
     ]
 
     variacao = (

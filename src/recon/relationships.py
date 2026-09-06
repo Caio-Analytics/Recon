@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from itertools import combinations
 from typing import Any
+from unicodedata import normalize
 
 import numpy as np
 import pandas as pd
@@ -500,6 +501,22 @@ _FREQUENCIAS_AGREGACAO = (("D", "diária"), ("W", "semanal"), ("ME", "mensal"))
 _MIN_PONTOS_AGREGADOS = config.ADF_MIN_N
 
 
+def _prioridade_referencia_temporal(meta: dict[str, Any]) -> int | None:
+    nome = normalize("NFKD", str(meta.get("Coluna", ""))).encode("ascii", "ignore").decode()
+    tokens = set(nome.lower().replace("-", "_").split("_"))
+    if tokens & {"birth", "birthday", "dob", "nascimento", "nasc", "idade", "age"}:
+        return None
+    
+    
+    if "hire" in tokens:
+        return 0
+    if tokens & {"admissao", "admission", "join", "joining", "contratacao", "inicio", "start"}:
+        return 1
+    if tokens & {"evento", "event", "venda", "sale", "pedido", "order", "transacao", "transaction"}:
+        return 2
+    return 3
+
+
 def _escolher_coluna_referencia(
     df: pd.DataFrame, colunas_meta: list[dict[str, Any]]
 ) -> tuple[str, pd.Series] | None:
@@ -516,7 +533,14 @@ def _escolher_coluna_referencia(
     if not candidatas:
         return None
 
-    col = min(candidatas, key=lambda m: m["Pct_Nulos"])["Coluna"]
+    priorizadas = [
+        (prioridade, indice, meta)
+        for indice, meta in enumerate(candidatas)
+        if (prioridade := _prioridade_referencia_temporal(meta)) is not None
+    ]
+    if not priorizadas:
+        return None
+    col = min(priorizadas, key=lambda item: (item[0], item[2]["Pct_Nulos"], item[1]))[2]["Coluna"]
     if col not in df.columns:
         return None
 

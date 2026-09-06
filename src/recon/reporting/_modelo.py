@@ -59,7 +59,13 @@ def _preambulo_carregamento(payload: dict[str, Any]) -> str:
 
 def exportar_modelo_markdown(payload: dict[str, Any], caminho: str) -> None:
     meta = payload["metadados_execucao"]
-    partes: list[str] = [f"# Modelo de Dados Inferido — {meta['conjunto']}", ""]
+    partes: list[str] = [
+        f"# Modelo de Dados Inferido — {meta['conjunto']}",
+        "",
+        "> **Como ler:** valide primeiro as tabelas e os relacionamentos. Use as análises "
+        "sugeridas somente depois de revisar os avisos de integridade.",
+        "",
+    ]
     partes.append(
         f"- Tabelas: {meta['total_tabelas']} | Relacionamentos: "
         f"{meta['total_relacionamentos']} | Análises sugeridas: "
@@ -170,10 +176,11 @@ def _bloco_compostos_html(payload: dict[str, Any]) -> str:
 def exportar_modelo_html(payload: dict[str, Any], caminho: str) -> None:
     meta = payload["metadados_execucao"]
     partes: list[str] = [
-        f"<h1>Modelo de Dados Inferido — {_e(meta['conjunto'])}</h1>",
+        '<header class="cabecalho-relatorio"><div class="marca">Recon · relações entre tabelas</div>'
+        f"<h1>Modelo de Dados Inferido — {_e(meta['conjunto'])}</h1>"
         f'<p class="sub">{meta["total_tabelas"]} tabelas · '
         f'{meta["total_relacionamentos"]} relacionamentos · '
-        f'{meta["total_analises_sugeridas"]} análises sugeridas</p>',
+        f'{meta["total_analises_sugeridas"]} análises sugeridas</p></header>',
     ]
 
     partes.append("<h2>Tabelas</h2><div class='tabela-wrap'><table><thead><tr>"

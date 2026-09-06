@@ -14,7 +14,15 @@ def _e(valor: Any) -> str:
 
 
 def exportar_historico_markdown(payload: dict[str, Any], caminho: str) -> None:
-    linhas = ["# Histórico de qualidade", "", payload["resumo"], ""]
+    linhas = [
+        "# Histórico de qualidade",
+        "",
+        "> **Como ler:** compare o score e o volume entre as extrações; use os alertas para "
+        "identificar onde a qualidade ou a estrutura mudou.",
+        "",
+        payload["resumo"],
+        "",
+    ]
     linhas.extend([
         "| Extração | Linhas | Colunas | Score | Nulos | Recomendações |",
         "|---|---:|---:|---:|---:|---:|",

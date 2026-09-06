@@ -31,7 +31,6 @@ def gerar_insights_textuais(payload: dict[str, Any]) -> list[str]:
         coluna for coluna in ids
         if "Chave Primária Potencial" in coluna.get("Caracteristica", "")
     ]
-    datas = por_semantica.get(config.SEMANTICA_DATA_CALENDARIO, [])
     valores = por_semantica.get("Valor Financeiro", [])
     atributos = [
         coluna for coluna in colunas
@@ -41,18 +40,34 @@ def gerar_insights_textuais(payload: dict[str, Any]) -> list[str]:
     dominios = {str(coluna.get("Dominio")) for coluna in colunas if coluna.get("Dominio")}
     insights: list[str] = []
 
+    series_temporais = payload.get("analise_temporal_series") or []
+    coluna_temporal = series_temporais[0]["coluna_temporal_referencia"] if series_temporais else None
+    medidas_temporais = {
+        serie["coluna"] for serie in series_temporais if serie.get("coluna")
+    }
+    valores_temporais = [coluna for coluna in valores if coluna.get("Coluna") in medidas_temporais]
+
     if "Comercial / CRM" in dominios and valores:
         texto = "A tabela tem sinais de uma base comercial"
-        if datas:
-            texto += " com registro ao longo do tempo"
+        if coluna_temporal:
+            texto += f" com uma referência temporal em `{coluna_temporal}`"
         texto += f", pois reúne {_nomes(valores)} como valor financeiro"
         if atributos:
             texto += f" e atributos como {_nomes(atributos)}"
         insights.append(texto + ".")
-    elif datas and valores:
-        insights.append(
-            f"A tabela permite acompanhar {_nomes(valores)} ao longo do tempo usando {_nomes(datas)}."
-        )
+    elif coluna_temporal and valores_temporais:
+        nome_temporal = str(coluna_temporal).lower()
+        if any(token in nome_temporal for token in ("hire", "admission", "admissao", "contratacao")):
+            insights.append(
+                f"É possível comparar {_nomes(valores_temporais)} entre coortes de admissão "
+                f"usando `{coluna_temporal}`. Isso descreve associação entre coortes, não "
+                "evolução salarial individual nem causalidade."
+            )
+        else:
+            insights.append(
+                f"É possível resumir {_nomes(valores_temporais)} por período usando "
+                f"`{coluna_temporal}`. A leitura é descritiva e não estabelece causalidade."
+            )
     elif atributos:
         insights.append(
             f"A base é adequada para segmentação por atributos como {_nomes(atributos)}."
