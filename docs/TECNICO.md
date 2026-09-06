@@ -1,6 +1,6 @@
 # Recon — Documentação Técnica
 
-Versão 3.0 · Referência de implementação
+Versão 3.0 · Referência de implementação conferida em 2026-09-06
 
 Este documento descreve **como** o Recon funciona por dentro: módulos,
 fluxo de dados, contrato de saída, critérios de cada análise, pontos de
@@ -8,7 +8,15 @@ extensão e limitações. Para *o que* ele faz e como usar, veja o `README.md`.
 Para *por que* foi desenhado assim, veja
 `docs/specs/2026-08-15-recon-v3-design.md`.
 
----
+## Navegação
+
+- [Requisitos e instalação](#2-requisitos-e-instalação)
+- [Mapa de módulos](#3-mapa-de-módulos)
+- [Fluxo de dados](#4-fluxo-de-dados)
+- [Contrato de saída](#5-contrato-de-saída-json)
+- [Critérios de análise](#6-critérios-de-cada-análise)
+- [Pontos de extensão](#7-pontos-de-extensão)
+- [Performance, testes e limites](#8-performance-medida)
 
 ## 1. Posicionamento
 
@@ -24,7 +32,7 @@ dados nem de serviço externo.
   que exija compilação fora de wheel publicada.
 - Sem banco: o consumo é em pandas sobre arquivo. O código gerado sai em
   pandas primeiro, SQL como alternativa.
-- Entrada é planilha, frequentemente montada por pessoa — não export limpo.
+- Entrada é planilha, frequentemente montada manualmente, não export limpo.
 
 ---
 
@@ -34,7 +42,7 @@ dados nem de serviço externo.
 |---|---|
 | Python | ≥ 3.12 (piso real de `numpy` 2.5 e `scipy` 1.18) |
 | Validado em | 3.14 (registrado em `.python-version`) |
-| Dependências | pandas, numpy, pyarrow, openpyxl, xlrd, pyxlsb, charset-normalizer, rapidfuzz, unidecode, scipy, statsmodels, pyyaml, loguru, typer, tqdm |
+| Dependências | pandas, numpy, pyarrow, openpyxl, xlrd, pyxlsb, charset-normalizer, rapidfuzz, unidecode, scipy, statsmodels, pyyaml, loguru, typer, tqdm e WeasyPrint |
 | Extra `gui` | PySide6 (instalado com `.[gui]`) |
 | Extra `dev` | pytest, pytest-cov, pandas-stubs, types-PyYAML, mypy, ruff |
 
@@ -72,10 +80,8 @@ src/recon/
 ├── pipeline.py          DataProfiler — orquestração
 ├── application.py       casos de uso compartilhados pela interface Qt
 ├── interativo.py        menu do terminal (`recon` sem argumento)
+├── gui_qt.py            interface PySide6 atual (`recon janela`, `Recon.pyw`)
 ├── gui.py               interface Tk legada (compatibilidade)
-│                        tema escuro (paleta GitHub em `CORES`, tema `clam`),
-│                        navegação lateral e seletor de formato
-├── gui_qt.py            interface PySide6 (`recon janela`, `Recon.pyw`)
 └── cli.py               perfilar · modelar · lote · pasta · conferir · histórico · contrato
 ```
 
@@ -87,16 +93,12 @@ src/recon/
 3. Módulos e arquivos em inglês técnico; funções, campos e chaves de saída em
    português.
 4. Nenhum módulo de análise importa `reporting` ou `cli`.
-5. `interativo.py` e `gui.py` são cascas de apresentação sobre `DataProfiler`:
-   coletam as mesmas quatro respostas (arquivos, ação, saída, script de
-   limpeza) e chamam o pipeline. Regra de análise que aparecer neles está no
-   lugar errado — o teste disso é que a CLI, o menu e a janela produzem
-   exatamente o mesmo relatório para a mesma entrada.
-6. Na `gui.py`, o pipeline roda numa thread de trabalho e só se comunica com a
-   interface por uma `queue.Queue` drenada num `after` — o Tk é single-thread,
-   e widget tocado de fora da thread da interface trava ou corrompe a janela.
-   `processar_arquivo` leva minutos: chamado no callback do botão, congelaria
-   a janela em "Não Responde", e o usuário mataria o processo no meio.
+5. `interativo.py`, `application.py` e as interfaces são cascas de apresentação
+   sobre `DataProfiler`. Regra de análise não deve ser implementada nelas: CLI,
+   menu e janela precisam produzir o mesmo relatório para a mesma entrada.
+6. A janela Qt executa a análise fora da thread de interface e atualiza a tela
+   por sinais. A interface Tk permanece apenas por compatibilidade e segue a
+   mesma regra de não bloquear a thread visual.
 
 ---
 
@@ -465,8 +467,9 @@ kpis:
 
 ## 8. Performance medida
 
-Medições reais nesta máquina (Python 3.14, dados simulando extração de
-sistema legado, todas as análises ligadas):
+Medições registradas em ambiente local com Python 3.14, dados simulando
+extração de sistema legado e todas as análises ligadas. Elas são referência de
+ordem de grandeza, não compromisso de desempenho para outra máquina:
 
 | Base | Tempo | Pico de RAM | Fase dominante |
 |---|---|---|---|
@@ -476,9 +479,9 @@ sistema legado, todas as análises ligadas):
 | 600k × 50 amostrado para 200k | 10,5 s | — | — |
 | `modelar` com 400k×25 + 100k×70 | 22,7 s | — | — |
 
-Custo aproximado: **RAM ≈ 5–6× o tamanho do CSV**; tempo ≈ linear em linhas ×
-colunas. Exportação (JSON, Markdown, HTML, Parquet, script) é desprezível —
-menos de 0,1 s no total, com saídas de 0,05 a 0,3 MB.
+Custo aproximado: **RAM ≈ 5–6× o tamanho do CSV**; tempo aproximadamente
+linear em linhas × colunas. Exportação de JSON, Markdown, HTML, Parquet e
+script foi inferior a 0,1 s nessa medição, com saídas de 0,05 a 0,3 MB.
 
 `limite_amostra` padrão é 2.000.000 de linhas. Amostrar troca correção por
 tempo: numa amostra, duplicata e unicidade só podem ser subestimadas, o que
@@ -490,28 +493,25 @@ relatórios sinalizam quando houve amostragem.
 ## 9. Testes
 
 ```bash
-pytest -q                        # 381 testes
-pytest --cov=recon           # ~91% de cobertura
-ruff check src tests && mypy     # ambos limpos
+pytest -q
+pytest --cov=recon
+ruff check src tests && mypy
 ```
 
-Os testes da janela (`test_gui.py`) se dividem em dois grupos: as regras puras
-— resolução da pasta de saída, validação da seleção, tradução de exceção —
-rodam em qualquer lugar, e é para poder testá-las sem display que elas ficam
-fora da classe `JanelaRecon`. Os que abrem janela de verdade pulam sozinhos
-onde não há ambiente gráfico (`pytest.skip`), e cobrem o que só quebra na
-integração: o clique devolver o controle na hora, o log do pipeline chegar na
-área de mensagens e os controles continuarem alcançáveis em tela baixa.
+Os testes da janela e da camada de aplicação se dividem em dois grupos: regras
+puras, como resolução da pasta de saída e validação da seleção, rodam em
+qualquer lugar. Os que abrem uma janela podem ser ignorados quando não há
+ambiente gráfico e cobrem o que só aparece na integração, como responsividade,
+progresso e controles alcançáveis em tela baixa.
 
-Organização: um arquivo por módulo, mais `test_cenarios.py` com três
-situações de ponta a ponta — base com 60% das linhas contaminadas em várias
-dimensões simultâneas; duas tabelas sem chave em comum (o relatório precisa
-dizer que não há relação, não inventar uma); e tabela com chave compatível
-mas sem nenhuma medida.
+Organização: um arquivo por módulo, mais `test_cenarios.py` com situações de
+ponta a ponta: base com 60% das linhas contaminadas em várias dimensões; duas
+tabelas sem chave em comum, que não devem gerar relação inventada; e tabela
+com chave compatível, mas sem medida.
 
 Convenção: **cada bug corrigido vira um teste nomeado** cujo docstring
-explica o que quebrava e por quê. Metade dos testes de layout verifica a
-*não* detecção — heurística que se engana em arquivo bem formado é pior que
+explica o que quebrava e por quê. Parte dos testes de layout verifica a
+*não* detecção: uma heurística que se engana em arquivo bem formado é pior que
 não ter heurística.
 
 ---
@@ -522,8 +522,8 @@ não ter heurística.
 |---|---|
 | Pesos de confiança não calibrados | os números da cascata semântica vêm de julgamento, não de ajuste sobre corpus rotulado |
 | Threshold fuzzy de 0,85 é frouxo | `unica_coluna` casa com `unidade`; com a decisão agora por peso combinado, caberia baixar o piso e deixar o peso proporcional |
-| Sem leitura em blocos | arquivo maior que a RAM não é suportado; o arquivo inteiro é lido antes de amostrar |
-| Sem paralelização | colunas processadas em série, embora as funções sejam puras |
+| Paralelização dependente do ambiente | a descrição por coluna só usa processos em carga alta e plataformas com `fork` ou `forkserver`; em Windows e macOS segue sequencial |
+| Leitura em blocos com cobertura parcial | CSVs grandes podem ser amostrados durante a leitura; métricas dependentes de unicidade e duplicata exigem confirmação na base completa |
 | Gazetteer de municípios | só as 27 capitais |
 | Sentinela textual em CSV | `read_csv` já converte `N/A`, `NA`, `NULL`, `#N/A` em nulo por padrão; o detector agrega valor sobretudo em Excel e para sentinelas fora dessa lista (`-`, `SEM INFORMACAO`, `#N/D`) |
 | Sem reaproveitamento entre fases | chamar as fases isoladas e depois o pipeline recomputa tudo; impede uso incremental da API |
@@ -535,6 +535,5 @@ não ter heurística.
 
 - Monitoramento de drift entre execuções.
 - Geração de asserções para dbt / Great Expectations.
-- Qualquer backend de processamento externo (model components, local model local) — foi implementado e
-  **removido**: a cascata determinística resolve o caso de uso e a dependência
-  não cabe na máquina alvo.
+- Backend de processamento externo, incluindo model components e modelos locais. A inferência é
+  determinística para manter a ferramenta local e compatível com a máquina alvo.

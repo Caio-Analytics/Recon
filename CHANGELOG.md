@@ -1,14 +1,16 @@
-# Changelog
+# Evolução do Recon
 
-Resumo de alto nível da evolução do Recon, por tema (não por versão — consulte
-`git log` para o histórico completo de commits).
+Resumo da evolução por marcos, não por versões. Para commits, datas precisas e
+alterações entre versões, consulte `git log` e as releases do repositório.
 
-## Evoluções em desenvolvimento
+## Estado atual
 
-- Isolamento de vocabulários semânticos por execução, inclusive em análises concorrentes.
+- Vocabulários semânticos isolados por execução, inclusive em análises concorrentes.
 - Interface Qt com fluxos de perfil, lote, relações, conferência de versões e histórico.
 - Histórico visual de qualidade, score com metodologia explícita e agregação temporal coerente com a semântica da métrica.
 - CI em Python 3.12, 3.13 e 3.14, cobertura mínima de 75% e construção do pacote.
+
+O [backlog](docs/BACKLOG.md) reúne o que ainda é apenas proposta.
 
 ## Fundação (Fase 1)
 

@@ -1,17 +1,19 @@
-# Recon v3 — Design da arquitetura atual
+# Recon v3: design da arquitetura
 
 Data: 2026-08-15
 Status: Implementado
 Substitui: `2026-08-05-data-profiler-v2-fase1-design.md` (Fase 1, v2.0)
 
+> Este documento registra as decisões do lançamento v3. Para comportamento,
+> comandos e limitações atuais, consulte a [documentação técnica](../TECNICO.md).
+
 ## O que a ferramenta é
 
-**A ferramenta que se roda *antes* de começar a análise de verdade.**
+**Uma ferramenta usada antes de iniciar a análise.**
 
-Não é componente de pipeline. Não monitora nada ao longo do tempo. Não gera
-contrato de dados para CI. É o que alguém abre quando recebe um arquivo — ou
-cinco — que nunca viu, e precisa saber o que dá para usar antes de investir
-meio dia estudando o dado.
+Não é componente de pipeline. Não monitora continuamente nem gera contrato de
+dados para CI. É usada quando alguém recebe um arquivo, ou vários, que ainda
+não conhece e precisa entender antes de investir tempo na análise.
 
 O alvo é um analista experiente que quer **pular a fase de entender o
 arquivo** e começar o trabalho real com boa parte do caminho andado.
@@ -23,8 +25,8 @@ arquivo** e começar o trabalho real com boa parte do caminho andado.
   fora do que já vem em wheel.
 - **Sem banco de dados**: o consumo é em pandas, sobre arquivo. Por isso o
   código gerado sai em pandas primeiro e SQL como alternativa.
-- **Entrada é planilha**, frequentemente montada por gente — não export limpo
-  de sistema.
+- **Entrada é planilha**, frequentemente montada manualmente, não uma
+  exportação limpa de sistema.
 
 ## Arquitetura
 
