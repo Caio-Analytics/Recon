@@ -6,6 +6,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,12 @@ ACOES_INTERFACE: tuple[AcaoAnalise, ...] = (
                 "Contrato YAML de referência"),
     AcaoAnalise("dicionario", "Documentar", "Gerar dicionário de dados",
                 "Cria uma planilha XLSX com tipos, exemplos, semântica e recomendações de cada coluna.", 1, "#38bdf8"),
+    AcaoAnalise("url", "Fonte remota", "Analisar dados por URL",
+                "Lê um CSV, JSON ou Parquet por link HTTP(S), inclusive URL assinada, sem salvar credenciais.", 1, "#a78bfa", 1),
+    AcaoAnalise("consulta", "Banco local", "Analisar consulta local",
+                "Executa somente SELECT ou WITH em SQLite ou DuckDB local e perfila o resultado.", 0, "#fbbf24", 0),
+    AcaoAnalise("semantica", "Revisar", "Revisar classificações semânticas",
+                "Gera um YAML para você confirmar ou corrigir a leitura dos campos antes das próximas análises.", 1, "#5eead4", 1),
 )
 
 FORMATOS_INTERFACE: tuple[tuple[str, str, str], ...] = (
@@ -59,6 +66,13 @@ def resolver_pasta_saida(escolha: str, arquivos: Sequence[str]) -> Path:
 
 
 def validar_selecao(acao: AcaoAnalise, arquivos: Sequence[str]) -> str | None:
+    if acao.chave == "url":
+        url = arquivos[0].strip() if arquivos else ""
+        if urlparse(url).scheme not in {"http", "https"}:
+            return "Informe uma URL iniciada por http:// ou https://."
+        return None
+    if acao.chave == "consulta":
+        return None
     if len(arquivos) < acao.minimo:
         return f"'{acao.titulo}' precisa de pelo menos {acao.minimo} arquivo(s)."
     if acao.maximo is not None and len(arquivos) > acao.maximo:
@@ -76,6 +90,9 @@ def executar_analise(
     formatos: Sequence[str],
     vocabularios: str | None = None,
     arquivo_auxiliar: str | None = None,
+    nome_contrato: str | None = None,
+    conexao: str | None = None,
+    sql: str | None = None,
 ) -> tuple[list[Path], list[tuple[str, str]]]:
     from .pipeline import DataProfiler
 
@@ -103,7 +120,11 @@ def executar_analise(
 
         quadro, nome = carregar_arquivo(caminhos[0], limite_linhas=profiler.limite_amostra)
         contrato = contrato_mod.gerar_contrato(profiler.processar_dataframe(quadro, nome))
-        destino = pasta_saida / f"{PREFIXO_SAIDA}_contrato.yaml"
+        nome = (nome_contrato or f"{PREFIXO_SAIDA}_contrato.yaml").strip()
+        caminho_nome = Path(nome)
+        if caminho_nome.name != nome or caminho_nome.suffix.lower() not in {".yaml", ".yml"}:
+            raise ValueError("O nome do contrato deve terminar em .yaml ou .yml e não pode incluir pastas.")
+        destino = pasta_saida / caminho_nome
         contrato_mod.salvar_contrato(contrato, str(destino))
         return [destino], falhas
     elif acao.chave == "validar":
@@ -137,6 +158,20 @@ def executar_analise(
             payloads.append(profiler.processar_dataframe(quadro, nome))
         destino = pasta_saida / f"{PREFIXO_SAIDA}_dicionario.xlsx"
         reporting.exportar_dicionario_xlsx(payloads, str(destino))
+        return [destino], falhas
+    elif acao.chave == "url":
+        profiler.processar_arquivo(caminhos[0], saida_base=saida_base, formatos=escolhidos)
+    elif acao.chave == "consulta":
+        if not conexao or not sql:
+            raise ValueError("Informe a conexão local e uma consulta SELECT ou WITH.")
+        profiler.processar_consulta(conexao, sql, saida_base=saida_base, formatos=escolhidos)
+    elif acao.chave == "semantica":
+        from . import semantics
+        from .ingestion import carregar_arquivo
+
+        quadro, nome = carregar_arquivo(caminhos[0], limite_linhas=profiler.limite_amostra)
+        destino = pasta_saida / f"{PREFIXO_SAIDA}_correcoes_semanticas.yaml"
+        semantics.exportar_modelo_de_correcoes(profiler.processar_dataframe(quadro, nome), str(destino))
         return [destino], falhas
     else:
         raise ValueError(f"Ação de interface desconhecida: {acao.chave}.")

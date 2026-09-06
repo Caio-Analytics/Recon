@@ -1,3 +1,5 @@
+import sqlite3
+
 import pandas as pd
 
 from recon.application import (
@@ -66,3 +68,34 @@ def test_interface_expoe_contrato_validacao_e_dicionario(tmp_path):
     assert not falhas and not falhas_dicionario
     assert "Validação de contrato" in validacao[0].read_text(encoding="utf-8")
     assert dicionario[0].name == "recon_dicionario.xlsx"
+
+
+def test_interface_permite_nomear_o_contrato_para_reuso(tmp_path):
+    dados = tmp_path / "clientes.csv"
+    pd.DataFrame({"id_cliente": range(20)}).to_csv(dados, index=False)
+
+    gerados, falhas = executar_analise(
+        _acao("contrato"), [str(dados)], tmp_path, ["html"], nome_contrato="clientes_v1.yaml"
+    )
+
+    assert not falhas
+    assert gerados == [tmp_path / "clientes_v1.yaml"]
+
+
+def test_interface_expoe_consulta_local_e_revisao_semantica(tmp_path):
+    banco = tmp_path / "clientes.db"
+    with sqlite3.connect(banco) as conexao:
+        conexao.execute("CREATE TABLE clientes (id INTEGER, nome TEXT)")
+        conexao.execute("INSERT INTO clientes VALUES (1, 'Ana')")
+
+    consulta, falhas = executar_analise(
+        _acao("consulta"), [], tmp_path, ["html"],
+        conexao=f"sqlite:///{banco}", sql="SELECT * FROM clientes",
+    )
+    dados = tmp_path / "clientes.csv"
+    pd.DataFrame({"id": [1, 2], "nome": ["Ana", "Bia"]}).to_csv(dados, index=False)
+    revisao, falhas_revisao = executar_analise(_acao("semantica"), [str(dados)], tmp_path, ["html"])
+
+    assert not falhas and not falhas_revisao
+    assert any(caminho.suffix == ".html" for caminho in consulta)
+    assert revisao == [tmp_path / "recon_correcoes_semanticas.yaml"]

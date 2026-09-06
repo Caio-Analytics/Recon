@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QStackedWidget,
     QVBoxLayout,
@@ -32,29 +33,39 @@ from PySide6.QtWidgets import (
 from . import application
 
 _ESTILO = """
-QMainWindow { background: #0b1120; color: #e5e7eb; font-family: Segoe UI, Inter, Ubuntu, sans-serif; font-size: 14px; }
-QWidget#raiz { background: #0b1120; color: #e5e7eb; }
-QLabel { background: transparent; }
-QFrame#topo { background: #111a2e; border: 1px solid #25324c; border-radius: 14px; }
-QFrame#cartao { background: #131d31; border: 1px solid #293852; border-radius: 14px; }
-QFrame#cartao:hover { background: #17233a; border-color: #6685bb; }
-QFrame#painel { background: #131d31; border: 1px solid #293852; border-radius: 14px; }
-QLabel#marca { color: #c4b5fd; font-size: 26px; font-weight: 800; letter-spacing: 1px; }
-QLabel#titulo { color: #f8fafc; font-size: 30px; font-weight: 750; }
-QLabel#subtitulo, QLabel#descricao, QLabel#contador { color: #aab7cf; }
-QLabel#cartao_titulo { color: #f8fafc; font-size: 19px; font-weight: 700; }
-QLabel#cartao_descricao { color: #b8c5db; font-size: 14px; }
-QListWidget, QLineEdit, QPlainTextEdit, QComboBox { background: #0b1325; border: 1px solid #33435f; border-radius: 8px; padding: 8px; selection-background-color: #7655d9; }
-QListWidget::item { padding: 7px; border-bottom: 1px solid #202e47; }
-QPushButton { background: #22304a; border: 1px solid #3a4b6b; border-radius: 8px; padding: 10px 15px; font-weight: 650; }
-QPushButton:hover { background: #2c3d5d; border-color: #7d96c4; }
-QPushButton#primario { background: #8056df; border-color: #8056df; color: white; }
-QPushButton#primario:hover { background: #956dff; border-color: #956dff; }
-QPushButton#voltar { border: none; color: #93c5fd; text-align: left; padding-left: 0; }
-QPushButton:disabled { color: #8b98ae; background: #202b40; border-color: #202b40; }
-QCheckBox { spacing: 7px; color: #e5e7eb; }
-QProgressBar { background: #0b1325; border: 1px solid #33435f; border-radius: 6px; text-align: center; height: 12px; }
-QProgressBar::chunk { background: #8056df; border-radius: 5px; }
+QMainWindow { background: #111827; color: #e5edf7; font-family: Segoe UI, Inter, Ubuntu, sans-serif; font-size: 14px; }
+QWidget#raiz, QWidget#conteudo_menu { background: #111827; color: #e5edf7; }
+QLabel { background: transparent; color: #e5edf7; }
+QFrame#topo { background: #172033; border: 1px solid #334155; border-radius: 16px; }
+QFrame#cartao, QFrame#painel { background: #172033; border: 1px solid #334155; border-radius: 14px; }
+QFrame#painel { border-radius: 16px; }
+QFrame#cartao:hover { background: #1e293b; border-color: #60a5fa; }
+QLabel#marca { color: #93c5fd; font-size: 26px; font-weight: 800; letter-spacing: 1px; }
+QLabel#titulo, QLabel#cartao_titulo { color: #f8fafc; font-weight: 750; }
+QLabel#titulo { font-size: 30px; }
+QLabel#cartao_titulo { font-size: 19px; }
+QLabel#subtitulo, QLabel#descricao, QLabel#contador { color: #b8c6d9; }
+QLabel#cartao_descricao { color: #d1dbea; font-size: 14px; }
+QListWidget, QLineEdit, QPlainTextEdit, QComboBox { background: #0f172a; border: 1px solid #475569; border-radius: 9px; padding: 9px; color: #e5edf7; selection-background-color: #1e40af; }
+QLineEdit::placeholder, QPlainTextEdit::placeholder { color: #94a3b8; }
+QListWidget::item { padding: 8px; border-bottom: 1px solid #263449; }
+QListWidget::item:selected { background: #1e3a8a; color: #ffffff; }
+QPushButton { background: #263449; border: 1px solid #52657d; border-radius: 9px; min-height: 24px; padding: 9px 15px; color: #e5edf7; font-weight: 650; }
+QPushButton:hover { background: #334155; border-color: #93c5fd; }
+QPushButton#primario { background: #1e40af; border-color: #3b82f6; color: white; }
+QPushButton#primario:hover { background: #2563eb; border-color: #bfdbfe; }
+QPushButton#voltar { background: transparent; border: none; color: #93c5fd; font-size: 14px; font-weight: 650; min-height: 20px; padding: 4px 0; text-align: left; }
+QPushButton#voltar:hover { background: transparent; color: #dbeafe; }
+QPushButton:disabled { color: #7f8ea3; background: #1b2738; border-color: #2b3b50; }
+QPushButton:focus, QLineEdit:focus, QComboBox:focus, QListWidget:focus, QCheckBox:focus { border: 2px solid #fbbf24; }
+QCheckBox { spacing: 7px; color: #e5edf7; }
+QCheckBox::indicator { width: 17px; height: 17px; border: 1px solid #64748b; border-radius: 4px; background: #0f172a; }
+QCheckBox::indicator:checked { background: #2563eb; border-color: #93c5fd; }
+QProgressBar { background: #0f172a; border: 1px solid #475569; border-radius: 6px; text-align: center; height: 12px; }
+QProgressBar::chunk { background: #3b82f6; border-radius: 5px; }
+QScrollArea { border: none; background: transparent; }
+QScrollBar:vertical { background: #172033; width: 10px; margin: 2px; }
+QScrollBar::handle:vertical { background: #52657d; min-height: 28px; border-radius: 5px; }
 """
 
 _DESCRICOES_MENU = {
@@ -66,6 +77,9 @@ _DESCRICOES_MENU = {
     "contrato": "Congele uma referência revisável para saber o que uma carga futura deve manter.",
     "validar": "Use um contrato existente para verificar se a nova extração continua dentro do combinado.",
     "dicionario": "Documente uma ou várias bases em uma planilha pronta para filtrar e compartilhar.",
+    "url": "Analise um arquivo hospedado sem precisar baixá-lo manualmente.",
+    "consulta": "Leia o resultado de uma consulta segura em um banco local.",
+    "semantica": "Gere um arquivo revisável para confirmar o significado de cada campo.",
 }
 
 _DETALHES_MENU = {
@@ -101,6 +115,18 @@ _DETALHES_MENU = {
         "Exemplo prático",
         "Preciso entregar uma descrição clara dos campos de vendas, clientes e produtos para outra área.",
     ),
+    "url": (
+        "Exemplo prático",
+        "Recebi um link assinado para clientes.csv e quero analisá-lo diretamente.",
+    ),
+    "consulta": (
+        "Exemplo prático",
+        "Tenho vendas.db e quero perfilar somente o resultado de um SELECT revisado.",
+    ),
+    "semantica": (
+        "Exemplo prático",
+        "Quero revisar se campos como código, nome e status foram classificados corretamente.",
+    ),
 }
 
 
@@ -119,6 +145,9 @@ class Trabalho(QObject):
         nivel_diagnostico: str,
         vocabularios: str | None,
         arquivo_auxiliar: str | None,
+        nome_contrato: str | None,
+        conexao: str | None,
+        sql: str | None,
     ) -> None:
         super().__init__()
         self.acao = acao
@@ -128,6 +157,9 @@ class Trabalho(QObject):
         self.nivel_diagnostico = nivel_diagnostico
         self.vocabularios = vocabularios
         self.arquivo_auxiliar = arquivo_auxiliar
+        self.nome_contrato = nome_contrato
+        self.conexao = conexao
+        self.sql = sql
 
     def executar(self) -> None:
         niveis = {"Normal": "WARNING", "Detalhado": "INFO", "Técnico": "DEBUG"}
@@ -142,6 +174,9 @@ class Trabalho(QObject):
                 self.acao, self.arquivos, self.saida, formatos=self.formatos,
                 vocabularios=self.vocabularios,
                 arquivo_auxiliar=self.arquivo_auxiliar,
+                nome_contrato=self.nome_contrato,
+                conexao=self.conexao,
+                sql=self.sql,
             )
             self.terminou.emit([str(caminho) for caminho in gerados], falhas)
         except Exception:
@@ -157,6 +192,7 @@ class CartaoModo(QFrame):
     ) -> None:
         super().__init__()
         self.setObjectName("cartao")
+        self.setMinimumHeight(188)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 20, 22, 20)
         layout.setSpacing(10)
@@ -178,7 +214,7 @@ class CartaoModo(QFrame):
         contexto.setObjectName("descricao")
         contexto.setWordWrap(True)
         contexto.setStyleSheet(
-            "background: #0e1729; border: 1px solid #263753; border-radius: 8px; padding: 10px;"
+            "background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px;"
         )
         layout.addWidget(contexto)
         botao = QPushButton("Escolher este modo")
@@ -230,16 +266,19 @@ class JanelaReconQt(QMainWindow):
         layout.addWidget(privacidade)
         return topo
 
-    def _criar_menu(self) -> QWidget:
-        pagina = QWidget()
-        layout = QVBoxLayout(pagina)
+    def _criar_menu(self) -> QScrollArea:
+        pagina = QScrollArea()
+        pagina.setWidgetResizable(True)
+        conteudo = QWidget()
+        conteudo.setObjectName("conteudo_menu")
+        pagina.setWidget(conteudo)
+        layout = QVBoxLayout(conteudo)
+        layout.setContentsMargins(0, 0, 12, 0)
         layout.setSpacing(16)
-        titulo = QLabel("Por onde você quer começar?")
+        titulo = QLabel("O que você quer descobrir?")
         titulo.setObjectName("titulo")
         layout.addWidget(titulo)
-        subtitulo = QLabel(
-            "Escolha o objetivo da análise. Em seguida, selecione seus arquivos e revise tudo antes de iniciar."
-        )
+        subtitulo = QLabel("Escolha um objetivo. Depois, selecione os arquivos e revise a execução antes de começar.")
         subtitulo.setObjectName("subtitulo")
         layout.addWidget(subtitulo)
 
@@ -250,7 +289,7 @@ class JanelaReconQt(QMainWindow):
         cartoes.setColumnStretch(0, 1)
         cartoes.setColumnStretch(1, 1)
         layout.addLayout(cartoes, 1)
-        ajuda = QLabel("Dica: na dúvida, comece por “Analisar arquivos”.")
+        ajuda = QLabel("Dica: se este é seu primeiro arquivo, comece por “Analisar arquivos”.")
         ajuda.setObjectName("subtitulo")
         ajuda.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(ajuda)
@@ -259,7 +298,7 @@ class JanelaReconQt(QMainWindow):
     def _criar_fluxo_analise(self) -> QWidget:
         pagina = QWidget()
         layout = QVBoxLayout(pagina)
-        voltar = QPushButton("← Voltar aos modos de análise")
+        voltar = QPushButton("‹  Modos de análise")
         voltar.setObjectName("voltar")
         voltar.clicked.connect(lambda: self.paginas.setCurrentIndex(0))
         layout.addWidget(voltar, alignment=Qt.AlignmentFlag.AlignLeft)
@@ -272,6 +311,8 @@ class JanelaReconQt(QMainWindow):
         layout.addWidget(self.descricao_acao)
 
         corpo = QSplitter()
+        corpo.setChildrenCollapsible(False)
+        corpo.setHandleWidth(10)
         corpo.addWidget(self._criar_painel_selecao())
         corpo.addWidget(self._criar_painel_diagnostico())
         corpo.setSizes([545, 520])
@@ -284,15 +325,24 @@ class JanelaReconQt(QMainWindow):
         layout = QVBoxLayout(painel)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
-        rotulo = QLabel("1. Selecione os dados")
-        rotulo.setObjectName("cartao_titulo")
-        layout.addWidget(rotulo)
+        self.rotulo_entrada = QLabel("Dados de entrada")
+        self.rotulo_entrada.setObjectName("cartao_titulo")
+        layout.addWidget(self.rotulo_entrada)
+        self.ajuda_entrada = QLabel()
+        self.ajuda_entrada.setObjectName("descricao")
+        self.ajuda_entrada.setWordWrap(True)
+        layout.addWidget(self.ajuda_entrada)
+
+        self.widget_arquivos = QWidget()
+        arquivos_layout = QVBoxLayout(self.widget_arquivos)
+        arquivos_layout.setContentsMargins(0, 0, 0, 0)
+        arquivos_layout.setSpacing(8)
         self.contador = QLabel("Nenhum arquivo selecionado")
         self.contador.setObjectName("contador")
-        layout.addWidget(self.contador)
+        arquivos_layout.addWidget(self.contador)
         self.lista = QListWidget()
         self.lista.setMinimumHeight(180)
-        layout.addWidget(self.lista, 1)
+        arquivos_layout.addWidget(self.lista, 1)
         botoes = QHBoxLayout()
         procurar = QPushButton("Adicionar arquivos…")
         procurar.setObjectName("primario")
@@ -301,11 +351,84 @@ class JanelaReconQt(QMainWindow):
         limpar.clicked.connect(self.limpar_arquivos)
         botoes.addWidget(procurar)
         botoes.addWidget(limpar)
-        layout.addLayout(botoes)
+        arquivos_layout.addLayout(botoes)
+        self.widget_ordem_historico = QWidget()
+        ordem_layout = QHBoxLayout(self.widget_ordem_historico)
+        ordem_layout.setContentsMargins(0, 0, 0, 0)
+        ordem_layout.addWidget(QLabel("A lista acima é a linha do tempo."))
+        subir = QPushButton("Mover para cima")
+        descer = QPushButton("Mover para baixo")
+        subir.clicked.connect(lambda: self.mover_arquivo(-1))
+        descer.clicked.connect(lambda: self.mover_arquivo(1))
+        ordem_layout.addStretch()
+        ordem_layout.addWidget(subir)
+        ordem_layout.addWidget(descer)
+        self.widget_ordem_historico.setVisible(False)
+        arquivos_layout.addWidget(self.widget_ordem_historico)
+        layout.addWidget(self.widget_arquivos, 1)
 
-        destino = QLabel("2. Defina onde salvar")
-        destino.setObjectName("cartao_titulo")
-        layout.addWidget(destino)
+        self.widget_url = QWidget()
+        url_layout = QVBoxLayout(self.widget_url)
+        url_layout.setContentsMargins(0, 0, 0, 0)
+        url_layout.setSpacing(6)
+        url_layout.addWidget(QLabel("URL do arquivo"))
+        self.url_fonte = QLineEdit()
+        self.url_fonte.setPlaceholderText("https://servidor.exemplo/base.csv")
+        self.url_fonte.setAccessibleName("URL do arquivo a analisar")
+        url_layout.addWidget(self.url_fonte)
+        ajuda_url = QLabel("Aceita CSV, JSON e Parquet por HTTP(S). Links assinados funcionam enquanto estiverem válidos.")
+        ajuda_url.setObjectName("descricao")
+        ajuda_url.setWordWrap(True)
+        url_layout.addWidget(ajuda_url)
+        self.widget_url.setVisible(False)
+        layout.addWidget(self.widget_url)
+
+        self.widget_consulta = QWidget()
+        consulta_layout = QVBoxLayout(self.widget_consulta)
+        consulta_layout.setContentsMargins(0, 0, 0, 0)
+        consulta_layout.setSpacing(6)
+        consulta_layout.addWidget(QLabel("Conexão do banco local"))
+        self.conexao_banco = QLineEdit()
+        self.conexao_banco.setPlaceholderText("sqlite:///caminho/base.db ou duckdb:///caminho/base.duckdb")
+        self.conexao_banco.setAccessibleName("Conexão SQLite ou DuckDB local")
+        consulta_layout.addWidget(self.conexao_banco)
+        consulta_layout.addWidget(QLabel("Consulta de leitura"))
+        self.sql_consulta = QPlainTextEdit()
+        self.sql_consulta.setPlaceholderText("SELECT * FROM clientes")
+        self.sql_consulta.setAccessibleName("Consulta SQL somente de leitura")
+        self.sql_consulta.setMinimumHeight(110)
+        consulta_layout.addWidget(self.sql_consulta)
+        ajuda_consulta = QLabel("Por segurança, o Recon aceita somente consultas SELECT ou WITH e abre o banco em modo leitura.")
+        ajuda_consulta.setObjectName("descricao")
+        ajuda_consulta.setWordWrap(True)
+        consulta_layout.addWidget(ajuda_consulta)
+        self.widget_consulta.setVisible(False)
+        layout.addWidget(self.widget_consulta, 1)
+
+        self.widget_versoes = QWidget()
+        versoes_layout = QVBoxLayout(self.widget_versoes)
+        versoes_layout.setContentsMargins(0, 0, 0, 0)
+        versoes_layout.setSpacing(10)
+        for rotulo_versao, atributo, texto_botao in (
+            ("Arquivo anterior", "arquivo_anterior", "Escolher anterior…"),
+            ("Arquivo novo", "arquivo_novo", "Escolher novo…"),
+        ):
+            versoes_layout.addWidget(QLabel(rotulo_versao))
+            campo = QLineEdit()
+            campo.setPlaceholderText("Selecione o arquivo")
+            setattr(self, atributo, campo)
+            botao = QPushButton(texto_botao)
+            botao.clicked.connect(lambda _=False, destino=campo, titulo=rotulo_versao: self.escolher_versao(destino, titulo))
+            linha = QHBoxLayout()
+            linha.addWidget(campo, 1)
+            linha.addWidget(botao)
+            versoes_layout.addLayout(linha)
+        self.widget_versoes.setVisible(False)
+        layout.addWidget(self.widget_versoes, 1)
+
+        self.rotulo_saida = QLabel("Onde salvar")
+        self.rotulo_saida.setObjectName("cartao_titulo")
+        layout.addWidget(self.rotulo_saida)
         self.saida = QLineEdit()
         self.saida.setPlaceholderText("Na mesma pasta do arquivo, se deixar vazio")
         pasta = QPushButton("Escolher pasta…")
@@ -314,6 +437,17 @@ class JanelaReconQt(QMainWindow):
         linha_saida.addWidget(self.saida, 1)
         linha_saida.addWidget(pasta)
         layout.addLayout(linha_saida)
+
+        self.widget_nome_contrato = QWidget()
+        nome_contrato_layout = QVBoxLayout(self.widget_nome_contrato)
+        nome_contrato_layout.setContentsMargins(0, 0, 0, 0)
+        nome_contrato_layout.setSpacing(6)
+        nome_contrato_layout.addWidget(QLabel("Nome do contrato"))
+        self.nome_contrato = QLineEdit()
+        self.nome_contrato.setPlaceholderText("contrato_clientes.yaml")
+        nome_contrato_layout.addWidget(self.nome_contrato)
+        self.widget_nome_contrato.setVisible(False)
+        layout.addWidget(self.widget_nome_contrato)
 
         vocabulario = QLabel("Vocabulário do seu negócio (opcional)")
         vocabulario.setObjectName("cartao_titulo")
@@ -344,16 +478,20 @@ class JanelaReconQt(QMainWindow):
         self.widget_auxiliar.setVisible(False)
         layout.addWidget(self.widget_auxiliar)
 
-        formato = QLabel("3. Escolha o relatório")
+        self.widget_formatos = QWidget()
+        formatos_layout = QVBoxLayout(self.widget_formatos)
+        formatos_layout.setContentsMargins(0, 0, 0, 0)
+        formato = QLabel("Formato do relatório")
         formato.setObjectName("cartao_titulo")
-        layout.addWidget(formato)
+        formatos_layout.addWidget(formato)
         self.formatos = {nome: QCheckBox(rotulo) for nome, rotulo, _ in application.FORMATOS_INTERFACE}
         self.formatos["html"].setChecked(True)
         linha_formatos = QHBoxLayout()
         for caixa in self.formatos.values():
             linha_formatos.addWidget(caixa)
         linha_formatos.addStretch()
-        layout.addLayout(linha_formatos)
+        formatos_layout.addLayout(linha_formatos)
+        layout.addWidget(self.widget_formatos)
         self.executar = QPushButton("Analisar agora")
         self.executar.setObjectName("primario")
         self.executar.clicked.connect(self.iniciar)
@@ -378,7 +516,7 @@ class JanelaReconQt(QMainWindow):
         layout.addWidget(texto)
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
-        self.log.setPlaceholderText("A análise ainda não foi iniciada.")
+        self.log.setPlaceholderText("A análise ainda não foi iniciada. O andamento aparecerá aqui.")
         layout.addWidget(self.log, 1)
         nivel_linha = QHBoxLayout()
         nivel_linha.addWidget(QLabel("Detalhe do diagnóstico:"))
@@ -395,12 +533,58 @@ class JanelaReconQt(QMainWindow):
         self.acao_atual = acao
         self.titulo_acao.setText(acao.titulo)
         self.descricao_acao.setText(acao.explicacao)
+        conferencia = acao.chave == "conferencia"
+        historico = acao.chave == "historico"
+        contrato = acao.chave == "contrato"
+        validar = acao.chave == "validar"
+        url = acao.chave == "url"
+        consulta = acao.chave == "consulta"
+        semantica = acao.chave == "semantica"
+        self.widget_arquivos.setVisible(not (conferencia or url or consulta))
+        self.widget_url.setVisible(url)
+        self.widget_consulta.setVisible(consulta)
+        self.widget_versoes.setVisible(conferencia)
+        self.widget_ordem_historico.setVisible(historico)
+        self.widget_nome_contrato.setVisible(contrato)
+        self.widget_formatos.setVisible(not (contrato or validar or semantica))
+        self.executar.setText(
+            "Criar contrato YAML" if contrato else "Validar contrato" if validar
+            else "Gerar YAML de revisão" if semantica else "Analisar agora"
+        )
+        self.rotulo_entrada.setText({
+            "lote": "Bases para comparar qualidade",
+            "modelo": "Tabelas para relacionar",
+            "conferencia": "Versões da mesma base",
+            "historico": "Extrações em ordem cronológica",
+            "contrato": "Base que define o contrato",
+            "validar": "Base para validar",
+            "url": "Arquivo hospedado",
+            "consulta": "Consulta de banco local",
+            "semantica": "Base para revisão de semântica",
+        }.get(acao.chave, "Dados de entrada"))
+        self.ajuda_entrada.setText({
+            "lote": "Adicione bases comparáveis. Este modo as prioriza por qualidade; para usar uma base como referência, escolha “Conferir duas versões”.",
+            "modelo": "Selecione as tabelas que fazem parte do mesmo assunto.",
+            "conferencia": "A ordem é importante: o Recon compara a versão anterior com a nova.",
+            "historico": "Adicione as extrações da mais antiga para a mais recente. Use os botões para corrigir a ordem.",
+            "contrato": "Escolha uma base revisada e estável. O YAML salvo poderá ser reutilizado para validar cargas futuras.",
+            "validar": "Escolha a base nova que será conferida contra o contrato YAML.",
+            "url": "Cole uma URL HTTP(S). A fonte é lida diretamente e as credenciais não são armazenadas pelo Recon.",
+            "consulta": "Informe uma conexão SQLite ou DuckDB local e uma consulta SELECT ou WITH.",
+            "semantica": "Escolha uma base. O YAML resultante pode ser editado e reutilizado como vocabulário do negócio.",
+        }.get(acao.chave, "Selecione os arquivos que o Recon deve analisar."))
+        self.rotulo_saida.setText(
+            "Pasta onde o contrato será guardado" if contrato else
+            "Pasta obrigatória para a fonte remota" if url or consulta else "Onde salvar"
+        )
         usa_auxiliar = bool(acao.arquivo_auxiliar)
         self.rotulo_auxiliar.setVisible(usa_auxiliar)
         self.widget_auxiliar.setVisible(usa_auxiliar)
         if usa_auxiliar:
-            self.rotulo_auxiliar.setText(f"2. {acao.arquivo_auxiliar}")
+            self.rotulo_auxiliar.setText(acao.arquivo_auxiliar)
             self.arquivo_auxiliar.setPlaceholderText("Escolha o arquivo YAML já revisado")
+        if contrato and not self.nome_contrato.text() and self.arquivos:
+            self.nome_contrato.setText(f"contrato_{Path(self.arquivos[0]).stem}.yaml")
         self.paginas.setCurrentIndex(1)
 
     def escolher_arquivos(self) -> None:
@@ -412,6 +596,15 @@ class JanelaReconQt(QMainWindow):
         )
         self.arquivos.extend(arquivo for arquivo in arquivos if arquivo not in self.arquivos)
         self._atualizar_lista()
+        if self.acao_atual and self.acao_atual.chave == "contrato" and len(self.arquivos) == 1:
+            self.nome_contrato.setText(f"contrato_{Path(self.arquivos[0]).stem}.yaml")
+
+    def escolher_versao(self, destino: QLineEdit, titulo: str) -> None:
+        caminho, _ = QFileDialog.getOpenFileName(
+            self, titulo, "", "Dados (*.csv *.tsv *.txt *.xlsx *.xls *.xlsb *.parquet *.gz *.zip)"
+        )
+        if caminho:
+            destino.setText(caminho)
 
     def escolher_saida(self) -> None:
         pasta = QFileDialog.getExistingDirectory(self, "Onde salvar os relatórios")
@@ -440,6 +633,15 @@ class JanelaReconQt(QMainWindow):
         self.arquivos.clear()
         self._atualizar_lista()
 
+    def mover_arquivo(self, deslocamento: int) -> None:
+        atual = self.lista.currentRow()
+        destino = atual + deslocamento
+        if atual < 0 or destino < 0 or destino >= len(self.arquivos):
+            return
+        self.arquivos[atual], self.arquivos[destino] = self.arquivos[destino], self.arquivos[atual]
+        self._atualizar_lista()
+        self.lista.setCurrentRow(destino)
+
     def _atualizar_lista(self) -> None:
         self.lista.clear()
         self.lista.addItems([Path(arquivo).name for arquivo in self.arquivos])
@@ -452,15 +654,31 @@ class JanelaReconQt(QMainWindow):
     def _registrar(self, texto: str) -> None:
         self.log.appendPlainText(texto)
 
+    def _arquivos_para_analise(self) -> list[str]:
+        if self.acao_atual and self.acao_atual.chave == "conferencia":
+            return [campo.text().strip() for campo in (self.arquivo_anterior, self.arquivo_novo) if campo.text().strip()]
+        if self.acao_atual and self.acao_atual.chave == "url":
+            return [self.url_fonte.text().strip()] if self.url_fonte.text().strip() else []
+        return self.arquivos.copy()
+
     def iniciar(self) -> None:
         if self.acao_atual is None:
             return
-        erro = application.validar_selecao(self.acao_atual, self.arquivos)
+        arquivos = self._arquivos_para_analise()
+        erro = application.validar_selecao(self.acao_atual, arquivos)
         if erro:
             QMessageBox.warning(self, "Revise a seleção", erro)
             return
+        consulta = self.acao_atual.chave == "consulta"
+        if consulta and (not self.conexao_banco.text().strip() or not self.sql_consulta.toPlainText().strip()):
+            QMessageBox.warning(self, "Consulta", "Informe a conexão local e uma consulta SELECT ou WITH.")
+            return
+        if self.acao_atual.chave in {"url", "consulta"} and not self.saida.text().strip():
+            QMessageBox.warning(self, "Pasta de saída", "Escolha uma pasta para salvar os relatórios dessa fonte.")
+            return
         try:
-            pasta_saida = application.resolver_pasta_saida(self.saida.text(), self.arquivos)
+            fontes_para_saida = arquivos or [self.saida.text()]
+            pasta_saida = application.resolver_pasta_saida(self.saida.text(), fontes_para_saida)
         except ValueError as erro_saida:
             QMessageBox.warning(self, "Saída", str(erro_saida))
             return
@@ -470,17 +688,29 @@ class JanelaReconQt(QMainWindow):
             QMessageBox.warning(self, "Formatos", "Escolha ao menos um formato.")
             return
 
+        nome_contrato = self.nome_contrato.text().strip() or None
+        if self.acao_atual.chave == "contrato" and nome_contrato:
+            caminho_nome = Path(nome_contrato)
+            if caminho_nome.name != nome_contrato or caminho_nome.suffix.lower() not in {".yaml", ".yml"}:
+                QMessageBox.warning(self, "Nome do contrato", "Use somente um nome terminado em .yaml ou .yml.")
+                return
+
         self.executar.setEnabled(False)
         self.abrir_saida.setEnabled(False)
         self.progresso.setRange(0, 0)
         self.log.clear()
         self._registrar(f"Modo: {self.acao_atual.titulo}")
-        self._registrar(f"Arquivos: {len(self.arquivos)} | Saída: {pasta_saida}")
+        origem = "Consulta local" if consulta else f"Arquivos: {len(arquivos)}"
+        self._registrar(f"{origem} | Saída: {pasta_saida}")
+        self.arquivos_em_execucao = arquivos
         self.worker_thread = QThread(self)
         self.trabalho = Trabalho(
-            self.acao_atual, self.arquivos, pasta_saida, formatos, self.nivel.currentText(),
+            self.acao_atual, arquivos, pasta_saida, formatos, self.nivel.currentText(),
             self.vocabularios.text().strip() or None,
             self.arquivo_auxiliar.text().strip() or None,
+            nome_contrato,
+            self.conexao_banco.text().strip() or None,
+            self.sql_consulta.toPlainText().strip() or None,
         )
         self.trabalho.moveToThread(self.worker_thread)
         self.worker_thread.started.connect(self.trabalho.executar)
@@ -495,7 +725,8 @@ class JanelaReconQt(QMainWindow):
     def concluido(self, gerados: list[str], falhas: list) -> None:
         self.progresso.setRange(0, 1)
         self.executar.setEnabled(True)
-        self.ultima_saida = application.resolver_pasta_saida(self.saida.text(), self.arquivos)
+        fontes_para_saida = self.arquivos_em_execucao or [self.saida.text()]
+        self.ultima_saida = application.resolver_pasta_saida(self.saida.text(), fontes_para_saida)
         self.abrir_saida.setEnabled(True)
         self._registrar("Concluído.")
         self._registrar("Arquivos gerados:\n" + "\n".join(gerados))
