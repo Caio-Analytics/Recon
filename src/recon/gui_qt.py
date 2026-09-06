@@ -409,14 +409,14 @@ class JanelaReconQt(QMainWindow):
         versoes_layout = QVBoxLayout(self.widget_versoes)
         versoes_layout.setContentsMargins(0, 0, 0, 0)
         versoes_layout.setSpacing(10)
-        for rotulo_versao, atributo, texto_botao in (
-            ("Arquivo anterior", "arquivo_anterior", "Escolher anterior…"),
-            ("Arquivo novo", "arquivo_novo", "Escolher novo…"),
+        self.arquivo_anterior = QLineEdit()
+        self.arquivo_novo = QLineEdit()
+        for rotulo_versao, campo, texto_botao in (
+            ("Arquivo anterior", self.arquivo_anterior, "Escolher anterior…"),
+            ("Arquivo novo", self.arquivo_novo, "Escolher novo…"),
         ):
             versoes_layout.addWidget(QLabel(rotulo_versao))
-            campo = QLineEdit()
             campo.setPlaceholderText("Selecione o arquivo")
-            setattr(self, atributo, campo)
             botao = QPushButton(texto_botao)
             botao.clicked.connect(lambda _=False, destino=campo, titulo=rotulo_versao: self.escolher_versao(destino, titulo))
             linha = QHBoxLayout()
@@ -575,13 +575,14 @@ class JanelaReconQt(QMainWindow):
         }.get(acao.chave, "Selecione os arquivos que o Recon deve analisar."))
         self.rotulo_saida.setText(
             "Pasta onde o contrato será guardado" if contrato else
-            "Pasta obrigatória para a fonte remota" if url or consulta else "Onde salvar"
+            "Pasta obrigatória para a fonte remota" if url else
+            "Pasta obrigatória para a consulta" if consulta else "Onde salvar"
         )
         usa_auxiliar = bool(acao.arquivo_auxiliar)
         self.rotulo_auxiliar.setVisible(usa_auxiliar)
         self.widget_auxiliar.setVisible(usa_auxiliar)
         if usa_auxiliar:
-            self.rotulo_auxiliar.setText(acao.arquivo_auxiliar)
+            self.rotulo_auxiliar.setText(acao.arquivo_auxiliar or "")
             self.arquivo_auxiliar.setPlaceholderText("Escolha o arquivo YAML já revisado")
         if contrato and not self.nome_contrato.text() and self.arquivos:
             self.nome_contrato.setText(f"contrato_{Path(self.arquivos[0]).stem}.yaml")

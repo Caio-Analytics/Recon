@@ -107,8 +107,11 @@ def carregar_consulta(conexao: str, sql: str) -> tuple[pd.DataFrame, str]:
         import sqlite3
 
         caminho = conexao.removeprefix("sqlite:///")
-        with sqlite3.connect(caminho) as banco:
+        banco = sqlite3.connect(caminho)
+        try:
             return pd.read_sql_query(sql, banco), f"consulta_{Path(caminho).stem}"
+        finally:
+            banco.close()
     if conexao.startswith("duckdb:///"):
         try:
             import duckdb
@@ -676,17 +679,17 @@ def carregar_arquivo(
 
     engine = _ENGINES_EXCEL[extensao]
     try:
-        xl = pd.ExcelFile(caminho, engine=engine)
-        abas = xl.sheet_names
-        if isinstance(aba_excel, int):
-            if not -len(abas) <= aba_excel < len(abas):
-                raise FileFormatError(
-                    f"Aba de índice {aba_excel} não existe em '{caminho}' "
-                    f"({len(abas)} aba(s): {', '.join(map(str, abas))})."
-                )
-            aba_alvo = abas[aba_excel]
-        else:
-            aba_alvo = str(aba_excel)
+        with pd.ExcelFile(caminho, engine=engine) as xl:
+            abas = xl.sheet_names
+            if isinstance(aba_excel, int):
+                if not -len(abas) <= aba_excel < len(abas):
+                    raise FileFormatError(
+                        f"Aba de índice {aba_excel} não existe em '{caminho}' "
+                        f"({len(abas)} aba(s): {', '.join(map(str, abas))})."
+                    )
+                aba_alvo = abas[aba_excel]
+            else:
+                aba_alvo = str(aba_excel)
         df = _carregar_aba_com_layout(
             caminho, str(aba_alvo), engine, detectar_layout, linha_cabecalho, limite_linhas
         )
@@ -704,7 +707,8 @@ def listar_abas(caminho: str) -> list[str]:
     if extensao not in _ENGINES_EXCEL or not os.path.exists(caminho):
         return []
     try:
-        return [str(aba) for aba in pd.ExcelFile(caminho, engine=_ENGINES_EXCEL[extensao]).sheet_names]
+        with pd.ExcelFile(caminho, engine=_ENGINES_EXCEL[extensao]) as xl:
+            return [str(aba) for aba in xl.sheet_names]
     except Exception:
         return []
 
@@ -720,14 +724,14 @@ def carregar_todas_abas_excel(
     nome_base = os.path.splitext(os.path.basename(caminho))[0]
 
     try:
-        xl = pd.ExcelFile(caminho, engine=engine)
-        resultado = []
-        for aba in xl.sheet_names:
-            df_aba = _carregar_aba_com_layout(
-                caminho, str(aba), engine, detectar_layout, None, limite_linhas
-            )
-            logger.info(f"Aba '{aba}' carregada | Shape: {df_aba.shape}")
-            resultado.append((df_aba, f"{nome_base}__{aba}"))
+        with pd.ExcelFile(caminho, engine=engine) as xl:
+            resultado = []
+            for aba in xl.sheet_names:
+                df_aba = _carregar_aba_com_layout(
+                    caminho, str(aba), engine, detectar_layout, None, limite_linhas
+                )
+                logger.info(f"Aba '{aba}' carregada | Shape: {df_aba.shape}")
+                resultado.append((df_aba, f"{nome_base}__{aba}"))
         return resultado
     except Exception as e:
         raise FileFormatError(f"Falha ao ler '{caminho}' ({extensao}): {e}") from e

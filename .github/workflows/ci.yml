@@ -19,6 +19,7 @@ jobs:
       - name: Instalar dependências
         run: |
           python -m pip install -r requirements-dev.lock
+          python -m pip install PySide6==6.10.2
           python -m pip install -e . --no-deps
       - name: Instalar navegador para os testes HTML
         run: python -m playwright install --with-deps chromium
@@ -27,6 +28,8 @@ jobs:
       - name: Tipagem
         run: mypy
       - name: Testes
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: pytest -q --cov=src/recon --cov-report=term-missing --cov-fail-under=75
       - name: Construir pacote
         run: python -m build

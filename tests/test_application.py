@@ -84,9 +84,13 @@ def test_interface_permite_nomear_o_contrato_para_reuso(tmp_path):
 
 def test_interface_expoe_consulta_local_e_revisao_semantica(tmp_path):
     banco = tmp_path / "clientes.db"
-    with sqlite3.connect(banco) as conexao:
+    conexao = sqlite3.connect(banco)
+    try:
         conexao.execute("CREATE TABLE clientes (id INTEGER, nome TEXT)")
         conexao.execute("INSERT INTO clientes VALUES (1, 'Ana')")
+        conexao.commit()
+    finally:
+        conexao.close()
 
     consulta, falhas = executar_analise(
         _acao("consulta"), [], tmp_path, ["html"],

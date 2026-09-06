@@ -223,9 +223,13 @@ def test_consulta_sqlite_e_duckdb_sao_somente_leitura(tmp_path):
     from recon.ingestion import carregar_consulta
 
     sqlite = tmp_path / "dados.db"
-    with sqlite3.connect(sqlite) as banco:
+    banco = sqlite3.connect(sqlite)
+    try:
         banco.execute("CREATE TABLE vendas (id INTEGER, valor REAL)")
         banco.execute("INSERT INTO vendas VALUES (1, 10.0), (2, 20.0)")
+        banco.commit()
+    finally:
+        banco.close()
     quadro, nome = carregar_consulta(f"sqlite:///{sqlite}", "SELECT * FROM vendas")
     assert len(quadro) == 2
     assert nome == "consulta_dados"
