@@ -10,7 +10,7 @@
 
 **Goal:** Substituir os 5 scripts soltos e duplicados (`Profiller.py`, `statistical_profiler.py`, `semantic_engine.py`, `profiling_orchestrator.py`, `batch_profiler.py`) por um único pacote Python instalável (`data_profiler/`), correto, testado, com dependências modernas e com os testes estatísticos que hoje só existem no docstring.
 
-**Architecture:** Pacote em camadas (`src/data_profiler/{ingestion,semantics,statistics,quality,reporting,pipeline,cli}.py`), cada módulo um conjunto de funções puras sem estado global. `pipeline.DataProfiler` orquestra os módulos. Saída dupla simultânea (JSON pra processamento externo/código, Markdown pra humano) a cada execução, Parquet opcional.
+**Architecture:** Pacote em camadas (`src/data_profiler/{ingestion,semantics,statistics,quality,reporting,pipeline,cli}.py`), cada módulo um conjunto de funções puras sem estado global. `pipeline.DataProfiler` orquestra os módulos. Saída dupla simultânea (JSON para integração por código, Markdown para leitura humana) a cada execução, Parquet opcional.
 
 **Tech Stack:** Python 3.11, pandas 3.0.5, numpy 2.4.6, scipy 1.17.1, statsmodels 0.14.6, rapidfuzz, charset-normalizer, typer, loguru, pytest.
 
@@ -1594,7 +1594,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'data_profiler.reportin
 - [ ] **Step 3: Escrever a parte de `reporting.py` com saneamento + JSON + Parquet**
 
 ```python
-"""Exportação do payload de profiling: JSON (processamento externo/código), Markdown (humano,
+"""Exportação do payload de profiling: JSON para integração por código, Markdown para leitura humana,
 Task 9) e Parquet (opcional, BI)."""
 import json
 import math

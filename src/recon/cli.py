@@ -64,7 +64,7 @@ _OPCAO_FORMATOS = typer.Option(
 )
 _OPCAO_PARQUET = typer.Option(False, "--tambem-parquet", help="Atalho para incluir 'parquet'.")
 _OPCAO_JSON_COMPACTO = typer.Option(
-    False, "--json-compacto", help="JSON sem indentação (menor, melhor para colar em prompt de processamento externo)."
+    False, "--json-compacto", help="JSON sem indentação, menor e mais fácil de integrar a outras ferramentas."
 )
 _OPCAO_LIMITE = typer.Option(
     2_000_000, "--limite-amostra", min=1,

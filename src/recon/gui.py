@@ -87,7 +87,7 @@ PREFIXO_SAIDA = "recon"
 
 FORMATOS: tuple[tuple[str, str, str], ...] = (
     ("html", "HTML", "abre no navegador — é o relatório para ler e mandar"),
-    ("json", "JSON", "os dados do perfil, para colar num prompt de processamento externo ou ler por código"),
+    ("json", "JSON", "os dados do perfil, para integrar por código ou usar em outra ferramenta"),
     ("markdown", "Markdown", "texto puro, para colar em documento ou wiki"),
 )
 FORMATO_PADRAO = "html"
@@ -193,8 +193,8 @@ HTML, e mais nada, na maioria das vezes. É o relatório de verdade: abre
 no navegador com dois cliques, em qualquer computador, sem instalar nada,
 e é o que dá para mandar por e-mail para alguém que não é técnico.
 
-JSON é o mesmo conteúdo em dados, sem formatação. Serve para colar num
-prompt de processamento externo ou para outro programa ler.
+JSON é o mesmo conteúdo em dados, sem formatação. Serve para integração
+por código ou para outro programa ler.
 
 Markdown é texto puro com marcações simples, para colar em documento,
 wiki ou chamado.

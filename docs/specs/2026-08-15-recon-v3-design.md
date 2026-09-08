@@ -21,7 +21,7 @@ arquivo** e começar o trabalho real com boa parte do caminho andado.
 ### Restrições que moldaram o desenho
 
 - **Máquina corporativa**: sem admin, sem venv, `pip install --user`. Nada de
-  serviço externo, modelo de processamento externo baixado ou dependência que exija compilação
+  serviço externo, modelo local baixado ou dependência que exija compilação
   fora do que já vem em wheel.
 - **Sem banco de dados**: o consumo é em pandas, sobre arquivo. Por isso o
   código gerado sai em pandas primeiro e SQL como alternativa.
@@ -206,7 +206,7 @@ inventar uma); e tabela com chave compatível mas sem nenhuma medida (a relaçã
   (agendado, tipo cron); a comparação sob demanda entre duas extrações
   passou a fazer sentido dentro do escopo da ferramenta.
 - Geração de asserções para dbt / Great Expectations.
-- Qualquer backend de processamento externo (model components, local model local). Foi implementado e
+- Integrações externas de modelagem. Foram implementadas e
   **removido** a pedido: a cascata determinística resolve o caso de uso, e a
   dependência não cabe na máquina alvo.
 

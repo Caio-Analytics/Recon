@@ -24,9 +24,6 @@ env/
 # Worktrees de desenvolvimento isolado
 .worktrees/
 
-# Configuração local de ferramentas de desenvolvimento
-.contributor/
-
 # Cache do Python
 __pycache__/
 *.py[cod]
@@ -63,4 +60,3 @@ Input/
 
 # Anotações pessoais de entendimento do código (não publicar)
 docs/GUIA_DO_CODIGO.md
-.local configuration/

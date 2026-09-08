@@ -195,7 +195,7 @@ coluna a coluna isolada:
   registro de coluna individual, porque depende semanticamente de duas
   colunas (a numérica + a de data usada como referência).
 
-## Saída: dois formatos simultâneos (processamento externo + humano)
+## Saída: dois formatos simultâneos (código + leitura humana)
 
 A cada execução, `reporting.py` gera dois arquivos a partir do mesmo
 payload:
@@ -203,7 +203,7 @@ payload:
 - **`<base>_<tabela>.json`** — estrutura completa (colunas, stats,
   recomendações, FDs, gaps, testes de hipótese, análise temporal), com
   todo float não-finito (`NaN`/`Infinity`/`-Infinity`) saneado para `null`
-  antes da serialização. Formato pra consumo por processamento externo/código — a estrutura
+  antes da serialização. Formato para integração por código — a estrutura
   atual (dict aninhado por coluna) já é adequada, não precisa de formato
   novo.
 - **`<base>_<tabela>.md`** — relatório Markdown pra leitura humana:

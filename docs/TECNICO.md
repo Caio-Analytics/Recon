@@ -535,5 +535,5 @@ não ter heurística.
 
 - Monitoramento de drift entre execuções.
 - Geração de asserções para dbt / Great Expectations.
-- Backend de processamento externo, incluindo model components e modelos locais. A inferência é
+- Integrações externas de modelagem. A inferência é
   determinística para manter a ferramenta local e compatível com a máquina alvo.
