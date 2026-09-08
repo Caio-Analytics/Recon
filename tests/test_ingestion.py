@@ -18,8 +18,6 @@ def _escrever(tmp_path, nome, conteudo):
     return caminho
 
 
-
-
 def test_carregar_csv_separador_ponto_virgula(tmp_path):
     caminho = _escrever(tmp_path, "dados.csv", "id;nome\n1;Ana\n2;Bruno\n")
 
@@ -63,8 +61,6 @@ def test_csv_com_texto_entre_aspas_contendo_o_separador(tmp_path):
     assert df["nome"].tolist() == ["Silva, Ana", "Souza, Bo"]
 
 
-
-
 def test_carregar_arquivo_inexistente_levanta_file_not_found():
     with pytest.raises(FileNotFoundError):
         carregar_arquivo("/caminho/que/nao/existe.csv")
@@ -89,8 +85,6 @@ def test_csv_vazio_levanta_file_format_error(tmp_path):
     caminho.write_bytes(b"")
     with pytest.raises(FileFormatError):
         carregar_arquivo(str(caminho))
-
-
 
 
 def test_carregar_xlsx(tmp_path):
@@ -122,16 +116,12 @@ def test_carregar_todas_abas_excel_corrompido_levanta_file_format_error(tmp_path
         carregar_todas_abas_excel(str(caminho))
 
 
-
-
 def test_byte_corrompido_nao_derruba_a_analise(tmp_path, monkeypatch):
     from recon import ingestion
 
     monkeypatch.setattr(ingestion, "detectar_encoding", lambda *a, **k: "cp1252")
     conteudo = (
-        b"ORGAO;VALOR\r\n"
-        b'"BANCO CENTRAL DO BRASIL";"DI\x9dRIAS"\r\n'
-        b'"OUTRO";"NORMAL"\r\n'
+        b'ORGAO;VALOR\r\n"BANCO CENTRAL DO BRASIL";"DI\x9dRIAS"\r\n"OUTRO";"NORMAL"\r\n'
     ) * 50
     caminho = tmp_path / "legado.csv"
     caminho.write_bytes(conteudo)
@@ -211,7 +201,9 @@ def test_memoria_macos_usa_paginas_reutilizaveis(monkeypatch):
     }
     monkeypatch.setattr(ingestion, "open", falhar_linux, raising=False)
     monkeypatch.setattr(ingestion.sys, "platform", "darwin")
-    monkeypatch.setattr(ingestion.subprocess, "check_output", lambda comando, text: saidas[tuple(comando)])
+    monkeypatch.setattr(
+        ingestion.subprocess, "check_output", lambda comando, text: saidas[tuple(comando)]
+    )
 
     total, disponivel = ingestion._memoria_sistema_bytes()
 
@@ -251,7 +243,9 @@ def test_url_csv_usa_leitor_do_pandas(monkeypatch):
     esperado = pd.DataFrame({"id": [1, 2]})
     monkeypatch.setattr(ingestion.pd, "read_csv", lambda url, nrows: esperado)
 
-    quadro, nome = ingestion.carregar_arquivo("https://dados.exemplo/exports/vendas.csv?assinatura=x")
+    quadro, nome = ingestion.carregar_arquivo(
+        "https://dados.exemplo/exports/vendas.csv?assinatura=x"
+    )
 
     assert quadro.equals(esperado)
     assert nome == "vendas"

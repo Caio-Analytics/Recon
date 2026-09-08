@@ -12,22 +12,22 @@ def _meta(df: pd.DataFrame, nome_tabela: str = "T"):
 
 def _base_rh(n=400, violacoes=0, como_texto=False):
     rng = np.random.default_rng(5)
-    admissao = pd.to_datetime("2018-01-01") + pd.to_timedelta(
-        rng.integers(0, 2000, n), unit="D"
-    )
+    admissao = pd.to_datetime("2018-01-01") + pd.to_timedelta(rng.integers(0, 2000, n), unit="D")
     status = rng.choice(["Ativo", "Inativo"], n, p=[0.7, 0.3])
     desligamento = pd.Series([pd.NaT] * n)
     inativos = status == "Inativo"
     desligamento[inativos] = admissao[inativos] + pd.to_timedelta(
         rng.integers(30, 800, inativos.sum()), unit="D"
     )
-    df = pd.DataFrame({
-        "matricula": range(n),
-        "status": status,
-        "dt_admissao": admissao,
-        "dt_desligamento": desligamento,
-        "vl_bruto": np.round(rng.lognormal(8.4, 0.3, n), 2),
-    })
+    df = pd.DataFrame(
+        {
+            "matricula": range(n),
+            "status": status,
+            "dt_admissao": admissao,
+            "dt_desligamento": desligamento,
+            "vl_bruto": np.round(rng.lognormal(8.4, 0.3, n), 2),
+        }
+    )
     df["vl_desconto"] = np.round(df["vl_bruto"] * 0.11, 2)
     df["vl_liquido"] = np.round(df["vl_bruto"] - df["vl_desconto"], 2)
 
@@ -38,8 +38,6 @@ def _base_rh(n=400, violacoes=0, como_texto=False):
         for coluna in ("dt_admissao", "dt_desligamento"):
             df[coluna] = df[coluna].dt.strftime("%Y-%m-%d")
     return df
-
-
 
 
 def test_ordem_entre_datas_sem_violacao():
@@ -53,7 +51,8 @@ def test_ordem_entre_datas_sem_violacao():
 def test_ordem_entre_datas_lista_as_violacoes():
     df = _base_rh(violacoes=5)
     ordem = next(
-        r for r in rules.detectar_ordem_entre_datas(df, _meta(df))
+        r
+        for r in rules.detectar_ordem_entre_datas(df, _meta(df))
         if r["tipo"] == "Ordem entre datas"
     )
     assert ordem["qtd_violacoes"] == 5
@@ -69,13 +68,15 @@ def test_ordem_entre_datas_funciona_com_data_como_texto():
 def test_datas_sem_relacao_de_ordem_nao_viram_regra():
     rng = np.random.default_rng(2)
     n = 300
-    df = pd.DataFrame({
-        "dt_a": pd.to_datetime("2020-01-01") + pd.to_timedelta(rng.integers(0, 900, n), unit="D"),
-        "dt_b": pd.to_datetime("2020-01-01") + pd.to_timedelta(rng.integers(0, 900, n), unit="D"),
-    })
+    df = pd.DataFrame(
+        {
+            "dt_a": pd.to_datetime("2020-01-01")
+            + pd.to_timedelta(rng.integers(0, 900, n), unit="D"),
+            "dt_b": pd.to_datetime("2020-01-01")
+            + pd.to_timedelta(rng.integers(0, 900, n), unit="D"),
+        }
+    )
     assert rules.detectar_ordem_entre_datas(df, _meta(df)) == []
-
-
 
 
 def test_nulidade_condicional_detectada():
@@ -89,13 +90,13 @@ def test_nulidade_condicional_detectada():
 def test_nulo_espalhado_ao_acaso_nao_vira_regra():
     rng = np.random.default_rng(4)
     n = 300
-    df = pd.DataFrame({
-        "grupo": rng.choice(["A", "B", "C"], n),
-        "valor": [None if rng.random() < 0.4 else float(i) for i in range(n)],
-    })
+    df = pd.DataFrame(
+        {
+            "grupo": rng.choice(["A", "B", "C"], n),
+            "valor": [None if rng.random() < 0.4 else float(i) for i in range(n)],
+        }
+    )
     assert rules.detectar_nulidade_condicional(df, _meta(df)) == []
-
-
 
 
 def test_derivacao_aritmetica_detectada():
@@ -104,8 +105,9 @@ def test_derivacao_aritmetica_detectada():
     assert regras
     envolvidas = set()
     for regra in regras:
-        envolvidas |= {p.strip("`") for p in regra["regra"].replace("=", " ").split()
-                       if p.startswith("`")}
+        envolvidas |= {
+            p.strip("`") for p in regra["regra"].replace("=", " ").split() if p.startswith("`")
+        }
     assert {"vl_bruto", "vl_desconto", "vl_liquido"} <= envolvidas
 
 
@@ -113,8 +115,7 @@ def test_derivacao_reporta_o_trio_uma_vez_so():
     df = _base_rh()
     regras = rules.detectar_derivacao_aritmetica(df, _meta(df))
     trios = [
-        frozenset(p.strip("`") for p in r["regra"].replace("=", " ").split()
-                  if p.startswith("`"))
+        frozenset(p.strip("`") for p in r["regra"].replace("=", " ").split() if p.startswith("`"))
         for r in regras
     ]
     assert len(trios) == len(set(trios))
@@ -123,20 +124,18 @@ def test_derivacao_reporta_o_trio_uma_vez_so():
 def test_numericas_independentes_nao_geram_derivacao():
     rng = np.random.default_rng(6)
     n = 300
-    df = pd.DataFrame({
-        "a": rng.normal(100, 10, n),
-        "b": rng.normal(50, 5, n),
-        "c": rng.normal(20, 2, n),
-    })
+    df = pd.DataFrame(
+        {
+            "a": rng.normal(100, 10, n),
+            "b": rng.normal(50, 5, n),
+            "c": rng.normal(20, 2, n),
+        }
+    )
     assert rules.detectar_derivacao_aritmetica(df, _meta(df)) == []
 
 
-
-
 def test_regras_com_violacao_vem_antes_das_perfeitas():
-    
-    
-    
+
     df = _base_rh(violacoes=3)
     regras = rules.inferir_regras(df, _meta(df))
     assert regras[0]["qtd_violacoes"] > 0
@@ -153,9 +152,7 @@ def test_regras_chegam_ao_payload_e_ao_relatorio(tmp_path, monkeypatch):
     caminho = tmp_path / "rh.csv"
     _base_rh(violacoes=3).to_csv(caminho, index=False)
 
-    payloads = DataProfiler().processar_arquivo(
-        str(caminho), saida_base="s", formatos=["markdown"]
-    )
+    payloads = DataProfiler().processar_arquivo(str(caminho), saida_base="s", formatos=["markdown"])
 
     assert payloads[0]["regras_negocio"]
     conteudo = (tmp_path / "s_rh.md").read_text(encoding="utf-8")
@@ -164,27 +161,33 @@ def test_regras_chegam_ao_payload_e_ao_relatorio(tmp_path, monkeypatch):
 
 def test_regra_abaixo_do_limiar_nao_e_reportada():
     df = _base_rh(violacoes=20)
-    ordens = [r for r in rules.inferir_regras(df, _meta(df))
-              if r["tipo"] == "Ordem entre datas"]
+    ordens = [r for r in rules.inferir_regras(df, _meta(df)) if r["tipo"] == "Ordem entre datas"]
     assert ordens == []
 
 
 def test_packs_de_dominio_relacionam_violacoes_a_contexto_de_negocio():
     n = 100
     base = pd.Timestamp("2025-01-01")
-    df = pd.DataFrame({
-        "valor_bruto": [100.0] * n,
-        "valor_desconto": [10.0] * (n - 1) + [150.0],
-        "qtd_estoque": [10] * (n - 1) + [-1],
-        "idade_paciente": [42] * (n - 1) + [180],
-        "ano_exercicio": [2025] * (n - 1) + [1800],
-        "prazo_sla": [base + pd.Timedelta(days=2)] * n,
-        "data_resolucao": [base + pd.Timedelta(days=1)] * (n - 1) + [base + pd.Timedelta(days=3)],
-    })
+    df = pd.DataFrame(
+        {
+            "valor_bruto": [100.0] * n,
+            "valor_desconto": [10.0] * (n - 1) + [150.0],
+            "qtd_estoque": [10] * (n - 1) + [-1],
+            "idade_paciente": [42] * (n - 1) + [180],
+            "ano_exercicio": [2025] * (n - 1) + [1800],
+            "prazo_sla": [base + pd.Timedelta(days=2)] * n,
+            "data_resolucao": [base + pd.Timedelta(days=1)] * (n - 1)
+            + [base + pd.Timedelta(days=3)],
+        }
+    )
 
     regras = rules.detectar_regras_por_pacote(df, _meta(df))
 
     assert {regra["pacote"] for regra in regras} == {
-        "Financeiro", "Logística", "Saúde", "Dados públicos", "Suporte / SLA"
+        "Financeiro",
+        "Logística",
+        "Saúde",
+        "Dados públicos",
+        "Suporte / SLA",
     }
     assert all(regra["qtd_violacoes"] == 1 for regra in regras)

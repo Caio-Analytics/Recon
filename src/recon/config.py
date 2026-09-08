@@ -1,12 +1,6 @@
 from typing import Any
 
-
-
-
 SCHEMA_VERSION: str = "3.0"
-
-
-
 
 
 SEMANTICA_GENERICA: str = "Genérico / Não mapeado"
@@ -14,7 +8,6 @@ SEMANTICA_DATA_CALENDARIO: str = "Data / Calendário"
 SEMANTICA_CHAVE_ID: str = "Chave Identificadora (ID)"
 SEMANTICA_TEXTO_LIVRE: str = "Texto Descritivo Livre"
 SEMANTICA_NOME_PESSOA: str = "Nome / Identificação Pessoal"
-
 
 
 SEMANTICA_ROTULO_ENTIDADE: str = "Rótulo / Nome de Entidade"
@@ -35,16 +28,10 @@ THRESHOLD_PADRAO_ESTRUTURADO: float = 0.75
 THRESHOLD_DATA_TEXTO: float = 0.80
 
 
-
-
 AMOSTRA_ANALISE: int = 5_000
 
 
-
-
 MAX_VALORES_AMOSTRA_COMPLETA: int = 50
-
-
 
 
 THRESHOLD_DETERMINANTE_MAX_UNICIDADE: float = 0.98
@@ -64,210 +51,561 @@ ANALISE_TEMPORAL_MAX_PONTOS: int = 50_000
 THRESHOLD_ASSIMETRIA_ROBUSTA: float = 1.0
 
 
-
-
 THRESHOLD_SENTINELA_MIN_PCT: float = 0.005
 
 
-SENTINELAS_TEXTO: frozenset[str] = frozenset({
-    "", "-", "--", "---", ".", "..", "...", "?", "??", "???",
-    "n/a", "na", "n.a.", "n/d", "nd", "null", "none", "nil", "nan",
-    "#n/d", "#n/a", "#valor!", "#value!", "#ref!", "#nome?", "#name?", "#div/0!",
-    "sem informacao", "sem informacoes", "nao informado", "nao informada",
-    "nao consta", "nao se aplica", "nao disponivel", "nao identificado",
-    "desconhecido", "desconhecida", "indefinido", "indefinida",
-    "vazio", "branco", "em branco", "s/i", "s/d", "s/n", "ignorado",
-})
+SENTINELAS_TEXTO: frozenset[str] = frozenset(
+    {
+        "",
+        "-",
+        "--",
+        "---",
+        ".",
+        "..",
+        "...",
+        "?",
+        "??",
+        "???",
+        "n/a",
+        "na",
+        "n.a.",
+        "n/d",
+        "nd",
+        "null",
+        "none",
+        "nil",
+        "nan",
+        "#n/d",
+        "#n/a",
+        "#valor!",
+        "#value!",
+        "#ref!",
+        "#nome?",
+        "#name?",
+        "#div/0!",
+        "sem informacao",
+        "sem informacoes",
+        "nao informado",
+        "nao informada",
+        "nao consta",
+        "nao se aplica",
+        "nao disponivel",
+        "nao identificado",
+        "desconhecido",
+        "desconhecida",
+        "indefinido",
+        "indefinida",
+        "vazio",
+        "branco",
+        "em branco",
+        "s/i",
+        "s/d",
+        "s/n",
+        "ignorado",
+    }
+)
 
 
+SENTINELAS_NUMERICAS: frozenset[float] = frozenset(
+    {
+        -1.0,
+        -99.0,
+        -999.0,
+        -9999.0,
+        -99999.0,
+        -1.0e9,
+        9999.0,
+        99999.0,
+        999999.0,
+        9999999.0,
+        99999999.0,
+        999999999.0,
+    }
+)
 
-SENTINELAS_NUMERICAS: frozenset[float] = frozenset({
-    -1.0, -99.0, -999.0, -9999.0, -99999.0, -1.0e9,
-    9999.0, 99999.0, 999999.0, 9999999.0, 99999999.0, 999999999.0,
-})
-
-SENTINELAS_DATA: frozenset[str] = frozenset({
-    "1753-01-01",  
-    "1899-12-30",  
-    "1900-01-01", "1901-01-01", "1970-01-01",
-    "2099-12-31", "9999-12-31",
-})
+SENTINELAS_DATA: frozenset[str] = frozenset(
+    {
+        "1753-01-01",
+        "1899-12-30",
+        "1900-01-01",
+        "1901-01-01",
+        "1970-01-01",
+        "2099-12-31",
+        "9999-12-31",
+    }
+)
 
 
 CATEGORIAS_FORTES: dict[str, list[str]] = {
     SEMANTICA_CHAVE_ID: [
-        "id", "cod", "codigo", "code", "key", "number", "matricula", "mat",
-        "cpf", "cnpj", "registro", "chave", "identifier", "iden", "nr", "num", "pk", "fk",
+        "id",
+        "cod",
+        "codigo",
+        "code",
+        "key",
+        "number",
+        "matricula",
+        "mat",
+        "cpf",
+        "cnpj",
+        "registro",
+        "chave",
+        "identifier",
+        "iden",
+        "nr",
+        "num",
+        "pk",
+        "fk",
         "sequencial",
     ],
     SEMANTICA_DATA_CALENDARIO: [
-        "date", "dt", "data", "time", "timestamp", "periodo", "competencia",
-        "admissao", "demissao", "nascimento", "vencimento", "inicio", "fim",
-        "prazo", "realizacao", "referencia", "vigencia", "expiracao",
-        
-        
-        
-        
-        
-        "ano", "created", "updated", "modified", "deleted", "processed", "posted",
-        "emissao", "pagamento", "cancelamento", "abertura", "fechamento",
+        "date",
+        "dt",
+        "data",
+        "time",
+        "timestamp",
+        "periodo",
+        "competencia",
+        "admissao",
+        "demissao",
+        "nascimento",
+        "vencimento",
+        "inicio",
+        "fim",
+        "prazo",
+        "realizacao",
+        "referencia",
+        "vigencia",
+        "expiracao",
+        "ano",
+        "created",
+        "updated",
+        "modified",
+        "deleted",
+        "processed",
+        "posted",
+        "emissao",
+        "pagamento",
+        "cancelamento",
+        "abertura",
+        "fechamento",
     ],
     "Status / Indicador / Flag": [
-        "status", "flg", "flag", "is", "has", "state", "situacao",
-        "enforced", "ativo", "inativo", "habilitado", "bloqueado",
+        "status",
+        "flg",
+        "flag",
+        "is",
+        "has",
+        "state",
+        "situacao",
+        "enforced",
+        "ativo",
+        "inativo",
+        "habilitado",
+        "bloqueado",
     ],
     "Valor Financeiro": [
-        "salario", "salary", "wage", "remuneracao", "vlr", "valor",
-        "custo", "cost", "preco", "price", "receita", "revenue",
-        "despesa", "expense", "budget", "orcamento", "bonus",
-        "comissao", "honorario", "verba", "provisao", "encargo", "amount", "balance",
-        "saldo", "liquido", "bruto", "imposto", "tax", "frete", "freight", "desconto",
+        "salario",
+        "salary",
+        "wage",
+        "remuneracao",
+        "vlr",
+        "valor",
+        "custo",
+        "cost",
+        "preco",
+        "price",
+        "receita",
+        "revenue",
+        "despesa",
+        "expense",
+        "budget",
+        "orcamento",
+        "bonus",
+        "comissao",
+        "honorario",
+        "verba",
+        "provisao",
+        "encargo",
+        "amount",
+        "balance",
+        "saldo",
+        "liquido",
+        "bruto",
+        "imposto",
+        "tax",
+        "frete",
+        "freight",
+        "desconto",
     ],
     "Quantidade / Métrica": [
-        "qtd", "quantidade", "count", "total", "volume", "horas", "dias", "carga",
-        "duracao", "frequencia", "score", "nota", "percentual", "pct",
-        "indice", "taxa", "ratio", "proporcao", "media", "rate", "margem", "margin",
-        "peso", "unidades", "itens", "tempo", "latencia", "sla",
+        "qtd",
+        "quantidade",
+        "count",
+        "total",
+        "volume",
+        "horas",
+        "dias",
+        "carga",
+        "duracao",
+        "frequencia",
+        "score",
+        "nota",
+        "percentual",
+        "pct",
+        "indice",
+        "taxa",
+        "ratio",
+        "proporcao",
+        "media",
+        "rate",
+        "margem",
+        "margin",
+        "peso",
+        "unidades",
+        "itens",
+        "tempo",
+        "latencia",
+        "sla",
     ],
     "Texto Descritivo Livre": [
-        "desc", "descricao", "description", "obs", "observacao", "comentario",
-        "justificativa", "detalhe", "motivo", "complemento", "historico",
-        "task", "function", "resumo", "anotacao", "mensagem", "note", "notes", "reason",
-        "erro", "error", "log", "payload", "observations",
+        "desc",
+        "descricao",
+        "description",
+        "obs",
+        "observacao",
+        "comentario",
+        "justificativa",
+        "detalhe",
+        "motivo",
+        "complemento",
+        "historico",
+        "task",
+        "function",
+        "resumo",
+        "anotacao",
+        "mensagem",
+        "note",
+        "notes",
+        "reason",
+        "erro",
+        "error",
+        "log",
+        "payload",
+        "observations",
     ],
     "Nome / Identificação Pessoal": [
-        "nome", "name", "colaborador", "funcionario", "empregado",
-        "pessoa", "participante", "aluno", "candidato", "usuario", "user",
+        "nome",
+        "name",
+        "colaborador",
+        "funcionario",
+        "empregado",
+        "pessoa",
+        "participante",
+        "aluno",
+        "candidato",
+        "usuario",
+        "user",
     ],
     "Contato / Rede": [
-        "email", "mail", "telefone", "celular", "ramal",
-        "whatsapp", "contato", "fone", "phone",
+        "email",
+        "mail",
+        "telefone",
+        "celular",
+        "ramal",
+        "whatsapp",
+        "contato",
+        "fone",
+        "phone",
     ],
     "Resultado de Avaliação": [
-        "resultado", "result", "aprovacao", "reprovacao", "conceito",
-        "avaliacao", "desempenho", "conclusao", "outcome", "performance",
-        "feedback", "rating", "classificacao",
+        "resultado",
+        "result",
+        "aprovacao",
+        "reprovacao",
+        "conceito",
+        "avaliacao",
+        "desempenho",
+        "conclusao",
+        "outcome",
+        "performance",
+        "feedback",
+        "rating",
+        "classificacao",
     ],
 }
 
 
 CATEGORIAS_FUZZY: dict[str, list[str]] = {
     "Localização Geográfica": [
-        "country", "province", "city", "facility", "pais", "cidade",
-        "estado", "regiao", "municipio", "cep", "uf", "endereco", "local",
-        "latitude", "longitude", "bairro", "logradouro",
+        "country",
+        "province",
+        "city",
+        "facility",
+        "pais",
+        "cidade",
+        "estado",
+        "regiao",
+        "municipio",
+        "cep",
+        "uf",
+        "endereco",
+        "local",
+        "latitude",
+        "longitude",
+        "bairro",
+        "logradouro",
     ],
     "Estrutura Organizacional": [
-        "department", "company", "business", "hierarquia", "departamento",
-        "diretoria", "gerencia", "setor", "area", "divisao", "celula",
-        "squad", "lotacao", "unidade", "filial", "subsidiaria", "agencia",
-        "coordenacao", "superintendencia", "nucleo", "equipe", "time",
-        
-        
-        
-        
-        "orgao", "secretaria", "ministerio", "autarquia",
+        "department",
+        "company",
+        "business",
+        "hierarquia",
+        "departamento",
+        "diretoria",
+        "gerencia",
+        "setor",
+        "area",
+        "divisao",
+        "celula",
+        "squad",
+        "lotacao",
+        "unidade",
+        "filial",
+        "subsidiaria",
+        "agencia",
+        "coordenacao",
+        "superintendencia",
+        "nucleo",
+        "equipe",
+        "time",
+        "orgao",
+        "secretaria",
+        "ministerio",
+        "autarquia",
     ],
-    
-    
-    
-    
-    
-    
     "Processo Eleitoral": [
-        "eleicao", "partido", "pleito", "coligacao", "chapa", "urna",
-        "votacao", "sufragio", "candidatura",
+        "eleicao",
+        "partido",
+        "pleito",
+        "coligacao",
+        "chapa",
+        "urna",
+        "votacao",
+        "sufragio",
+        "candidatura",
     ],
     "Perfil do Colaborador": [
-        "gender", "nationality", "career", "workforce", "staff",
-        "genero", "nacionalidade", "idade", "raca", "escolaridade",
-        "deficiencia", "etnia",
+        "gender",
+        "nationality",
+        "career",
+        "workforce",
+        "staff",
+        "genero",
+        "nacionalidade",
+        "idade",
+        "raca",
+        "escolaridade",
+        "deficiencia",
+        "etnia",
     ],
-    
-    
-    
-    
-    
-    
     "Produto / Item": [
-        "product", "item", "sku", "merchandise", "produto", "mercadoria",
-        "insumo", "material", "ativo", "equipamento", "veiculo", "artigo",
-        "marca", "brand", "modelo", "model",
+        "product",
+        "item",
+        "sku",
+        "merchandise",
+        "produto",
+        "mercadoria",
+        "insumo",
+        "material",
+        "ativo",
+        "equipamento",
+        "veiculo",
+        "artigo",
+        "marca",
+        "brand",
+        "modelo",
+        "model",
     ],
     "Cargo / Função": [
-        "cargo", "funcao", "nivel", "grade", "posicao", "categoria",
-        "classe", "faixa", "perfil", "role", "position", "job",
-        "title", "occupation",
+        "cargo",
+        "funcao",
+        "nivel",
+        "grade",
+        "posicao",
+        "categoria",
+        "classe",
+        "faixa",
+        "perfil",
+        "role",
+        "position",
+        "job",
+        "title",
+        "occupation",
     ],
-    
-    
-    
-    
     "Financeiro / Custo": [
-        "custo", "cost", "centro de custo", "despesa", "orcamento", "budget",
-        "financeiro", "finance", "contabil", "fiscal", "conta", "rateio",
+        "custo",
+        "cost",
+        "centro de custo",
+        "despesa",
+        "orcamento",
+        "budget",
+        "financeiro",
+        "finance",
+        "contabil",
+        "fiscal",
+        "conta",
+        "rateio",
     ],
     "Curso / Treinamento": [
-        "curso", "treinamento", "capacitacao", "formacao", "modulo",
-        "trilha", "programa", "workshop", "disciplina", "tema",
-        "course", "training", "learning", "certificacao",
+        "curso",
+        "treinamento",
+        "capacitacao",
+        "formacao",
+        "modulo",
+        "trilha",
+        "programa",
+        "workshop",
+        "disciplina",
+        "tema",
+        "course",
+        "training",
+        "learning",
+        "certificacao",
     ],
     "Comercial / CRM": [
-        "lead", "prospect", "oportunidade", "opportunity", "funil",
-        "pipeline", "canal", "channel", "campanha", "campaign", "vendedor", "seller",
-        "conversao", "deal", "negociacao",
+        "lead",
+        "prospect",
+        "oportunidade",
+        "opportunity",
+        "funil",
+        "pipeline",
+        "canal",
+        "channel",
+        "campanha",
+        "campaign",
+        "vendedor",
+        "seller",
+        "conversao",
+        "deal",
+        "negociacao",
     ],
     "Logística / Estoque": [
-        "estoque", "inventory", "armazem", "warehouse", "entrega", "delivery", "remessa",
-        "shipment", "transportadora", "carrier", "rastreio", "tracking", "pedido", "order",
+        "estoque",
+        "inventory",
+        "armazem",
+        "warehouse",
+        "entrega",
+        "delivery",
+        "remessa",
+        "shipment",
+        "transportadora",
+        "carrier",
+        "rastreio",
+        "tracking",
+        "pedido",
+        "order",
     ],
     "Suporte / Operações": [
-        "chamado", "ticket", "incidente", "incident", "sla", "fila", "queue", "prioridade",
-        "resolucao", "resolution", "atendimento", "service", "falha", "outage",
+        "chamado",
+        "ticket",
+        "incidente",
+        "incident",
+        "sla",
+        "fila",
+        "queue",
+        "prioridade",
+        "resolucao",
+        "resolution",
+        "atendimento",
+        "service",
+        "falha",
+        "outage",
     ],
     "Saúde": [
-        "consulta", "appointment", "procedimento", "diagnostico", "cid",
-        "hospital", "medico", "medicamento", "exame",
+        "consulta",
+        "appointment",
+        "procedimento",
+        "diagnostico",
+        "cid",
+        "hospital",
+        "medico",
+        "medicamento",
+        "exame",
     ],
     "Educação": [
-        "turma", "classroom", "disciplina", "subject", "frequencia", "presenca", "aluno",
-        "student", "professor", "teacher", "semestre", "campus",
+        "turma",
+        "classroom",
+        "disciplina",
+        "subject",
+        "frequencia",
+        "presenca",
+        "aluno",
+        "student",
+        "professor",
+        "teacher",
+        "semestre",
+        "campus",
     ],
 }
 
 
-
-
-
-
-TOKENS_QUALIFICADORES: frozenset[str] = frozenset({
-    "id", "cod", "codigo", "code", "key", "chave", "pk", "fk", "nr", "num",
-    "number", "matricula", "mat", "iden", "identifier", "registro",
-    "nome", "name", "desc", "descricao", "description", "sigla", "abrev",
-    "tipo", "type", "categoria", "class", "flag", "flg", "status",
-    "qtd", "quantidade", "total", "vlr", "valor", "pct", "percentual",
-    "dt", "date", "data", "hora", "time", "timestamp",
-    
-    
-    
-    
-    "dias",
-    
-    
-    
-    "sequencial",
-})
-
-
+TOKENS_QUALIFICADORES: frozenset[str] = frozenset(
+    {
+        "id",
+        "cod",
+        "codigo",
+        "code",
+        "key",
+        "chave",
+        "pk",
+        "fk",
+        "nr",
+        "num",
+        "number",
+        "matricula",
+        "mat",
+        "iden",
+        "identifier",
+        "registro",
+        "nome",
+        "name",
+        "desc",
+        "descricao",
+        "description",
+        "sigla",
+        "abrev",
+        "tipo",
+        "type",
+        "categoria",
+        "class",
+        "flag",
+        "flg",
+        "status",
+        "qtd",
+        "quantidade",
+        "total",
+        "vlr",
+        "valor",
+        "pct",
+        "percentual",
+        "dt",
+        "date",
+        "data",
+        "hora",
+        "time",
+        "timestamp",
+        "dias",
+        "sequencial",
+    }
+)
 
 
 PESO_TOKEN_QUALIFICADOR: float = 0.45
 PESO_TOKEN_ENTIDADE: float = 1.0
 
 
-
 DOMINIOS_DE_PESSOA: frozenset[str] = frozenset({"Perfil do Colaborador", "Saúde", "Educação"})
-
 
 
 CARDINALIDADE_MAX_CATEGORIA: int = 100
@@ -286,21 +624,13 @@ PADROES_DATA: list[str] = [
 ]
 
 PADROES_ESTRUTURADOS: dict[str, str] = {
-    "CPF":      r"^\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2}$",
-    "CNPJ":     r"^\d{2}[.\-]?\d{3}[.\-]?\d{3}[\/\-]?\d{4}[.\-]?\d{2}$",
-    "CEP":      r"^\d{5}[-\s]?\d{3}$",
-    "E-mail":   r"^[\w.+\-]+@[\w\-]+(\.[\w\-]+)*\.[\w\-]{2,}$",
-    
-    
-    
-    
-    
-    
+    "CPF": r"^\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2}$",
+    "CNPJ": r"^\d{2}[.\-]?\d{3}[.\-]?\d{3}[\/\-]?\d{4}[.\-]?\d{2}$",
+    "CEP": r"^\d{5}[-\s]?\d{3}$",
+    "E-mail": r"^[\w.+\-]+@[\w\-]+(\.[\w\-]+)*\.[\w\-]{2,}$",
     "Telefone": r"^\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}$",
-    "UUID":     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+    "UUID": r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 }
-
-
 
 
 PADROES_COM_VALIDACAO: frozenset[str] = frozenset({"CPF", "CNPJ"})
@@ -311,16 +641,12 @@ PADRAO_MOJIBAKE: str = r"Ã[-¿–—‚-…]|Â[ -¿]|â€|ï¿½|�"
 TOKENS_CHAVE_SISTEMA: set[str] = {"id", "code", "number", "key", "cod", "pk", "fk", "identifier"}
 
 
-
-
-TIPOS_ELEGIVEIS_CHAVE: frozenset[str] = frozenset({"Número Inteiro", "Texto", "Texto (⚠️ Parece Data)"})
+TIPOS_ELEGIVEIS_CHAVE: frozenset[str] = frozenset(
+    {"Número Inteiro", "Texto", "Texto (⚠️ Parece Data)"}
+)
 
 
 CORRELACAO_MIN_ABS: float = 0.7
-
-
-
-
 
 
 REDUNDANCIA_PARCIAL_MINIMA: float = 0.9
@@ -329,50 +655,54 @@ CORRELACAO_MAX_CARDINALIDADE_CAT: int = 50
 CORRELACAO_MIN_N: int = 30
 
 
-
-
-
-
-
-
-
 DANO_POR_DEFEITO: dict[str, float] = {
-    "coluna_vazia": 1.00,          
-    "mojibake": 0.80,              
-    "documento_invalido": 0.80,    
-    "mistura_tipos": 0.70,         
-    "sentinela": 0.60,             
-    "pii_texto_livre": 0.60,       
-    "inconsistencia_texto": 0.50,  
-    "data_como_texto": 0.40,       
-    
-    
+    "coluna_vazia": 1.00,
+    "mojibake": 0.80,
+    "documento_invalido": 0.80,
+    "mistura_tipos": 0.70,
+    "sentinela": 0.60,
+    "pii_texto_livre": 0.60,
+    "inconsistencia_texto": 0.50,
+    "data_como_texto": 0.40,
 }
 
 
 DANO_MAXIMO_NULOS: float = 1.0
 
 
-
 PESO_DANO_COLUNAS: float = 0.85
 PESO_DANO_TABELA: float = 0.15
 
 
-
-
-
-
 REGRAS_KPI_PADRAO: list[dict[str, Any]] = [
-    {"id": "KPI_HR_001", "nome": "Volume de Esforço por Departamento",
-     "semanticas": ["Estrutura Organizacional", "Quantidade / Métrica"]},
-    {"id": "KPI_HR_002", "nome": "Distribuição de Liderança por Perfil",
-     "semanticas": ["Perfil do Colaborador", "Cargo / Função"]},
-    {"id": "KPI_HR_003", "nome": "Evolução de Custo de Pessoal",
-     "semanticas": ["Valor Financeiro", SEMANTICA_DATA_CALENDARIO]},
-    {"id": "KPI_HR_004", "nome": "Análise de Turnover",
-     "semanticas": ["Perfil do Colaborador", SEMANTICA_DATA_CALENDARIO]},
-    {"id": "KPI_TREIN_001", "nome": "Efetividade de Treinamentos",
-     "semanticas": ["Curso / Treinamento", "Resultado de Avaliação"]},
-    {"id": "KPI_GEO_001", "nome": "Distribuição Geográfica de Headcount",
-     "semanticas": ["Localização Geográfica", "Estrutura Organizacional"]},
+    {
+        "id": "KPI_HR_001",
+        "nome": "Volume de Esforço por Departamento",
+        "semanticas": ["Estrutura Organizacional", "Quantidade / Métrica"],
+    },
+    {
+        "id": "KPI_HR_002",
+        "nome": "Distribuição de Liderança por Perfil",
+        "semanticas": ["Perfil do Colaborador", "Cargo / Função"],
+    },
+    {
+        "id": "KPI_HR_003",
+        "nome": "Evolução de Custo de Pessoal",
+        "semanticas": ["Valor Financeiro", SEMANTICA_DATA_CALENDARIO],
+    },
+    {
+        "id": "KPI_HR_004",
+        "nome": "Análise de Turnover",
+        "semanticas": ["Perfil do Colaborador", SEMANTICA_DATA_CALENDARIO],
+    },
+    {
+        "id": "KPI_TREIN_001",
+        "nome": "Efetividade de Treinamentos",
+        "semanticas": ["Curso / Treinamento", "Resultado de Avaliação"],
+    },
+    {
+        "id": "KPI_GEO_001",
+        "nome": "Distribuição Geográfica de Headcount",
+        "semanticas": ["Localização Geográfica", "Estrutura Organizacional"],
+    },
 ]

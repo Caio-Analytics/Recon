@@ -5,8 +5,6 @@ EIXO_PAPEL = "papel"
 EIXO_DOMINIO = "dominio"
 
 
-
-
 _MARGEM_CONCLUSIVA = 0.15
 
 

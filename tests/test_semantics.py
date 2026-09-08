@@ -29,9 +29,7 @@ def test_match_fuzzy_nome_com_erro_de_digitacao():
 def test_fallback_por_conteudo_cpf_ignora_nome():
     resultado = inferir_semantica("campo_qualquer", detectado_padrao="CPF")
     assert resultado["semantica"] == config.SEMANTICA_CHAVE_ID
-    
-    
-    
+
     assert resultado["confianca_score"] >= 0.95
 
 
@@ -39,24 +37,30 @@ def test_nome_sem_semantica_cai_em_generico():
     assert inferir_semantica("xyzabc123")["semantica"] == config.SEMANTICA_GENERICA
 
 
-@pytest.mark.parametrize("nome,esperado", [
-    ("id_funcionario", config.SEMANTICA_CHAVE_ID),
-    ("matricula_colaborador", config.SEMANTICA_CHAVE_ID),
-    ("num_matricula", config.SEMANTICA_CHAVE_ID),
-    ("cpf_cliente", config.SEMANTICA_CHAVE_ID),
-    ("dt_desligamento", config.SEMANTICA_DATA_CALENDARIO),
-    ("data_nascimento_usuario", config.SEMANTICA_DATA_CALENDARIO),
-])
+@pytest.mark.parametrize(
+    "nome,esperado",
+    [
+        ("id_funcionario", config.SEMANTICA_CHAVE_ID),
+        ("matricula_colaborador", config.SEMANTICA_CHAVE_ID),
+        ("num_matricula", config.SEMANTICA_CHAVE_ID),
+        ("cpf_cliente", config.SEMANTICA_CHAVE_ID),
+        ("dt_desligamento", config.SEMANTICA_DATA_CALENDARIO),
+        ("data_nascimento_usuario", config.SEMANTICA_DATA_CALENDARIO),
+    ],
+)
 def test_qualificador_posicional_define_o_papel(nome, esperado):
     assert inferir_semantica(nome)["semantica"] == esperado
 
 
-@pytest.mark.parametrize("nome,dominio", [
-    ("nome_departamento", "Estrutura Organizacional"),
-    ("nome_filial", "Estrutura Organizacional"),
-    ("nome_curso", "Curso / Treinamento"),
-    ("desc_cargo", "Cargo / Função"),
-])
+@pytest.mark.parametrize(
+    "nome,dominio",
+    [
+        ("nome_departamento", "Estrutura Organizacional"),
+        ("nome_filial", "Estrutura Organizacional"),
+        ("nome_curso", "Curso / Treinamento"),
+        ("desc_cargo", "Cargo / Função"),
+    ],
+)
 def test_dominio_vence_quando_o_papel_e_apenas_formal(nome, dominio):
     resultado = inferir_semantica(nome)
     assert resultado["semantica"] == dominio
@@ -85,28 +89,32 @@ def test_coluna_de_uf_e_localizacao():
     assert inferir_semantica("uf")["semantica"] == "Localização Geográfica"
 
 
-@pytest.mark.parametrize("coluna,dominio", [
-    ("centro_custo", "Financeiro / Custo"),
-    ("codigo_rastreio", "Logística / Estoque"),
-    ("codigo_cid", "Saúde"),
-    ("nome_orgao", "Estrutura Organizacional"),
-    ("numero_ticket", "Suporte / Operações"),
-])
+@pytest.mark.parametrize(
+    "coluna,dominio",
+    [
+        ("centro_custo", "Financeiro / Custo"),
+        ("codigo_rastreio", "Logística / Estoque"),
+        ("codigo_cid", "Saúde"),
+        ("nome_orgao", "Estrutura Organizacional"),
+        ("numero_ticket", "Suporte / Operações"),
+    ],
+)
 def test_corpus_semantico_de_dominios_diversos(coluna, dominio):
     assert inferir_semantica(coluna)["dominio"] == dominio
 
 
-
-
-@pytest.mark.parametrize("abreviatura,esperado", [
-    ("dpto", "departamento"),
-    ("mvto", "movimento"),
-    ("func", "funcionario"),
-    ("lotac", "lotacao"),
-    ("trein", "treinamento"),
-    ("escol", "escolaridade"),
-    ("nasc", "nascimento"),
-])
+@pytest.mark.parametrize(
+    "abreviatura,esperado",
+    [
+        ("dpto", "departamento"),
+        ("mvto", "movimento"),
+        ("func", "funcionario"),
+        ("lotac", "lotacao"),
+        ("trein", "treinamento"),
+        ("escol", "escolaridade"),
+        ("nasc", "nascimento"),
+    ],
+)
 def test_abreviatura_reconstruida_por_subsequencia(abreviatura, esperado):
     assert esperado in [palavra for palavra, _ in expandir_abreviatura(abreviatura)]
 
@@ -122,36 +130,42 @@ def test_abreviatura_ambigua_tem_confianca_menor():
     assert conf_unica > max(confs_ambiguas)
 
 
-@pytest.mark.parametrize("nome,esperado", [
-    ("cd_dpto_lot", "Chave Identificadora (ID)"),
-    ("vl_saque", "Valor Financeiro"),
-    ("qt_itens", "Quantidade / Métrica"),
-    ("nm_cliente", "Nome / Identificação Pessoal"),
-    ("dt_mvto", "Data / Calendário"),
-])
+@pytest.mark.parametrize(
+    "nome,esperado",
+    [
+        ("cd_dpto_lot", "Chave Identificadora (ID)"),
+        ("vl_saque", "Valor Financeiro"),
+        ("qt_itens", "Quantidade / Métrica"),
+        ("nm_cliente", "Nome / Identificação Pessoal"),
+        ("dt_mvto", "Data / Calendário"),
+    ],
+)
 def test_nome_abreviado_e_classificado(nome, esperado):
     resultado = inferir_semantica(nome)
     assert resultado["semantica"] == esperado
     assert resultado["confianca_score"] > 0.5
 
 
-
-
 def _perfil(valores, tipo="Texto"):
     distintos = sorted(set(valores))
     return PerfilConteudo(
-        tipo_dados=tipo, valores_distintos=distintos, n_unicos=len(distintos),
+        tipo_dados=tipo,
+        valores_distintos=distintos,
+        n_unicos=len(distintos),
         ratio_unicidade=len(distintos) / len(valores),
     )
 
 
-@pytest.mark.parametrize("valores,esperado", [
-    (["SP", "RJ", "MG", "BA", "RS", "PR"] * 10, "Localização Geográfica"),
-    (["M", "F", "MASCULINO", "FEMININO"] * 10, "Perfil do Colaborador"),
-    (["Medio", "Superior", "Mestrado", "Doutorado"] * 10, "Perfil do Colaborador"),
-    (["S", "N"] * 30, "Status / Indicador / Flag"),
-    (["janeiro", "fevereiro", "marco", "abril"] * 10, "Data / Calendário"),
-])
+@pytest.mark.parametrize(
+    "valores,esperado",
+    [
+        (["SP", "RJ", "MG", "BA", "RS", "PR"] * 10, "Localização Geográfica"),
+        (["M", "F", "MASCULINO", "FEMININO"] * 10, "Perfil do Colaborador"),
+        (["Medio", "Superior", "Mestrado", "Doutorado"] * 10, "Perfil do Colaborador"),
+        (["S", "N"] * 30, "Status / Indicador / Flag"),
+        (["janeiro", "fevereiro", "marco", "abril"] * 10, "Data / Calendário"),
+    ],
+)
 def test_nome_opaco_resolvido_pelo_conteudo(valores, esperado):
     resultado = inferir_semantica("f27", perfil=_perfil(valores))
     assert resultado["semantica"] == esperado
@@ -159,10 +173,9 @@ def test_nome_opaco_resolvido_pelo_conteudo(valores, esperado):
 
 def test_conteudo_generico_nao_dispara_gazetteer():
     valores = [f"produto_{i}" for i in range(40)]
-    assert inferir_semantica("f27", perfil=_perfil(valores))["semantica"] == \
-        config.SEMANTICA_GENERICA
-
-
+    assert (
+        inferir_semantica("f27", perfil=_perfil(valores))["semantica"] == config.SEMANTICA_GENERICA
+    )
 
 
 def test_resultado_traz_hipoteses_ranqueadas():
@@ -190,8 +203,6 @@ def test_dominio_incerto_nao_e_afirmado():
     assert resultado["conclusiva"] is False
 
 
-
-
 def _tabela(colunas):
     return inferir_semanticas_da_tabela(
         [{"nome": c, "padrao": "Nenhum", "perfil": None} for c in colunas]
@@ -203,8 +214,7 @@ def test_contexto_da_tabela_desambigua_abreviatura():
     resultado = _tabela(colunas)[colunas.index("cod_dep")]
 
     assert resultado["dominio"] == "Estrutura Organizacional"
-    assert any("contexto da tabela" in e
-               for h in resultado["hipoteses"] for e in h["evidencias"])
+    assert any("contexto da tabela" in e for h in resultado["hipoteses"] for e in h["evidencias"])
 
 
 def test_sem_contexto_a_abreviatura_ambigua_fica_em_aberto():
@@ -230,14 +240,22 @@ def test_token_conhecido_nao_e_expandido_como_abreviatura():
 
 
 def test_abreviatura_de_verdade_continua_expandindo():
-    for abreviatura, esperado in (("dpto", "departamento"), ("mvto", "movimento"),
-                                  ("nasc", "nascimento"), ("vl", "valor")):
+    for abreviatura, esperado in (
+        ("dpto", "departamento"),
+        ("mvto", "movimento"),
+        ("nasc", "nascimento"),
+        ("vl", "valor"),
+    ):
         assert esperado in [p for p, _ in expandir_abreviatura(abreviatura)]
 
 
 def test_qualificador_na_ponta_final_define_o_papel():
-    for coluna in ("SUPPLIER_CONTACT_CODE", "WAREHOUSE_ACCESS_IDENTIFIER",
-                   "PROJECT_BUDGET_CODE", "SHIPPING_MANAGER_IDEN"):
+    for coluna in (
+        "SUPPLIER_CONTACT_CODE",
+        "WAREHOUSE_ACCESS_IDENTIFIER",
+        "PROJECT_BUDGET_CODE",
+        "SHIPPING_MANAGER_IDEN",
+    ):
         assert inferir_semantica(coluna)["papel"] == config.SEMANTICA_CHAVE_ID, coluna
     assert inferir_semantica("id_funcionario")["papel"] == config.SEMANTICA_CHAVE_ID
 
@@ -255,10 +273,12 @@ def test_nome_de_coisa_nao_e_nome_de_pessoa():
 def test_descricao_com_poucos_valores_vira_categoria():
     poucos = PerfilConteudo(tipo_dados="Texto", n_unicos=4, ratio_unicidade=0.00005)
     muitos = PerfilConteudo(tipo_dados="Texto", n_unicos=9000, ratio_unicidade=0.7)
-    assert inferir_semantica("SHIFT_TYPE_DESC", perfil=poucos)["papel"] == \
-        config.SEMANTICA_CATEGORIA
-    assert inferir_semantica("JOB_DESCRIPTION", perfil=muitos)["papel"] == \
-        config.SEMANTICA_TEXTO_LIVRE
+    assert (
+        inferir_semantica("SHIFT_TYPE_DESC", perfil=poucos)["papel"] == config.SEMANTICA_CATEGORIA
+    )
+    assert (
+        inferir_semantica("JOB_DESCRIPTION", perfil=muitos)["papel"] == config.SEMANTICA_TEXTO_LIVRE
+    )
 
 
 def test_homografo_com_papel_forte_nao_gera_dominio():
@@ -299,9 +319,7 @@ def test_ano_nao_vira_dado_pessoal():
 
 def test_abreviatura_especulativa_de_duas_letras_nao_e_tentada():
     assert expandir_abreviatura("ue") == ()
-    assert inferir_semantica("nm")[  
-        "papel"
-    ] == config.SEMANTICA_NOME_PESSOA
+    assert inferir_semantica("nm")["papel"] == config.SEMANTICA_NOME_PESSOA
 
 
 def test_nome_de_conceito_eleitoral_nao_e_dado_pessoal():

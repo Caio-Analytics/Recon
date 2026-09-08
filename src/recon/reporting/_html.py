@@ -11,7 +11,9 @@ from ._explicacoes import (
 )
 from ._graficos import CSS_GRAFICOS, barra_completude, graficos_da_coluna
 
-_CSS = CSS_GRAFICOS + """
+_CSS = (
+    CSS_GRAFICOS
+    + """
 :root {
   color-scheme: light dark;
   --fundo: #f8fafc; --fundo-alt: #ffffff; --superficie-suave: #eef4ff; --borda: #d8e2f0;
@@ -136,6 +138,7 @@ tbody tr:hover { background: var(--fundo-alt); }
   th { position: static; }
 }
 """
+)
 
 _MAX_PROBLEMAS_DESTAQUE = 6
 
@@ -263,9 +266,7 @@ def _tabela(cabecalhos: list[str], linhas: list[list[str]]) -> str:
     if not linhas:
         return '<p class="vazio">Nada a reportar nesta seção.</p>'
     cabecalho = "".join(f"<th>{_e(h)}</th>" for h in cabecalhos)
-    corpo = "".join(
-        "<tr>" + "".join(f"<td>{c}</td>" for c in linha) + "</tr>" for linha in linhas
-    )
+    corpo = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in linha) + "</tr>" for linha in linhas)
     return f'<div class="tabela-wrap"><table><thead><tr>{cabecalho}</tr></thead><tbody>{corpo}</tbody></table></div>'
 
 
@@ -276,9 +277,7 @@ def _bloco_coluna(coluna: dict[str, Any]) -> str:
     qual = coluna.get("Qualidade", {})
     itens: list[str] = []
 
-    base = (
-        f"Nulos: <b>{_num(coluna['Qtd_Nulos'])}</b> ({coluna['Pct_Nulos']:.1f}%)"
-    )
+    base = f"Nulos: <b>{_num(coluna['Qtd_Nulos'])}</b> ({coluna['Pct_Nulos']:.1f}%)"
     if qual.get("nulos_efetivos_qtd", 0) > coluna["Qtd_Nulos"]:
         base += f" · nulos efetivos <b>{qual['nulos_efetivos_pct']:.1f}%</b>"
     base += f" · Únicos: <b>{_num(coluna['Qtd_Unicos'])}</b> ({_pct(coluna['Ratio_Unicidade'])})"
@@ -335,7 +334,8 @@ def _bloco_coluna(coluna: dict[str, Any]) -> str:
         if alternativas:
             itens.append(
                 '<span class="alerta">Classificação não conclusiva — outras leituras: '
-                + _e(", ".join(alternativas[:3])) + "</span>"
+                + _e(", ".join(alternativas[:3]))
+                + "</span>"
             )
 
     if coluna.get("Amostra_Valores"):
@@ -367,11 +367,15 @@ def _bloco_coluna(coluna: dict[str, Any]) -> str:
     pct_sent = float(qual.get("sentinelas", {}).get("pct_total", 0.0) or 0.0)
     completude = barra_completude(float(coluna.get("Pct_Nulos", 0.0)), pct_sent)
     legenda = (
-        '<div class="legenda-completude"><span class="leg-ok">preenchido</span>'
-        + ('<span class="leg-sent">nulo disfarçado</span>' if pct_sent > 0 else "")
-        + ('<span class="leg-nulo">nulo</span>' if coluna.get("Pct_Nulos", 0) > 0 else "")
-        + "</div>"
-    ) if completude else ""
+        (
+            '<div class="legenda-completude"><span class="leg-ok">preenchido</span>'
+            + ('<span class="leg-sent">nulo disfarçado</span>' if pct_sent > 0 else "")
+            + ('<span class="leg-nulo">nulo</span>' if coluna.get("Pct_Nulos", 0) > 0 else "")
+            + "</div>"
+        )
+        if completude
+        else ""
+    )
 
     lista = "".join(f"<li>{item}</li>" for item in itens)
     tem_atencao = bool(alertas) or float(coluna.get("Pct_Nulos", 0) or 0) > 0
@@ -380,9 +384,9 @@ def _bloco_coluna(coluna: dict[str, Any]) -> str:
         f'<div class="coluna" data-atencao="{str(tem_atencao).lower()}" '
         f'data-sensivel="{str(sensivel).lower()}"><h3><code>{_e(coluna["Coluna"])}</code></h3>'
         f'<div class="meta">{_e(coluna["Tipo_Inferred"])} · {semantica} · '
-        f'{_e(coluna["Caracteristica"])}</div>'
-        f'{completude}{legenda}{graficos_da_coluna(coluna)}'
-        f'<ul>{lista}</ul></div>'
+        f"{_e(coluna['Caracteristica'])}</div>"
+        f"{completude}{legenda}{graficos_da_coluna(coluna)}"
+        f"<ul>{lista}</ul></div>"
     )
 
 
@@ -393,16 +397,19 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
     duplicatas = meta.get("duplicatas", {})
     partes: list[str] = []
 
-    partes.append('<header class="cabecalho-relatorio"><div class="marca">Recon · perfil de dados</div>')
+    partes.append(
+        '<header class="cabecalho-relatorio"><div class="marca">Recon · perfil de dados</div>'
+    )
     partes.append(f"<h1>Perfilamento — {_e(meta['tabela'])}</h1>")
     linhas_origem = (
-        "total não contabilizado (leitura limitada)" if meta.get("linhas_originais_desconhecidas")
-        else f'{meta["linhas_originais"]:,}'
+        "total não contabilizado (leitura limitada)"
+        if meta.get("linhas_originais_desconhecidas")
+        else f"{meta['linhas_originais']:,}"
     )
     partes.append(
         f'<p class="sub">{meta["linhas_analisadas"]:,} linhas analisadas de '
-        f'{linhas_origem} · {meta["total_colunas"]} colunas · '
-        f'gerado em {_e(meta["timestamp_utc"][:19])} UTC</p>'
+        f"{linhas_origem} · {meta['total_colunas']} colunas · "
+        f"gerado em {_e(meta['timestamp_utc'][:19])} UTC</p>"
     )
     partes.append("</header>")
 
@@ -415,7 +422,7 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
     if meta.get("amostragem_aplicada"):
         partes.append(
             '<p class="sub"><b class="alerta">⚠️ Amostragem aplicada.</b> As métricas de '
-            'unicidade, chave primária e duplicata valem para a amostra, não para a tabela '
+            "unicidade, chave primária e duplicata valem para a amostra, não para a tabela "
             'inteira — numa amostra elas só podem ser subestimadas, o que gera "chave '
             'primária potencial" que não existe na base completa.</p>'
         )
@@ -424,8 +431,8 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
         incerteza = meta.get("incerteza_amostra") or {}
         partes.append(
             f'<p class="sub"><b>Limite da leitura:</b> {_e(incerteza.get("mensagem", ""))} '
-            f'Cobertura: {_e(incerteza.get("cobertura_pct", "—"))}% das linhas; '
-            f'eventos abaixo de aproximadamente {_e(incerteza.get("limiar_evento_raro_pct", "—"))}% '
+            f"Cobertura: {_e(incerteza.get('cobertura_pct', '—'))}% das linhas; "
+            f"eventos abaixo de aproximadamente {_e(incerteza.get('limiar_evento_raro_pct', '—'))}% "
             "podem ficar fora da amostra.</p>"
         )
 
@@ -433,8 +440,8 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
     if abas_ignoradas:
         partes.append(
             '<p class="sub"><b class="alerta">⚠️ Este arquivo tem outras '
-            f'{len(abas_ignoradas)} aba(s)</b> que não entraram nesta análise: '
-            f'{_e(", ".join(abas_ignoradas))}. Para um relatório por aba, marque '
+            f"{len(abas_ignoradas)} aba(s)</b> que não entraram nesta análise: "
+            f"{_e(', '.join(abas_ignoradas))}. Para um relatório por aba, marque "
             "&quot;analisar todas as abas&quot; na janela ou use <code>--todas-abas</code>.</p>"
         )
 
@@ -449,9 +456,9 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
         partes.append(
             f'<div class="score"><div><div class="nota" style="color:{cor}">'
             f'{score["nota"]}</div></div><div style="flex:1">'
-            f'<div><b>{score["score"]}</b> / 100 de qualidade</div>'
+            f"<div><b>{score['score']}</b> / 100 de qualidade</div>"
             f'<div class="barra"><span style="width:{largura}%;background:{cor}"></span></div>'
-            f'</div></div>'
+            f"</div></div>"
         )
         if penalidades:
             partes.append(
@@ -503,7 +510,7 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
             for c in risco["colunas_sensiveis"][:6]
         )
         partes.append(
-            f'<h2>Exposição de dado pessoal — {_e(risco["nivel"])}</h2>'
+            f"<h2>Exposição de dado pessoal — {_e(risco['nivel'])}</h2>"
             f'<p class="sub">{colunas}. {_e(risco["recomendacao"])}</p>'
         )
 
@@ -523,8 +530,6 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
 
     recomendacoes = quality.ordenar_por_prioridade(payload["recomendacoes_etl"])
 
-    
-    
     criticas = [r for r in recomendacoes if r["Prioridade"] == quality.PRIORIDADE_ALTA]
     if criticas:
         itens = "".join(
@@ -532,27 +537,46 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
             for r in criticas[:_MAX_PROBLEMAS_DESTAQUE]
         )
         restantes = len(criticas) - _MAX_PROBLEMAS_DESTAQUE
-        sobra = (f"<p class='sub'>(+{restantes} outras de prioridade alta na tabela abaixo)</p>"
-                 if restantes > 0 else "")
+        sobra = (
+            f"<p class='sub'>(+{restantes} outras de prioridade alta na tabela abaixo)</p>"
+            if restantes > 0
+            else ""
+        )
         partes.append(f"<h2>Principais problemas</h2><ol>{itens}</ol>{sobra}")
 
     partes.append("<h2>Recomendações de ETL</h2>")
-    partes.append(_tabela(
-        ["Prioridade", "Camada", "Coluna", "Ação"],
-        [[
-            f'<span class="tag {_CLASSE_PRIORIDADE.get(r["Prioridade"], "")}">{_e(r["Prioridade"])}</span>',
-            _e(r["Camada"]), f'<code>{_e(r["Coluna"])}</code>', _e(r["Acao"]),
-        ] for r in recomendacoes],
-    ))
+    partes.append(
+        _tabela(
+            ["Prioridade", "Camada", "Coluna", "Ação"],
+            [
+                [
+                    f'<span class="tag {_CLASSE_PRIORIDADE.get(r["Prioridade"], "")}">{_e(r["Prioridade"])}</span>',
+                    _e(r["Camada"]),
+                    f"<code>{_e(r['Coluna'])}</code>",
+                    _e(r["Acao"]),
+                ]
+                for r in recomendacoes
+            ],
+        )
+    )
 
     partes.append("<h2>Visão geral das colunas</h2>")
-    partes.append(_tabela(
-        ["Coluna", "Tipo", "Semântica", "% Nulos", "Únicos", "Característica"],
-        [[
-            f'<code>{_e(c["Coluna"])}</code>', _e(c["Tipo_Inferred"]), _e(c["Semantica_IA"]),
-            f'{c["Pct_Nulos"]:.1f}%', f'{c["Qtd_Unicos"]:,}', _e(c["Caracteristica"]),
-        ] for c in payload["colunas"]],
-    ))
+    partes.append(
+        _tabela(
+            ["Coluna", "Tipo", "Semântica", "% Nulos", "Únicos", "Característica"],
+            [
+                [
+                    f"<code>{_e(c['Coluna'])}</code>",
+                    _e(c["Tipo_Inferred"]),
+                    _e(c["Semantica_IA"]),
+                    f"{c['Pct_Nulos']:.1f}%",
+                    f"{c['Qtd_Unicos']:,}",
+                    _e(c["Caracteristica"]),
+                ]
+                for c in payload["colunas"]
+            ],
+        )
+    )
 
     partes.append("<h2>Detalhe por coluna</h2>")
     partes.extend(_bloco_coluna(c) for c in payload["colunas"])
@@ -561,20 +585,37 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
     linhas_rel: list[list[str]] = []
     for d in payload.get("dependencias_funcionais", []):
         seta = "↔" if d["tipo"].startswith("Equivalência") else "→"
-        linhas_rel.append([_e(d["tipo"]), f'<code>{_e(d["determinante"])}</code> {seta} '
-                           f'<code>{_e(d["dependente"])}</code>', _e(d["descricao"])])
+        linhas_rel.append(
+            [
+                _e(d["tipo"]),
+                f"<code>{_e(d['determinante'])}</code> {seta} <code>{_e(d['dependente'])}</code>",
+                _e(d["descricao"]),
+            ]
+        )
     for r in payload.get("colunas_redundantes", []):
-        linhas_rel.append(["Coluna redundante",
-                           f'<code>{_e(r["coluna"])}</code> = <code>{_e(r["coluna_redundante"])}</code>',
-                           _e(r["descricao"])])
+        linhas_rel.append(
+            [
+                "Coluna redundante",
+                f"<code>{_e(r['coluna'])}</code> = <code>{_e(r['coluna_redundante'])}</code>",
+                _e(r["descricao"]),
+            ]
+        )
     for c in payload.get("chaves_compostas", []):
-        linhas_rel.append(["Chave composta",
-                           " + ".join(f'<code>{_e(x)}</code>' for x in c["colunas"]),
-                           _e(c["descricao"])])
+        linhas_rel.append(
+            [
+                "Chave composta",
+                " + ".join(f"<code>{_e(x)}</code>" for x in c["colunas"]),
+                _e(c["descricao"]),
+            ]
+        )
     for c in payload.get("correlacoes", []):
-        linhas_rel.append([_e(c["metrica"]),
-                           f'<code>{_e(c["coluna_a"])}</code> ~ <code>{_e(c["coluna_b"])}</code>',
-                           f'{_num(c["valor"])} ({_e(c["forca"])})'])
+        linhas_rel.append(
+            [
+                _e(c["metrica"]),
+                f"<code>{_e(c['coluna_a'])}</code> ~ <code>{_e(c['coluna_b'])}</code>",
+                f"{_num(c['valor'])} ({_e(c['forca'])})",
+            ]
+        )
     partes.append(_tabela(["Tipo", "Colunas", "Detalhe"], linhas_rel))
 
     if payload.get("regras_negocio"):
@@ -599,40 +640,59 @@ def exportar_html(payload: dict[str, Any], caminho: str) -> None:
 
     if payload.get("explicacoes_de_medidas"):
         partes.append("<h2>O que explica cada medida</h2><ul>")
-        partes.extend(
-            f"<li>{_e(e['descricao'])}</li>" for e in payload["explicacoes_de_medidas"]
-        )
+        partes.extend(f"<li>{_e(e['descricao'])}</li>" for e in payload["explicacoes_de_medidas"])
         partes.append("</ul>")
 
     partes.append("<h2>Gap Analysis de KPIs</h2>")
-    partes.append(_tabela(
-        ["KPI", "Nome", "Status", "Cobertura", "Semânticas ausentes"],
-        [[_e(g["kpi_id"]), _e(g["kpi_nome"]), _e(g["status"]), _e(g["cobertura_pct"]),
-          _e(", ".join(g["semanticas_ausentes"]) or "—")]
-         for g in payload["gap_analysis_kpis"]],
-    ))
+    partes.append(
+        _tabela(
+            ["KPI", "Nome", "Status", "Cobertura", "Semânticas ausentes"],
+            [
+                [
+                    _e(g["kpi_id"]),
+                    _e(g["kpi_nome"]),
+                    _e(g["status"]),
+                    _e(g["cobertura_pct"]),
+                    _e(", ".join(g["semanticas_ausentes"]) or "—"),
+                ]
+                for g in payload["gap_analysis_kpis"]
+            ],
+        )
+    )
 
     if payload.get("analise_temporal_series"):
         primeira = payload["analise_temporal_series"][0]
         partes.append("<h2>Análise temporal</h2>")
         partes.append(
             f'<p class="sub">Cada coluna abaixo foi resumida por período '
-            f'({_e(primeira["agregacao"])}) usando <code>{_e(primeira["coluna_temporal_referencia"])}</code>. '
+            f"({_e(primeira['agregacao'])}) usando <code>{_e(primeira['coluna_temporal_referencia'])}</code>. "
             "Esta seção observa a evolução de uma mesma coluna no tempo; não é uma correlação entre colunas.</p>"
         )
-        partes.append(_tabela(
-            ["Coluna resumida", "Como foi resumida", "Períodos analisados", "Padrão no tempo", "Efeito entre períodos"],
-            [[
-                f'<code>{_e(t["coluna"])}</code>', _e(t.get("operacao", "média")),
-                f'{t["n_pontos"]:,} períodos',
-                _e(explicar_estabilidade_temporal(t["adf"])),
-                _e(explicar_dependencia_temporal(t["ljung_box"])),
-            ] for t in payload["analise_temporal_series"]],
-        ))
+        partes.append(
+            _tabela(
+                [
+                    "Coluna resumida",
+                    "Como foi resumida",
+                    "Períodos analisados",
+                    "Padrão no tempo",
+                    "Efeito entre períodos",
+                ],
+                [
+                    [
+                        f"<code>{_e(t['coluna'])}</code>",
+                        _e(t.get("operacao", "média")),
+                        f"{t['n_pontos']:,} períodos",
+                        _e(explicar_estabilidade_temporal(t["adf"])),
+                        _e(explicar_dependencia_temporal(t["ljung_box"])),
+                    ]
+                    for t in payload["analise_temporal_series"]
+                ],
+            )
+        )
 
     documento = (
-        "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f"<title>Perfilamento — {_e(meta['tabela'])}</title><style>{_CSS}</style></head>"
         f"<body><main>{''.join(partes)}</main><script>{_SCRIPT_INTERATIVO}</script></body></html>"
     )

@@ -17,7 +17,7 @@ _COLUNAS = (
     ("Exemplos", "Amostra_Valores"),
 )
 _LARGURAS = (28, 18, 24, 22, 22, 26, 16, 10, 16, 52)
-_MAX_ABA = 31  
+_MAX_ABA = 31
 _PREFIXOS_DE_FORMULA = ("=", "+", "-", "@")
 
 
@@ -41,18 +41,24 @@ def _linhas_da_tabela(payload: dict[str, Any]) -> pd.DataFrame:
 
 
 def _resumo(payloads: Sequence[dict[str, Any]]) -> pd.DataFrame:
-    return _quadro_seguro_para_excel(pd.DataFrame([
-        {
-            "Tabela": p["metadados_execucao"]["tabela"],
-            "Linhas": p["metadados_execucao"]["linhas_originais"],
-            "Colunas": p["metadados_execucao"]["total_colunas"],
-            "Score de qualidade": p["metadados_execucao"]["score_qualidade"]["score"],
-            "Nota": p["metadados_execucao"]["score_qualidade"]["nota"],
-            "Exposição LGPD": (p["metadados_execucao"].get("risco_lgpd") or {}).get("nivel", "—"),
-            "Recomendações": len(p.get("recomendacoes_etl", [])),
-        }
-        for p in payloads
-    ]))
+    return _quadro_seguro_para_excel(
+        pd.DataFrame(
+            [
+                {
+                    "Tabela": p["metadados_execucao"]["tabela"],
+                    "Linhas": p["metadados_execucao"]["linhas_originais"],
+                    "Colunas": p["metadados_execucao"]["total_colunas"],
+                    "Score de qualidade": p["metadados_execucao"]["score_qualidade"]["score"],
+                    "Nota": p["metadados_execucao"]["score_qualidade"]["nota"],
+                    "Exposição LGPD": (p["metadados_execucao"].get("risco_lgpd") or {}).get(
+                        "nivel", "—"
+                    ),
+                    "Recomendações": len(p.get("recomendacoes_etl", [])),
+                }
+                for p in payloads
+            ]
+        )
+    )
 
 
 def _nome_de_aba(nome: str, usados: set[str]) -> str:
@@ -79,8 +85,7 @@ def exportar_dicionario_xlsx(payloads: Sequence[dict[str, Any]], caminho: str) -
             quadro = _linhas_da_tabela(payload)
             quadro.to_excel(escritor, sheet_name=aba, index=False)
             planilha = escritor.sheets[aba]
-            
-            
+
             planilha.freeze_panes = "A2"
             planilha.auto_filter.ref = planilha.dimensions
             for indice, largura in enumerate(_LARGURAS, start=1):

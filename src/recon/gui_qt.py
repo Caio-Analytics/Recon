@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import traceback
@@ -131,7 +130,6 @@ _DETALHES_MENU = {
 
 
 class Trabalho(QObject):
-
     progresso = Signal(str)
     terminou = Signal(list, list)
     falhou = Signal(str)
@@ -171,7 +169,10 @@ class Trabalho(QObject):
         try:
             self.progresso.emit(f"Iniciando {self.acao.titulo.lower()}…")
             gerados, falhas = application.executar_analise(
-                self.acao, self.arquivos, self.saida, formatos=self.formatos,
+                self.acao,
+                self.arquivos,
+                self.saida,
+                formatos=self.formatos,
                 vocabularios=self.vocabularios,
                 arquivo_auxiliar=self.arquivo_auxiliar,
                 nome_contrato=self.nome_contrato,
@@ -186,7 +187,6 @@ class Trabalho(QObject):
 
 
 class CartaoModo(QFrame):
-
     def __init__(
         self, acao: application.AcaoAnalise, ao_escolher: Callable[[application.AcaoAnalise], None]
     ) -> None:
@@ -224,7 +224,6 @@ class CartaoModo(QFrame):
 
 
 class JanelaReconQt(QMainWindow):
-
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Recon — reconhecimento de dados")
@@ -278,7 +277,9 @@ class JanelaReconQt(QMainWindow):
         titulo = QLabel("O que você quer descobrir?")
         titulo.setObjectName("titulo")
         layout.addWidget(titulo)
-        subtitulo = QLabel("Escolha um objetivo. Depois, selecione os arquivos e revise a execução antes de começar.")
+        subtitulo = QLabel(
+            "Escolha um objetivo. Depois, selecione os arquivos e revise a execução antes de começar."
+        )
         subtitulo.setObjectName("subtitulo")
         layout.addWidget(subtitulo)
 
@@ -376,7 +377,9 @@ class JanelaReconQt(QMainWindow):
         self.url_fonte.setPlaceholderText("https://servidor.exemplo/base.csv")
         self.url_fonte.setAccessibleName("URL do arquivo a analisar")
         url_layout.addWidget(self.url_fonte)
-        ajuda_url = QLabel("Aceita CSV, JSON e Parquet por HTTP(S). Links assinados funcionam enquanto estiverem válidos.")
+        ajuda_url = QLabel(
+            "Aceita CSV, JSON e Parquet por HTTP(S). Links assinados funcionam enquanto estiverem válidos."
+        )
         ajuda_url.setObjectName("descricao")
         ajuda_url.setWordWrap(True)
         url_layout.addWidget(ajuda_url)
@@ -389,7 +392,9 @@ class JanelaReconQt(QMainWindow):
         consulta_layout.setSpacing(6)
         consulta_layout.addWidget(QLabel("Conexão do banco local"))
         self.conexao_banco = QLineEdit()
-        self.conexao_banco.setPlaceholderText("sqlite:///caminho/base.db ou duckdb:///caminho/base.duckdb")
+        self.conexao_banco.setPlaceholderText(
+            "sqlite:///caminho/base.db ou duckdb:///caminho/base.duckdb"
+        )
         self.conexao_banco.setAccessibleName("Conexão SQLite ou DuckDB local")
         consulta_layout.addWidget(self.conexao_banco)
         consulta_layout.addWidget(QLabel("Consulta de leitura"))
@@ -398,7 +403,9 @@ class JanelaReconQt(QMainWindow):
         self.sql_consulta.setAccessibleName("Consulta SQL somente de leitura")
         self.sql_consulta.setMinimumHeight(110)
         consulta_layout.addWidget(self.sql_consulta)
-        ajuda_consulta = QLabel("Por segurança, o Recon aceita somente consultas SELECT ou WITH e abre o banco em modo leitura.")
+        ajuda_consulta = QLabel(
+            "Por segurança, o Recon aceita somente consultas SELECT ou WITH e abre o banco em modo leitura."
+        )
         ajuda_consulta.setObjectName("descricao")
         ajuda_consulta.setWordWrap(True)
         consulta_layout.addWidget(ajuda_consulta)
@@ -418,7 +425,11 @@ class JanelaReconQt(QMainWindow):
             versoes_layout.addWidget(QLabel(rotulo_versao))
             campo.setPlaceholderText("Selecione o arquivo")
             botao = QPushButton(texto_botao)
-            botao.clicked.connect(lambda _=False, destino=campo, titulo=rotulo_versao: self.escolher_versao(destino, titulo))
+            botao.clicked.connect(
+                lambda _=False, destino=campo, titulo=rotulo_versao: self.escolher_versao(
+                    destino, titulo
+                )
+            )
             linha = QHBoxLayout()
             linha.addWidget(campo, 1)
             linha.addWidget(botao)
@@ -484,7 +495,9 @@ class JanelaReconQt(QMainWindow):
         formato = QLabel("Formato do relatório")
         formato.setObjectName("cartao_titulo")
         formatos_layout.addWidget(formato)
-        self.formatos = {nome: QCheckBox(rotulo) for nome, rotulo, _ in application.FORMATOS_INTERFACE}
+        self.formatos = {
+            nome: QCheckBox(rotulo) for nome, rotulo, _ in application.FORMATOS_INTERFACE
+        }
         self.formatos["html"].setChecked(True)
         linha_formatos = QHBoxLayout()
         for caixa in self.formatos.values():
@@ -510,7 +523,9 @@ class JanelaReconQt(QMainWindow):
         titulo = QLabel("Acompanhamento")
         titulo.setObjectName("cartao_titulo")
         layout.addWidget(titulo)
-        texto = QLabel("Aqui você vê o que aconteceu. Use o nível técnico só ao investigar um erro.")
+        texto = QLabel(
+            "Aqui você vê o que aconteceu. Use o nível técnico só ao investigar um erro."
+        )
         texto.setObjectName("descricao")
         texto.setWordWrap(True)
         layout.addWidget(texto)
@@ -548,35 +563,48 @@ class JanelaReconQt(QMainWindow):
         self.widget_nome_contrato.setVisible(contrato)
         self.widget_formatos.setVisible(not (contrato or validar or semantica))
         self.executar.setText(
-            "Criar contrato YAML" if contrato else "Validar contrato" if validar
-            else "Gerar YAML de revisão" if semantica else "Analisar agora"
+            "Criar contrato YAML"
+            if contrato
+            else "Validar contrato"
+            if validar
+            else "Gerar YAML de revisão"
+            if semantica
+            else "Analisar agora"
         )
-        self.rotulo_entrada.setText({
-            "lote": "Bases para comparar qualidade",
-            "modelo": "Tabelas para relacionar",
-            "conferencia": "Versões da mesma base",
-            "historico": "Extrações em ordem cronológica",
-            "contrato": "Base que define o contrato",
-            "validar": "Base para validar",
-            "url": "Arquivo hospedado",
-            "consulta": "Consulta de banco local",
-            "semantica": "Base para revisão de semântica",
-        }.get(acao.chave, "Dados de entrada"))
-        self.ajuda_entrada.setText({
-            "lote": "Adicione bases comparáveis. Este modo as prioriza por qualidade; para usar uma base como referência, escolha “Conferir duas versões”.",
-            "modelo": "Selecione as tabelas que fazem parte do mesmo assunto.",
-            "conferencia": "A ordem é importante: o Recon compara a versão anterior com a nova.",
-            "historico": "Adicione as extrações da mais antiga para a mais recente. Use os botões para corrigir a ordem.",
-            "contrato": "Escolha uma base revisada e estável. O YAML salvo poderá ser reutilizado para validar cargas futuras.",
-            "validar": "Escolha a base nova que será conferida contra o contrato YAML.",
-            "url": "Cole uma URL HTTP(S). A fonte é lida diretamente e as credenciais não são armazenadas pelo Recon.",
-            "consulta": "Informe uma conexão SQLite ou DuckDB local e uma consulta SELECT ou WITH.",
-            "semantica": "Escolha uma base. O YAML resultante pode ser editado e reutilizado como vocabulário do negócio.",
-        }.get(acao.chave, "Selecione os arquivos que o Recon deve analisar."))
+        self.rotulo_entrada.setText(
+            {
+                "lote": "Bases para comparar qualidade",
+                "modelo": "Tabelas para relacionar",
+                "conferencia": "Versões da mesma base",
+                "historico": "Extrações em ordem cronológica",
+                "contrato": "Base que define o contrato",
+                "validar": "Base para validar",
+                "url": "Arquivo hospedado",
+                "consulta": "Consulta de banco local",
+                "semantica": "Base para revisão de semântica",
+            }.get(acao.chave, "Dados de entrada")
+        )
+        self.ajuda_entrada.setText(
+            {
+                "lote": "Adicione bases comparáveis. Este modo as prioriza por qualidade; para usar uma base como referência, escolha “Conferir duas versões”.",
+                "modelo": "Selecione as tabelas que fazem parte do mesmo assunto.",
+                "conferencia": "A ordem é importante: o Recon compara a versão anterior com a nova.",
+                "historico": "Adicione as extrações da mais antiga para a mais recente. Use os botões para corrigir a ordem.",
+                "contrato": "Escolha uma base revisada e estável. O YAML salvo poderá ser reutilizado para validar cargas futuras.",
+                "validar": "Escolha a base nova que será conferida contra o contrato YAML.",
+                "url": "Cole uma URL HTTP(S). A fonte é lida diretamente e as credenciais não são armazenadas pelo Recon.",
+                "consulta": "Informe uma conexão SQLite ou DuckDB local e uma consulta SELECT ou WITH.",
+                "semantica": "Escolha uma base. O YAML resultante pode ser editado e reutilizado como vocabulário do negócio.",
+            }.get(acao.chave, "Selecione os arquivos que o Recon deve analisar.")
+        )
         self.rotulo_saida.setText(
-            "Pasta onde o contrato será guardado" if contrato else
-            "Pasta obrigatória para a fonte remota" if url else
-            "Pasta obrigatória para a consulta" if consulta else "Onde salvar"
+            "Pasta onde o contrato será guardado"
+            if contrato
+            else "Pasta obrigatória para a fonte remota"
+            if url
+            else "Pasta obrigatória para a consulta"
+            if consulta
+            else "Onde salvar"
         )
         usa_auxiliar = bool(acao.arquivo_auxiliar)
         self.rotulo_auxiliar.setVisible(usa_auxiliar)
@@ -657,7 +685,11 @@ class JanelaReconQt(QMainWindow):
 
     def _arquivos_para_analise(self) -> list[str]:
         if self.acao_atual and self.acao_atual.chave == "conferencia":
-            return [campo.text().strip() for campo in (self.arquivo_anterior, self.arquivo_novo) if campo.text().strip()]
+            return [
+                campo.text().strip()
+                for campo in (self.arquivo_anterior, self.arquivo_novo)
+                if campo.text().strip()
+            ]
         if self.acao_atual and self.acao_atual.chave == "url":
             return [self.url_fonte.text().strip()] if self.url_fonte.text().strip() else []
         return self.arquivos.copy()
@@ -671,11 +703,17 @@ class JanelaReconQt(QMainWindow):
             QMessageBox.warning(self, "Revise a seleção", erro)
             return
         consulta = self.acao_atual.chave == "consulta"
-        if consulta and (not self.conexao_banco.text().strip() or not self.sql_consulta.toPlainText().strip()):
-            QMessageBox.warning(self, "Consulta", "Informe a conexão local e uma consulta SELECT ou WITH.")
+        if consulta and (
+            not self.conexao_banco.text().strip() or not self.sql_consulta.toPlainText().strip()
+        ):
+            QMessageBox.warning(
+                self, "Consulta", "Informe a conexão local e uma consulta SELECT ou WITH."
+            )
             return
         if self.acao_atual.chave in {"url", "consulta"} and not self.saida.text().strip():
-            QMessageBox.warning(self, "Pasta de saída", "Escolha uma pasta para salvar os relatórios dessa fonte.")
+            QMessageBox.warning(
+                self, "Pasta de saída", "Escolha uma pasta para salvar os relatórios dessa fonte."
+            )
             return
         try:
             fontes_para_saida = arquivos or [self.saida.text()]
@@ -692,8 +730,13 @@ class JanelaReconQt(QMainWindow):
         nome_contrato = self.nome_contrato.text().strip() or None
         if self.acao_atual.chave == "contrato" and nome_contrato:
             caminho_nome = Path(nome_contrato)
-            if caminho_nome.name != nome_contrato or caminho_nome.suffix.lower() not in {".yaml", ".yml"}:
-                QMessageBox.warning(self, "Nome do contrato", "Use somente um nome terminado em .yaml ou .yml.")
+            if caminho_nome.name != nome_contrato or caminho_nome.suffix.lower() not in {
+                ".yaml",
+                ".yml",
+            }:
+                QMessageBox.warning(
+                    self, "Nome do contrato", "Use somente um nome terminado em .yaml ou .yml."
+                )
                 return
 
         self.executar.setEnabled(False)
@@ -706,7 +749,11 @@ class JanelaReconQt(QMainWindow):
         self.arquivos_em_execucao = arquivos
         self.worker_thread = QThread(self)
         self.trabalho = Trabalho(
-            self.acao_atual, arquivos, pasta_saida, formatos, self.nivel.currentText(),
+            self.acao_atual,
+            arquivos,
+            pasta_saida,
+            formatos,
+            self.nivel.currentText(),
             self.vocabularios.text().strip() or None,
             self.arquivo_auxiliar.text().strip() or None,
             nome_contrato,
@@ -738,8 +785,10 @@ class JanelaReconQt(QMainWindow):
     def falhou(self, detalhe: str) -> None:
         self.progresso.setRange(0, 1)
         self.executar.setEnabled(True)
-        mensagem = detalhe if self.nivel.currentText() == "Técnico" else (
-            "A análise falhou. Mude Diagnóstico para Técnico para ver detalhes."
+        mensagem = (
+            detalhe
+            if self.nivel.currentText() == "Técnico"
+            else ("A análise falhou. Mude Diagnóstico para Técnico para ver detalhes.")
         )
         self._registrar(mensagem)
         QMessageBox.critical(self, "Erro na análise", mensagem)

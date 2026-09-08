@@ -10,9 +10,6 @@ from statsmodels.tsa.stattools import adfuller
 
 from . import config
 
-
-
-
 _MEDCOUPLE_MAX_N = 5_000
 
 
@@ -25,21 +22,22 @@ def valor_ou_none(x: Any) -> float | None:
     return round(valor, 6) if math.isfinite(valor) else None
 
 
-
-
 def calcular_outliers(serie: pd.Series) -> dict[str, Any]:
     q1 = _como_float(serie.quantile(0.25))
     q3 = _como_float(serie.quantile(0.75))
     iqr = q3 - q1
 
     assimetria = _como_float(serie.skew()) if len(serie) > 2 else 0.0
-    usar_ajustado = math.isfinite(assimetria) and abs(assimetria) >= config.THRESHOLD_ASSIMETRIA_ROBUSTA
+    usar_ajustado = (
+        math.isfinite(assimetria) and abs(assimetria) >= config.THRESHOLD_ASSIMETRIA_ROBUSTA
+    )
     mc = 0.0
 
     if usar_ajustado and iqr > 0:
         amostra = (
             serie.sample(n=_MEDCOUPLE_MAX_N, random_state=42)
-            if len(serie) > _MEDCOUPLE_MAX_N else serie
+            if len(serie) > _MEDCOUPLE_MAX_N
+            else serie
         )
         try:
             mc = float(np.asarray(medcouple(amostra.to_numpy())).item())
@@ -77,25 +75,29 @@ def calcular_outliers(serie: pd.Series) -> dict[str, Any]:
     }
 
 
-
-
 def testar_normalidade_shapiro(numericos: pd.Series) -> dict[str, Any]:
     n = len(numericos)
     if n < config.SHAPIRO_MIN_N:
-        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.SHAPIRO_MIN_N})"}
+        return {
+            "aplicavel": False,
+            "motivo": f"Amostra insuficiente (n={n} < {config.SHAPIRO_MIN_N})",
+        }
     if _como_float(numericos.std()) == 0.0:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — teste de normalidade não aplicável"}
+        return {
+            "aplicavel": False,
+            "motivo": "Série constante (variância zero) — teste de normalidade não aplicável",
+        }
 
     amostra = (
         numericos.sample(n=config.SHAPIRO_MAX_N, random_state=42)
-        if n > config.SHAPIRO_MAX_N else numericos
+        if n > config.SHAPIRO_MAX_N
+        else numericos
     )
     estatistica, p_valor = scipy_stats.shapiro(amostra)
     assimetria = _como_float(numericos.skew())
     curtose = _como_float(numericos.kurt())
-    desvio_relevante = (
-        (math.isfinite(assimetria) and abs(assimetria) >= 0.5)
-        or (math.isfinite(curtose) and abs(curtose) >= 1.0)
+    desvio_relevante = (math.isfinite(assimetria) and abs(assimetria) >= 0.5) or (
+        math.isfinite(curtose) and abs(curtose) >= 1.0
     )
     return {
         "aplicavel": True,
@@ -109,15 +111,16 @@ def testar_normalidade_shapiro(numericos: pd.Series) -> dict[str, Any]:
     }
 
 
-
-
 def testar_uniformidade_chi2(contagens: pd.Series) -> dict[str, Any]:
     n_categorias = len(contagens)
     n_total = int(contagens.sum())
     if n_categorias < 2:
         return {"aplicavel": False, "motivo": "Menos de 2 categorias distintas"}
     if n_categorias > config.CHI2_MAX_CATEGORIAS:
-        return {"aplicavel": False, "motivo": f"Categorias demais (n={n_categorias} > {config.CHI2_MAX_CATEGORIAS})"}
+        return {
+            "aplicavel": False,
+            "motivo": f"Categorias demais (n={n_categorias} > {config.CHI2_MAX_CATEGORIAS})",
+        }
     freq_esperada = n_total / n_categorias
     if freq_esperada < config.CHI2_MIN_FREQ_ESPERADA:
         return {
@@ -125,9 +128,10 @@ def testar_uniformidade_chi2(contagens: pd.Series) -> dict[str, Any]:
             "motivo": f"Frequência esperada insuficiente ({freq_esperada:.1f} < {config.CHI2_MIN_FREQ_ESPERADA})",
         }
     estatistica, p_valor = scipy_stats.chisquare(contagens.to_numpy())
-    
-    
-    v_cramer = math.sqrt(float(estatistica) / (n_total * (n_categorias - 1))) if n_total > 0 else 0.0
+
+    v_cramer = (
+        math.sqrt(float(estatistica) / (n_total * (n_categorias - 1))) if n_total > 0 else 0.0
+    )
     return {
         "aplicavel": True,
         "estatistica": round(float(estatistica), 6),
@@ -138,18 +142,18 @@ def testar_uniformidade_chi2(contagens: pd.Series) -> dict[str, Any]:
     }
 
 
-
-
 def calcular_intervalo_confianca_media(numericos: pd.Series) -> dict[str, Any]:
     n = len(numericos)
     if n < 2:
         return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < 2)"}
     media = _como_float(numericos.mean())
-    erro_padrao = _como_float(numericos.std(ddof=1)) / (n ** 0.5)
+    erro_padrao = _como_float(numericos.std(ddof=1)) / (n**0.5)
     if erro_padrao == 0.0 or not math.isfinite(erro_padrao):
         return {
-            "aplicavel": True, "media": round(media, 6),
-            "limite_inferior": round(media, 6), "limite_superior": round(media, 6),
+            "aplicavel": True,
+            "media": round(media, 6),
+            "limite_inferior": round(media, 6),
+            "limite_superior": round(media, 6),
         }
     limite_inf, limite_sup = scipy_stats.t.interval(0.95, df=n - 1, loc=media, scale=erro_padrao)
     return {
@@ -158,15 +162,6 @@ def calcular_intervalo_confianca_media(numericos: pd.Series) -> dict[str, Any]:
         "limite_inferior": round(float(limite_inf), 6),
         "limite_superior": round(float(limite_sup), 6),
     }
-
-
-
-
-
-
-
-
-
 
 
 _Candidata = tuple[Any, dict[str, Any], int]
@@ -187,9 +182,15 @@ _DIST_MAX_N = 20_000
 def detectar_distribuicao_provavel(numericos: pd.Series) -> dict[str, Any]:
     n = len(numericos)
     if n < config.DIST_DETECTION_MIN_N:
-        return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.DIST_DETECTION_MIN_N})"}
+        return {
+            "aplicavel": False,
+            "motivo": f"Amostra insuficiente (n={n} < {config.DIST_DETECTION_MIN_N})",
+        }
     if _como_float(numericos.std()) == 0.0:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — nenhuma distribuição é aplicável"}
+        return {
+            "aplicavel": False,
+            "motivo": "Série constante (variância zero) — nenhuma distribuição é aplicável",
+        }
 
     valores = numericos.to_numpy()
     if n > _DIST_MAX_N:
@@ -210,8 +211,7 @@ def detectar_distribuicao_provavel(numericos: pd.Series) -> dict[str, Any]:
             if not math.isfinite(log_verossimilhanca):
                 continue
             aic = 2 * k_livres - 2 * log_verossimilhanca
-            
-            
+
             ks = float(scipy_stats.kstest(valores, ajustada.cdf).statistic)
         except Exception:
             continue
@@ -224,8 +224,7 @@ def detectar_distribuicao_provavel(numericos: pd.Series) -> dict[str, Any]:
 
     ranking.sort(key=lambda r: r["aic"])
     melhor = ranking[0]
-    
-    
+
     delta = ranking[1]["aic"] - melhor["aic"] if len(ranking) > 1 else float("inf")
     return {
         "aplicavel": True,
@@ -240,14 +239,15 @@ def detectar_distribuicao_provavel(numericos: pd.Series) -> dict[str, Any]:
     }
 
 
-
-
 def testar_estacionariedade_adf(serie_numerica_ordenada: pd.Series) -> dict[str, Any]:
     n = len(serie_numerica_ordenada)
     if n < config.ADF_MIN_N:
         return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
     if serie_numerica_ordenada.nunique() <= 1:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — teste ADF não aplicável"}
+        return {
+            "aplicavel": False,
+            "motivo": "Série constante (variância zero) — teste ADF não aplicável",
+        }
     try:
         resultado = adfuller(serie_numerica_ordenada.to_numpy(), autolag="AIC")
     except Exception as e:
@@ -266,7 +266,10 @@ def testar_autocorrelacao_ljungbox(serie_numerica_ordenada: pd.Series) -> dict[s
     if n < config.ADF_MIN_N:
         return {"aplicavel": False, "motivo": f"Amostra insuficiente (n={n} < {config.ADF_MIN_N})"}
     if serie_numerica_ordenada.nunique() <= 1:
-        return {"aplicavel": False, "motivo": "Série constante (variância zero) — Ljung-Box não aplicável"}
+        return {
+            "aplicavel": False,
+            "motivo": "Série constante (variância zero) — Ljung-Box não aplicável",
+        }
     lags = max(1, min(10, n // 5))
     try:
         resultado = acorr_ljungbox(serie_numerica_ordenada, lags=[lags], return_df=True)

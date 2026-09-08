@@ -73,41 +73,73 @@ def exportar_modelo_markdown(payload: dict[str, Any], caminho: str) -> None:
     )
 
     partes.append("\n## Tabelas\n")
-    partes.append(_tabela_md(
-        [[t["nome"], t["papel"], f"{t['linhas']:,}", t["colunas"],
-          ", ".join(f"`{c}`" for c in t["chaves_primarias"]) or "—",
-          f"{t['score_qualidade']}", t["justificativa"]]
-         for t in payload["tabelas"]],
-        ["Tabela", "Papel", "Linhas", "Colunas", "Chave primária", "Qualidade", "Por quê"],
-    ))
+    partes.append(
+        _tabela_md(
+            [
+                [
+                    t["nome"],
+                    t["papel"],
+                    f"{t['linhas']:,}",
+                    t["colunas"],
+                    ", ".join(f"`{c}`" for c in t["chaves_primarias"]) or "—",
+                    f"{t['score_qualidade']}",
+                    t["justificativa"],
+                ]
+                for t in payload["tabelas"]
+            ],
+            ["Tabela", "Papel", "Linhas", "Colunas", "Chave primária", "Qualidade", "Por quê"],
+        )
+    )
 
     partes.append("\n## Relacionamentos\n")
     compostos = payload.get("relacionamentos_compostos") or []
     if payload["relacionamentos"]:
-        partes.append(_tabela_md(
-            [[f"`{r['tabela_origem']}.{r['coluna_origem']}`",
-              f"`{r['tabela_destino']}.{r['coluna_destino']}`",
-              r["cardinalidade"], f"{r['contencao_linhas']:.1%}", f"{r['confianca']:.0%}",
-              " · ".join(filter(None, [
-                  "⚠️ tipos diferentes" if r["tipos_incompativeis"] else "",
-                  f"⚠️ {r['pct_orfaos']:.1%} órfãos" if r["pct_orfaos"] > 0 else "",
-              ])) or "ok"]
-             for r in payload["relacionamentos"]],
-            ["De", "Para", "Cardinalidade", "Linhas cobertas", "Confiança", "Observação"],
-        ))
+        partes.append(
+            _tabela_md(
+                [
+                    [
+                        f"`{r['tabela_origem']}.{r['coluna_origem']}`",
+                        f"`{r['tabela_destino']}.{r['coluna_destino']}`",
+                        r["cardinalidade"],
+                        f"{r['contencao_linhas']:.1%}",
+                        f"{r['confianca']:.0%}",
+                        " · ".join(
+                            filter(
+                                None,
+                                [
+                                    "⚠️ tipos diferentes" if r["tipos_incompativeis"] else "",
+                                    f"⚠️ {r['pct_orfaos']:.1%} órfãos"
+                                    if r["pct_orfaos"] > 0
+                                    else "",
+                                ],
+                            )
+                        )
+                        or "ok",
+                    ]
+                    for r in payload["relacionamentos"]
+                ],
+                ["De", "Para", "Cardinalidade", "Linhas cobertas", "Confiança", "Observação"],
+            )
+        )
         partes.append("")
         partes.append(_mermaid(payload))
 
     if compostos:
         partes.append("\n## Ligações por chave composta\n")
-        partes.append(_tabela_md(
-            [[f"`{r['tabela_origem']}` ({', '.join(r['colunas_origem'])})",
-              f"`{r['tabela_destino']}` ({', '.join(r['colunas_destino'])})",
-              f"{r['contencao']:.1%}",
-              f"⚠️ {r['pct_orfaos']:.1%} órfãos" if r["pct_orfaos"] > 0 else "ok"]
-             for r in compostos],
-            ["De", "Para", "Combinações cobertas", "Observação"],
-        ))
+        partes.append(
+            _tabela_md(
+                [
+                    [
+                        f"`{r['tabela_origem']}` ({', '.join(r['colunas_origem'])})",
+                        f"`{r['tabela_destino']}` ({', '.join(r['colunas_destino'])})",
+                        f"{r['contencao']:.1%}",
+                        f"⚠️ {r['pct_orfaos']:.1%} órfãos" if r["pct_orfaos"] > 0 else "ok",
+                    ]
+                    for r in compostos
+                ],
+                ["De", "Para", "Combinações cobertas", "Observação"],
+            )
+        )
     else:
         partes.append(
             "Nenhuma chave estrangeira detectada entre as tabelas. "
@@ -179,13 +211,15 @@ def exportar_modelo_html(payload: dict[str, Any], caminho: str) -> None:
         '<header class="cabecalho-relatorio"><div class="marca">Recon · relações entre tabelas</div>'
         f"<h1>Modelo de Dados Inferido — {_e(meta['conjunto'])}</h1>"
         f'<p class="sub">{meta["total_tabelas"]} tabelas · '
-        f'{meta["total_relacionamentos"]} relacionamentos · '
-        f'{meta["total_analises_sugeridas"]} análises sugeridas</p></header>',
+        f"{meta['total_relacionamentos']} relacionamentos · "
+        f"{meta['total_analises_sugeridas']} análises sugeridas</p></header>",
     ]
 
-    partes.append("<h2>Tabelas</h2><div class='tabela-wrap'><table><thead><tr>"
-                  "<th>Tabela</th><th>Papel</th><th>Linhas</th><th>Chave primária</th>"
-                  "<th>Qualidade</th><th>Por quê</th></tr></thead><tbody>")
+    partes.append(
+        "<h2>Tabelas</h2><div class='tabela-wrap'><table><thead><tr>"
+        "<th>Tabela</th><th>Papel</th><th>Linhas</th><th>Chave primária</th>"
+        "<th>Qualidade</th><th>Por quê</th></tr></thead><tbody>"
+    )
     for t in payload["tabelas"]:
         chaves = ", ".join(f"<code>{_e(c)}</code>" for c in t["chaves_primarias"]) or "—"
         partes.append(
@@ -197,17 +231,18 @@ def exportar_modelo_html(payload: dict[str, Any], caminho: str) -> None:
 
     partes.append("<h2>Relacionamentos</h2>")
     if payload["relacionamentos"]:
-        partes.append("<div class='tabela-wrap'><table><thead><tr><th>De</th><th>Para</th>"
-                      "<th>Cardinalidade</th><th>Cobertura</th><th>Confiança</th>"
-                      "<th>Observação</th></tr></thead><tbody>")
+        partes.append(
+            "<div class='tabela-wrap'><table><thead><tr><th>De</th><th>Para</th>"
+            "<th>Cardinalidade</th><th>Cobertura</th><th>Confiança</th>"
+            "<th>Observação</th></tr></thead><tbody>"
+        )
         for r in payload["relacionamentos"]:
             marcas = []
             if r["tipos_incompativeis"]:
                 marcas.append("tipos diferentes")
             if r["pct_orfaos"] > 0:
                 marcas.append(f"{r['pct_orfaos']:.1%} órfãos")
-            obs = (f"<span class='alerta'>{_e(' · '.join(marcas))}</span>"
-                   if marcas else "ok")
+            obs = f"<span class='alerta'>{_e(' · '.join(marcas))}</span>" if marcas else "ok"
             partes.append(
                 f"<tr><td><code>{_e(r['tabela_origem'])}.{_e(r['coluna_origem'])}</code></td>"
                 f"<td><code>{_e(r['tabela_destino'])}.{_e(r['coluna_destino'])}</code></td>"

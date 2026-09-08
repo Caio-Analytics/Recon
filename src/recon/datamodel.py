@@ -9,13 +9,6 @@ from rapidfuzz.distance import JaroWinkler
 from . import config
 from .semantics import normalizar
 
-
-
-
-
-
-
-
 CONTENCAO_MINIMA = 0.6
 CONTENCAO_MINIMA_COM_APOIO_DE_NOME = 0.35
 CONFIANCA_MINIMA_RELACAO = 0.6
@@ -33,22 +26,40 @@ _PAPEL_MEDIDA = frozenset({"Valor Financeiro", "Quantidade / Métrica"})
 
 
 _PRIORIDADE_ATRIBUTO = (
-    "Estrutura Organizacional", "Cargo / Função", "Localização Geográfica",
-    "Curso / Treinamento", "Perfil do Colaborador", "Resultado de Avaliação",
+    "Estrutura Organizacional",
+    "Cargo / Função",
+    "Localização Geográfica",
+    "Curso / Treinamento",
+    "Perfil do Colaborador",
+    "Resultado de Avaliação",
     "Status / Indicador / Flag",
 )
 _MAX_CARDINALIDADE_ATRIBUTO = 100
 
 
-
-_TOKENS_NAO_ADITIVOS = frozenset({
-    "nota", "score", "indice", "taxa", "percentual", "pct", "media", "ratio",
-    "proporcao", "nivel", "aderencia", "satisfacao", "avaliacao", "peso",
-})
+_TOKENS_NAO_ADITIVOS = frozenset(
+    {
+        "nota",
+        "score",
+        "indice",
+        "taxa",
+        "percentual",
+        "pct",
+        "media",
+        "ratio",
+        "proporcao",
+        "nivel",
+        "aderencia",
+        "satisfacao",
+        "avaliacao",
+        "peso",
+    }
+)
 
 
 def _agregacao_para(coluna: str) -> str:
     from .semantics import tokenizar
+
     return "mean" if set(tokenizar(coluna)) & _TOKENS_NAO_ADITIVOS else "sum"
 
 
@@ -83,8 +94,6 @@ class PerfilTabela:
     referenciada_por: int = 0
 
 
-
-
 def _chaves_primarias(colunas: list[dict[str, Any]]) -> list[str]:
     candidatas = [c for c in colunas if _e_chave_primaria(c)]
     identificadoras = [
@@ -109,17 +118,11 @@ def _conjunto_normalizado(
     if limpa.empty:
         return set()
     if pd.api.types.is_numeric_dtype(limpa):
-        convertida = limpa.map(
-            lambda v: str(int(v)) if float(v).is_integer() else str(v)
-        )
+        convertida = limpa.map(lambda v: str(int(v)) if float(v).is_integer() else str(v))
     else:
         convertida = limpa.astype(str).str.strip()
     distintos = convertida.unique()
     if len(distintos) > MAX_DISTINTOS_COMPARADOS:
-        
-        
-        
-        
         mensagem = (
             f"`{rotulo or serie.name}` tem {len(distintos):,} valores distintos e o "
             f"casamento de chaves compara no máximo {MAX_DISTINTOS_COMPARADOS:,}. "
@@ -128,11 +131,13 @@ def _conjunto_normalizado(
         )
         logger.warning(mensagem)
         if avisos is not None:
-            avisos.append({
-                "severidade": "🟡 MÉDIA",
-                "tipo": "Chave grande demais para comparar inteira",
-                "mensagem": mensagem,
-            })
+            avisos.append(
+                {
+                    "severidade": "🟡 MÉDIA",
+                    "tipo": "Chave grande demais para comparar inteira",
+                    "mensagem": mensagem,
+                }
+            )
         distintos = distintos[:MAX_DISTINTOS_COMPARADOS]
     return set(distintos)
 
@@ -152,8 +157,6 @@ def _tipos_incompativeis(serie_a: pd.Series, serie_b: pd.Series) -> bool:
     numerica_a = pd.api.types.is_numeric_dtype(serie_a)
     numerica_b = pd.api.types.is_numeric_dtype(serie_b)
     return numerica_a != numerica_b
-
-
 
 
 def detectar_relacionamentos(
@@ -197,29 +200,19 @@ def detectar_relacionamentos(
                     similaridade_nome = JaroWinkler.similarity(normalizar(fk), normalizar(pk))
                     nome_apoia = similaridade_nome >= 0.75
 
-                    
-                    
-                    
-                    
                     contencao = len(valores_fk & valores_pk) / len(valores_fk)
-                    limiar = (
-                        CONTENCAO_MINIMA_COM_APOIO_DE_NOME if nome_apoia else CONTENCAO_MINIMA
-                    )
+                    limiar = CONTENCAO_MINIMA_COM_APOIO_DE_NOME if nome_apoia else CONTENCAO_MINIMA
                     if contencao < limiar:
                         continue
 
-                    
-                    
-                    
                     if meta_fk.get("Papel") in _PAPEL_MEDIDA and not nome_apoia:
                         continue
 
-                    
-                    
                     if len(valores_pk) < MIN_DISTINTOS_SEM_APOIO_DE_NOME and not nome_apoia:
                         continue
-                    if (len(valores_fk) / len(valores_pk)) < COBERTURA_MINIMA_DA_CHAVE \
-                            and not nome_apoia:
+                    if (
+                        len(valores_fk) / len(valores_pk)
+                    ) < COBERTURA_MINIMA_DA_CHAVE and not nome_apoia:
                         continue
 
                     ambos_chave = (
@@ -228,41 +221,35 @@ def detectar_relacionamentos(
                     )
 
                     confianca = (
-                        0.6 * contencao
-                        + 0.25 * similaridade_nome
-                        + (0.15 if ambos_chave else 0.0)
+                        0.6 * contencao + 0.25 * similaridade_nome + (0.15 if ambos_chave else 0.0)
                     )
                     if confianca < CONFIANCA_MINIMA_RELACAO:
                         continue
 
-                    
-                    
-                    
-                    
                     contencao_linhas = _contencao_por_linha(origem.df[fk], valores_pk)
                     orfaos = round(1.0 - contencao_linhas, 4)
-                    achados.append({
-                        "tabela_origem": origem.nome,
-                        "coluna_origem": fk,
-                        "tabela_destino": destino.nome,
-                        "coluna_destino": pk,
-                        "cardinalidade": (
-                            "1:1" if meta_fk.get("Ratio_Unicidade", 0.0) >= 0.999 else "N:1"
-                        ),
-                        "contencao": round(contencao, 4),
-                        "contencao_linhas": round(contencao_linhas, 4),
-                        "confianca": round(confianca, 4),
-                        "pct_orfaos": orfaos,
-                        "similaridade_nome": round(similaridade_nome, 4),
-                        "tipos_incompativeis": _tipos_incompativeis(
-                            origem.df[fk], destino.df[pk]
-                        ),
-                    })
+                    achados.append(
+                        {
+                            "tabela_origem": origem.nome,
+                            "coluna_origem": fk,
+                            "tabela_destino": destino.nome,
+                            "coluna_destino": pk,
+                            "cardinalidade": (
+                                "1:1" if meta_fk.get("Ratio_Unicidade", 0.0) >= 0.999 else "N:1"
+                            ),
+                            "contencao": round(contencao, 4),
+                            "contencao_linhas": round(contencao_linhas, 4),
+                            "confianca": round(confianca, 4),
+                            "pct_orfaos": orfaos,
+                            "similaridade_nome": round(similaridade_nome, 4),
+                            "tipos_incompativeis": _tipos_incompativeis(
+                                origem.df[fk], destino.df[pk]
+                            ),
+                        }
+                    )
 
     achados.sort(key=lambda r: -r["confianca"])
     return achados
-
-
 
 
 def _coluna_equivalente(origem: TabelaCarregada, nome: str) -> str | None:
@@ -282,9 +269,7 @@ def _tuplas_normalizadas(df: pd.DataFrame, colunas: list[str]) -> set[tuple[str,
     recorte = df[colunas].dropna()
     if recorte.empty:
         return set()
-    textos = [
-        _conjunto_como_serie(recorte[c]) for c in colunas
-    ]
+    textos = [_conjunto_como_serie(recorte[c]) for c in colunas]
     return set(zip(*[s.tolist() for s in textos], strict=True))
 
 
@@ -311,7 +296,7 @@ def detectar_relacionamentos_compostos(
                 if origem.nome == destino.nome:
                     continue
                 if (origem.nome, destino.nome) in ja_ligadas:
-                    continue  
+                    continue
                 equivalentes = [_coluna_equivalente(origem, c) for c in colunas_pk]
                 if any(v is None for v in equivalentes):
                     continue
@@ -324,23 +309,23 @@ def detectar_relacionamentos_compostos(
                 contencao = len(tuplas_fk & tuplas_pk) / len(tuplas_fk)
                 if contencao < CONTENCAO_MINIMA:
                     continue
-                achados.append({
-                    "tabela_origem": origem.nome,
-                    "colunas_origem": colunas_fk,
-                    "tabela_destino": destino.nome,
-                    "colunas_destino": colunas_pk,
-                    "contencao": round(contencao, 4),
-                    "pct_orfaos": round(1.0 - contencao, 4),
-                    "descricao": (
-                        f"`{origem.nome}` se liga a `{destino.nome}` pelo conjunto "
-                        f"({', '.join(colunas_fk)}) → ({', '.join(colunas_pk)}): "
-                        f"{contencao:.1%} das combinações existem no destino."
-                    ),
-                })
+                achados.append(
+                    {
+                        "tabela_origem": origem.nome,
+                        "colunas_origem": colunas_fk,
+                        "tabela_destino": destino.nome,
+                        "colunas_destino": colunas_pk,
+                        "contencao": round(contencao, 4),
+                        "pct_orfaos": round(1.0 - contencao, 4),
+                        "descricao": (
+                            f"`{origem.nome}` se liga a `{destino.nome}` pelo conjunto "
+                            f"({', '.join(colunas_fk)}) → ({', '.join(colunas_pk)}): "
+                            f"{contencao:.1%} das combinações existem no destino."
+                        ),
+                    }
+                )
     achados.sort(key=lambda r: -r["contencao"])
     return achados
-
-
 
 
 def _classificar_colunas(tabela: TabelaCarregada, fks: set[str]) -> tuple[list, list, list]:
@@ -352,7 +337,10 @@ def _classificar_colunas(tabela: TabelaCarregada, fks: set[str]) -> tuple[list, 
         if "Vazia" in meta.get("Caracteristica", ""):
             continue
         papel = meta.get("Papel")
-        if papel == config.SEMANTICA_DATA_CALENDARIO or meta.get("Tipo_Inferred") == config.TIPO_DATA_HORA:
+        if (
+            papel == config.SEMANTICA_DATA_CALENDARIO
+            or meta.get("Tipo_Inferred") == config.TIPO_DATA_HORA
+        ):
             datas.append(nome)
         elif papel in _PAPEL_MEDIDA and "Número" in meta.get("Tipo_Inferred", ""):
             medidas.append(nome)
@@ -371,11 +359,11 @@ def classificar_papeis(
         perfis[tabela.nome] = PerfilTabela(
             nome=tabela.nome,
             chaves_primarias=_chaves_primarias(tabela.colunas),
-            medidas=medidas, atributos=atributos, datas=datas,
+            medidas=medidas,
+            atributos=atributos,
+            datas=datas,
             fks_saindo=len(fks),
-            referenciada_por=sum(
-                1 for r in relacionamentos if r["tabela_destino"] == tabela.nome
-            ),
+            referenciada_por=sum(1 for r in relacionamentos if r["tabela_destino"] == tabela.nome),
         )
 
     for tabela in tabelas:
@@ -412,8 +400,6 @@ def classificar_papeis(
     return perfis
 
 
-
-
 def _variavel(nome: str) -> str:
     limpo = "".join(ch if ch.isalnum() else "_" for ch in normalizar(nome)).strip("_")
     if not limpo:
@@ -442,8 +428,11 @@ def _prioridade_atributo(meta: dict[str, Any] | None) -> tuple[int, int]:
 
 
 def _codigo_pandas(
-    base: str, joins: list[dict[str, Any]], medida: dict[str, Any] | None,
-    atributo: dict[str, Any], agregacao: str,
+    base: str,
+    joins: list[dict[str, Any]],
+    medida: dict[str, Any] | None,
+    atributo: dict[str, Any],
+    agregacao: str,
 ) -> str:
     linhas = [f"resultado = (\n    {_variavel(base)}"]
     for join in joins:
@@ -469,8 +458,11 @@ def _codigo_pandas(
 
 
 def _codigo_sql(
-    base: str, joins: list[dict[str, Any]], medida: dict[str, Any] | None,
-    atributo: dict[str, Any], agregacao: str,
+    base: str,
+    joins: list[dict[str, Any]],
+    medida: dict[str, Any] | None,
+    atributo: dict[str, Any],
+    agregacao: str,
 ) -> str:
     alias = {base: "f"}
     for i, join in enumerate(joins):
@@ -486,8 +478,10 @@ def _codigo_sql(
             f"AS {_identificador_sql(agregacao + '_' + medida['coluna'])}"
         )
         ordem = _identificador_sql(f"{agregacao}_{medida['coluna']}")
-    partes = [f"SELECT {coluna_grupo} AS {_identificador_sql(atributo['coluna'])}, {selecao}",
-              f"FROM {_identificador_sql(base)} f"]
+    partes = [
+        f"SELECT {coluna_grupo} AS {_identificador_sql(atributo['coluna'])}, {selecao}",
+        f"FROM {_identificador_sql(base)} f",
+    ]
     for join in joins:
         partes.append(
             f"LEFT JOIN {_identificador_sql(join['tabela'])} {alias[join['tabela']]} "
@@ -504,9 +498,7 @@ def sugerir_analises(
     relacionamentos: list[dict[str, Any]],
     perfis: dict[str, PerfilTabela],
 ) -> list[dict[str, Any]]:
-    
-    
-    
+
     if not relacionamentos:
         return []
 
@@ -515,19 +507,12 @@ def sugerir_analises(
 
     fatos = [n for n, p in perfis.items() if p.papel.startswith("Fato")]
     if not fatos:
-        
-        
-        fatos = [
-            n for n, p in sorted(
-                perfis.items(), key=lambda kv: -kv[1].referenciada_por
-            )[:1]
-        ]
+        fatos = [n for n, p in sorted(perfis.items(), key=lambda kv: -kv[1].referenciada_por)[:1]]
 
     for nome_fato in fatos:
         perfil_fato = perfis[nome_fato]
         ligacoes = [r for r in relacionamentos if r["tabela_origem"] == nome_fato]
 
-        
         medidas = [{"tabela": nome_fato, "coluna": c} for c in perfil_fato.medidas]
         atributos = [{"tabela": nome_fato, "coluna": c} for c in perfil_fato.atributos]
         joins_por_tabela: dict[str, dict[str, Any]] = {}
@@ -548,145 +533,151 @@ def sugerir_analises(
         if not atributos:
             continue
 
-        atributos.sort(key=lambda a: _prioridade_atributo(
-            por_nome[a["tabela"]].meta(a["coluna"])
-        ))
+        atributos.sort(key=lambda a: _prioridade_atributo(por_nome[a["tabela"]].meta(a["coluna"])))
 
         for atributo in atributos[:5]:
             joins_necessarios = (
-                [joins_por_tabela[atributo["tabela"]]]
-                if atributo["tabela"] != nome_fato else []
+                [joins_por_tabela[atributo["tabela"]]] if atributo["tabela"] != nome_fato else []
             )
             for medida in medidas[:3]:
                 if medida["tabela"] != nome_fato and medida["tabela"] not in joins_por_tabela:
                     continue
                 joins = list(joins_necessarios)
-                if (medida["tabela"] != nome_fato
-                        and medida["tabela"] != atributo["tabela"]):
+                if medida["tabela"] != nome_fato and medida["tabela"] != atributo["tabela"]:
                     joins.append(joins_por_tabela[medida["tabela"]])
                 agregacao = _agregacao_para(medida["coluna"])
                 rotulo = "Total" if agregacao == "sum" else "Média"
                 verbo = "Soma" if agregacao == "sum" else "Média"
-                sugestoes.append({
-                    "titulo": f"{rotulo} de {medida['coluna']} por {atributo['coluna']}",
+                sugestoes.append(
+                    {
+                        "titulo": f"{rotulo} de {medida['coluna']} por {atributo['coluna']}",
+                        "descricao": (
+                            f"{verbo} de `{medida['coluna']}` (de `{medida['tabela']}`) agrupada por "
+                            f"`{atributo['coluna']}` (de `{atributo['tabela']}`), a partir do fato "
+                            f"`{nome_fato}`."
+                        ),
+                        "tabela_base": nome_fato,
+                        "tabelas_envolvidas": sorted(
+                            {nome_fato, medida["tabela"], atributo["tabela"]}
+                        ),
+                        "pandas": _codigo_pandas(nome_fato, joins, medida, atributo, agregacao),
+                        "sql": _codigo_sql(nome_fato, joins, medida, atributo, agregacao),
+                    }
+                )
+
+            sugestoes.append(
+                {
+                    "titulo": f"Contagem de registros de {nome_fato} por {atributo['coluna']}",
                     "descricao": (
-                        f"{verbo} de `{medida['coluna']}` (de `{medida['tabela']}`) agrupada por "
-                        f"`{atributo['coluna']}` (de `{atributo['tabela']}`), a partir do fato "
-                        f"`{nome_fato}`."
+                        f"Quantos registros de `{nome_fato}` existem para cada "
+                        f"`{atributo['coluna']}`. Serve de denominador para qualquer taxa."
                     ),
                     "tabela_base": nome_fato,
-                    "tabelas_envolvidas": sorted(
-                        {nome_fato, medida["tabela"], atributo["tabela"]}
-                    ),
-                    "pandas": _codigo_pandas(nome_fato, joins, medida, atributo, agregacao),
-                    "sql": _codigo_sql(nome_fato, joins, medida, atributo, agregacao),
-                })
-
-            sugestoes.append({
-                "titulo": f"Contagem de registros de {nome_fato} por {atributo['coluna']}",
-                "descricao": (
-                    f"Quantos registros de `{nome_fato}` existem para cada "
-                    f"`{atributo['coluna']}`. Serve de denominador para qualquer taxa."
-                ),
-                "tabela_base": nome_fato,
-                "tabelas_envolvidas": sorted({nome_fato, atributo["tabela"]}),
-                "pandas": _codigo_pandas(nome_fato, joins_necessarios, None, atributo, "sum"),
-                "sql": _codigo_sql(nome_fato, joins_necessarios, None, atributo, "sum"),
-            })
+                    "tabelas_envolvidas": sorted({nome_fato, atributo["tabela"]}),
+                    "pandas": _codigo_pandas(nome_fato, joins_necessarios, None, atributo, "sum"),
+                    "sql": _codigo_sql(nome_fato, joins_necessarios, None, atributo, "sum"),
+                }
+            )
 
         for data in perfil_fato.datas[:1]:
             for medida in medidas[:1]:
                 joins = (
-                    [] if medida["tabela"] == nome_fato
-                    else [joins_por_tabela[medida["tabela"]]]
+                    [] if medida["tabela"] == nome_fato else [joins_por_tabela[medida["tabela"]]]
                 )
-                sugestoes.append({
-                    "titulo": f"Evolução mensal de {medida['coluna']}",
-                    "descricao": (
-                        f"Série temporal de `{medida['coluna']}` agregada por mês de "
-                        f"`{data}`."
-                    ),
-                    "tabela_base": nome_fato,
-                    "tabelas_envolvidas": sorted({nome_fato, medida["tabela"]}),
-                    "pandas": _codigo_pandas(
-                        nome_fato, joins, medida,
-                        {"tabela": nome_fato, "coluna": "__mes__"},
-                        _agregacao_para(medida["coluna"]),
-                    ).replace(
-                        ".groupby('__mes__'",
-                        f'.assign(__mes__=lambda d: pd.to_datetime(d["{data}"]).dt.to_period("M").astype(str))\n'
-                        "    .groupby('__mes__'",
-                    ),
-                    
-                    
-                    
-                    
-                    "sql": (
-                        f'SELECT DATE_TRUNC(\'month\', f."{data}") AS mes, '
-                        f'{"SUM" if _agregacao_para(medida["coluna"]) == "sum" else "AVG"}'
-                        f'({"f" if medida["tabela"] == nome_fato else "d1"}."{medida["coluna"]}") '
-                        f'AS {_agregacao_para(medida["coluna"])}_{medida["coluna"]}\n'
-                        f'FROM "{nome_fato}" f\n'
-                        + ("" if medida["tabela"] == nome_fato else
-                           f'LEFT JOIN "{medida["tabela"]}" d1 ON '
-                           f'f."{joins[0]["coluna_origem"]}" = d1."{joins[0]["coluna_destino"]}"\n')
-                        + "GROUP BY mes\nORDER BY mes;"
-                    ),
-                })
+                sugestoes.append(
+                    {
+                        "titulo": f"Evolução mensal de {medida['coluna']}",
+                        "descricao": (
+                            f"Série temporal de `{medida['coluna']}` agregada por mês de `{data}`."
+                        ),
+                        "tabela_base": nome_fato,
+                        "tabelas_envolvidas": sorted({nome_fato, medida["tabela"]}),
+                        "pandas": _codigo_pandas(
+                            nome_fato,
+                            joins,
+                            medida,
+                            {"tabela": nome_fato, "coluna": "__mes__"},
+                            _agregacao_para(medida["coluna"]),
+                        ).replace(
+                            ".groupby('__mes__'",
+                            f'.assign(__mes__=lambda d: pd.to_datetime(d["{data}"]).dt.to_period("M").astype(str))\n'
+                            "    .groupby('__mes__'",
+                        ),
+                        "sql": (
+                            f"SELECT DATE_TRUNC('month', f.\"{data}\") AS mes, "
+                            f"{'SUM' if _agregacao_para(medida['coluna']) == 'sum' else 'AVG'}"
+                            f'({"f" if medida["tabela"] == nome_fato else "d1"}."{medida["coluna"]}") '
+                            f"AS {_agregacao_para(medida['coluna'])}_{medida['coluna']}\n"
+                            f'FROM "{nome_fato}" f\n'
+                            + (
+                                ""
+                                if medida["tabela"] == nome_fato
+                                else f'LEFT JOIN "{medida["tabela"]}" d1 ON '
+                                f'f."{joins[0]["coluna_origem"]}" = d1."{joins[0]["coluna_destino"]}"\n'
+                            )
+                            + "GROUP BY mes\nORDER BY mes;"
+                        ),
+                    }
+                )
 
     return sugestoes[:MAX_ANALISES_SUGERIDAS]
 
 
-
-
 def gerar_avisos(
-    relacionamentos: list[dict[str, Any]], perfis: dict[str, PerfilTabela],
+    relacionamentos: list[dict[str, Any]],
+    perfis: dict[str, PerfilTabela],
     compostas: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     avisos: list[dict[str, Any]] = []
 
     for relacao in relacionamentos:
         if relacao["pct_orfaos"] > 0:
-            avisos.append({
-                "severidade": "🔴 ALTA" if relacao["pct_orfaos"] > 0.05 else "🟡 MÉDIA",
-                "tipo": "Integridade referencial",
-                "mensagem": (
-                    f"{relacao['pct_orfaos']:.1%} das linhas de "
-                    f"`{relacao['tabela_origem']}.{relacao['coluna_origem']}` apontam para uma "
-                    f"chave que não existe em "
-                    f"`{relacao['tabela_destino']}.{relacao['coluna_destino']}` "
-                    f"({1 - relacao['contencao']:.1%} dos valores distintos). "
-                    "Esses registros somem num INNER JOIN."
-                ),
-            })
+            avisos.append(
+                {
+                    "severidade": "🔴 ALTA" if relacao["pct_orfaos"] > 0.05 else "🟡 MÉDIA",
+                    "tipo": "Integridade referencial",
+                    "mensagem": (
+                        f"{relacao['pct_orfaos']:.1%} das linhas de "
+                        f"`{relacao['tabela_origem']}.{relacao['coluna_origem']}` apontam para uma "
+                        f"chave que não existe em "
+                        f"`{relacao['tabela_destino']}.{relacao['coluna_destino']}` "
+                        f"({1 - relacao['contencao']:.1%} dos valores distintos). "
+                        "Esses registros somem num INNER JOIN."
+                    ),
+                }
+            )
         if relacao["tipos_incompativeis"]:
-            avisos.append({
-                "severidade": "🔴 ALTA",
-                "tipo": "Tipo incompatível na chave",
-                "mensagem": (
-                    f"`{relacao['tabela_origem']}.{relacao['coluna_origem']}` e "
-                    f"`{relacao['tabela_destino']}.{relacao['coluna_destino']}` guardam a mesma "
-                    "chave com tipos diferentes (texto × número). O join falha silenciosamente "
-                    "sem um cast explícito."
-                ),
-            })
+            avisos.append(
+                {
+                    "severidade": "🔴 ALTA",
+                    "tipo": "Tipo incompatível na chave",
+                    "mensagem": (
+                        f"`{relacao['tabela_origem']}.{relacao['coluna_origem']}` e "
+                        f"`{relacao['tabela_destino']}.{relacao['coluna_destino']}` guardam a mesma "
+                        "chave com tipos diferentes (texto × número). O join falha silenciosamente "
+                        "sem um cast explícito."
+                    ),
+                }
+            )
 
-    isoladas = [n for n, p in perfis.items()
-                if p.papel in ("Dimensão isolada", "Indefinida")
-                and n not in (compostas or set())]
+    isoladas = [
+        n
+        for n, p in perfis.items()
+        if p.papel in ("Dimensão isolada", "Indefinida") and n not in (compostas or set())
+    ]
     for nome in isoladas:
-        avisos.append({
-            "severidade": "🟡 MÉDIA",
-            "tipo": "Tabela sem ligação",
-            "mensagem": (
-                f"`{nome}` não se liga a nenhuma outra tabela do conjunto: "
-                f"{perfis[nome].justificativa}."
-            ),
-        })
+        avisos.append(
+            {
+                "severidade": "🟡 MÉDIA",
+                "tipo": "Tabela sem ligação",
+                "mensagem": (
+                    f"`{nome}` não se liga a nenhuma outra tabela do conjunto: "
+                    f"{perfis[nome].justificativa}."
+                ),
+            }
+        )
 
     return avisos
-
-
 
 
 def analisar_conjunto(tabelas: list[TabelaCarregada], nome_conjunto: str) -> dict[str, Any]:
@@ -714,15 +705,17 @@ def analisar_conjunto(tabelas: list[TabelaCarregada], nome_conjunto: str) -> dic
     avisos = gerar_avisos(relacionamentos, perfis, nomes_com_composta) + avisos_chave
     for composto in compostos:
         if composto["pct_orfaos"] > 0.05:
-            avisos.append({
-                "severidade": "🟡 MÉDIA",
-                "tipo": "Integridade referencial (chave composta)",
-                "mensagem": (
-                    f"{composto['pct_orfaos']:.1%} das combinações de "
-                    f"({', '.join(composto['colunas_origem'])}) em "
-                    f"`{composto['tabela_origem']}` não existem em `{composto['tabela_destino']}`."
-                ),
-            })
+            avisos.append(
+                {
+                    "severidade": "🟡 MÉDIA",
+                    "tipo": "Integridade referencial (chave composta)",
+                    "mensagem": (
+                        f"{composto['pct_orfaos']:.1%} das combinações de "
+                        f"({', '.join(composto['colunas_origem'])}) em "
+                        f"`{composto['tabela_origem']}` não existem em `{composto['tabela_destino']}`."
+                    ),
+                }
+            )
 
     granularidades = [
         {"tabela": t.nome, **grao}
@@ -731,23 +724,28 @@ def analisar_conjunto(tabelas: list[TabelaCarregada], nome_conjunto: str) -> dic
     ]
     for grao in granularidades:
         if not grao["grao_unico"]:
-            avisos.append({
-                "severidade": "🔴 ALTA",
-                "tipo": "Grão violado",
-                "mensagem": (
-                    f"`{grao['tabela']}` aparenta ter grão "
-                    f"{', '.join(grao['colunas'])}, mas {grao['qtd_linhas_repetindo_grao']:,} "
-                    f"linha(s) repetem essa combinação ({grao['pct_repetindo_grao']:.1%}). "
-                    "Qualquer contagem por essa chave está inflada."
-                ),
-            })
+            avisos.append(
+                {
+                    "severidade": "🔴 ALTA",
+                    "tipo": "Grão violado",
+                    "mensagem": (
+                        f"`{grao['tabela']}` aparenta ter grão "
+                        f"{', '.join(grao['colunas'])}, mas {grao['qtd_linhas_repetindo_grao']:,} "
+                        f"linha(s) repetem essa combinação ({grao['pct_repetindo_grao']:.1%}). "
+                        "Qualquer contagem por essa chave está inflada."
+                    ),
+                }
+            )
 
     cobertura = analisar_cobertura_temporal(tabelas)
     if cobertura and not cobertura["tem_intersecao"]:
-        avisos.append({
-            "severidade": "🔴 ALTA", "tipo": "Sem sobreposição temporal",
-            "mensagem": cobertura["descricao"],
-        })
+        avisos.append(
+            {
+                "severidade": "🔴 ALTA",
+                "tipo": "Sem sobreposição temporal",
+                "mensagem": cobertura["descricao"],
+            }
+        )
 
     return {
         "metadados_execucao": {
@@ -784,8 +782,6 @@ def analisar_conjunto(tabelas: list[TabelaCarregada], nome_conjunto: str) -> dic
     }
 
 
-
-
 def detectar_granularidade(
     tabela: TabelaCarregada, relacionamentos: list[dict[str, Any]]
 ) -> dict[str, Any] | None:
@@ -808,15 +804,14 @@ def detectar_granularidade(
         "colunas": colunas,
         "entidades": entidades,
         "descricao": (
-            "Cada linha representa um " + " × ".join(f"`{e}`" for e in entidades)
+            "Cada linha representa um "
+            + " × ".join(f"`{e}`" for e in entidades)
             + f" (chave de grão: {', '.join(f'`{c}`' for c in colunas)})."
         ),
         "grao_unico": duplicadas == 0,
         "qtd_linhas_repetindo_grao": duplicadas,
         "pct_repetindo_grao": round(duplicadas / total, 4) if total else 0.0,
     }
-
-
 
 
 def analisar_cobertura_temporal(tabelas: list[TabelaCarregada]) -> dict[str, Any] | None:
@@ -828,13 +823,15 @@ def analisar_cobertura_temporal(tabelas: list[TabelaCarregada]) -> dict[str, Any
             extras = coluna.get("Stats_Extra") or {}
             if "min_data" not in extras:
                 continue
-            periodos.append({
-                "tabela": tabela.nome,
-                "coluna": coluna["Coluna"],
-                "inicio": str(extras["min_data"])[:10],
-                "fim": str(extras["max_data"])[:10],
-            })
-            break  
+            periodos.append(
+                {
+                    "tabela": tabela.nome,
+                    "coluna": coluna["Coluna"],
+                    "inicio": str(extras["min_data"])[:10],
+                    "fim": str(extras["max_data"])[:10],
+                }
+            )
+            break
 
     if len(periodos) < 2:
         return None
@@ -850,18 +847,15 @@ def analisar_cobertura_temporal(tabelas: list[TabelaCarregada]) -> dict[str, Any
         "descricao": (
             f"As tabelas só se sobrepõem no tempo entre {inicio_comum} e {fim_comum} — "
             "qualquer análise conjunta fora dessa janela fica incompleta."
-            if tem_intersecao else
-            "As tabelas não têm nenhum período em comum: uma análise conjunta no tempo "
+            if tem_intersecao
+            else "As tabelas não têm nenhum período em comum: uma análise conjunta no tempo "
             "não é possível com estes recortes."
         ),
     }
 
 
-
-
-
-VARIACAO_NULOS_RELEVANTE = 5.0     
-VARIACAO_CARDINALIDADE_RELEVANTE = 0.2   
+VARIACAO_NULOS_RELEVANTE = 5.0
+VARIACAO_CARDINALIDADE_RELEVANTE = 0.2
 MAX_CHAVES_LISTADAS = 20
 LIMIAR_DRIFT_NUMERICO_IQR = 0.5
 LIMIAR_DRIFT_CATEGORICO = 0.2
@@ -887,33 +881,29 @@ def _variacoes_de_coluna(
                 f"tipo mudou de {meta_a.get('Tipo_Inferred')} para {meta_b.get('Tipo_Inferred')}"
             )
         if abs(delta_nulos) >= VARIACAO_NULOS_RELEVANTE:
-            
-            
             direcao = "caiu" if delta_nulos > 0 else "subiu"
             motivos.append(
                 f"o preenchimento {direcao}: nulos passaram de "
                 f"{meta_a.get('Pct_Nulos', 0):.1f}% para {meta_b.get('Pct_Nulos', 0):.1f}%"
             )
         if abs(delta_unicos) >= VARIACAO_CARDINALIDADE_RELEVANTE:
-            motivos.append(
-                f"valores distintos passaram de {unicos_a:,} para {unicos_b:,}"
-            )
+            motivos.append(f"valores distintos passaram de {unicos_a:,} para {unicos_b:,}")
         if not motivos:
             continue
-        variacoes.append({
-            "coluna": nome,
-            "tipo_a": meta_a.get("Tipo_Inferred"),
-            "tipo_b": meta_b.get("Tipo_Inferred"),
-            "pct_nulos_a": round(float(meta_a.get("Pct_Nulos", 0)), 2),
-            "pct_nulos_b": round(float(meta_b.get("Pct_Nulos", 0)), 2),
-            "unicos_a": unicos_a,
-            "unicos_b": unicos_b,
-            "mudou_tipo": mudou_tipo,
-            "severidade": (
-                "🔴 ALTA" if mudou_tipo or abs(delta_nulos) >= 20 else "🟡 MÉDIA"
-            ),
-            "descricao": "; ".join(motivos).capitalize() + ".",
-        })
+        variacoes.append(
+            {
+                "coluna": nome,
+                "tipo_a": meta_a.get("Tipo_Inferred"),
+                "tipo_b": meta_b.get("Tipo_Inferred"),
+                "pct_nulos_a": round(float(meta_a.get("Pct_Nulos", 0)), 2),
+                "pct_nulos_b": round(float(meta_b.get("Pct_Nulos", 0)), 2),
+                "unicos_a": unicos_a,
+                "unicos_b": unicos_b,
+                "mudou_tipo": mudou_tipo,
+                "severidade": ("🔴 ALTA" if mudou_tipo or abs(delta_nulos) >= 20 else "🟡 MÉDIA"),
+                "descricao": "; ".join(motivos).capitalize() + ".",
+            }
+        )
     return variacoes
 
 
@@ -932,24 +922,35 @@ def _drifts_de_distribuicao(
                 continue
             intensidade = abs(mediana_b - mediana_a) / iqr
             if intensidade >= LIMIAR_DRIFT_NUMERICO_IQR:
-                achados.append({
-                    "coluna": nome, "tipo": "Distribuição numérica", "intensidade": round(intensidade, 3),
-                    "descricao": (
-                        f"Mediana mudou de {mediana_a:,.2f} para {mediana_b:,.2f} "
-                        f"({intensidade:.1f} IQR da versão anterior)."
-                    ),
-                })
+                achados.append(
+                    {
+                        "coluna": nome,
+                        "tipo": "Distribuição numérica",
+                        "intensidade": round(intensidade, 3),
+                        "descricao": (
+                            f"Mediana mudou de {mediana_a:,.2f} para {mediana_b:,.2f} "
+                            f"({intensidade:.1f} IQR da versão anterior)."
+                        ),
+                    }
+                )
             continue
         if a.nunique() > 50 or b.nunique() > 50:
             continue
-        pa, pb = a.astype(str).value_counts(normalize=True), b.astype(str).value_counts(normalize=True)
+        pa, pb = (
+            a.astype(str).value_counts(normalize=True),
+            b.astype(str).value_counts(normalize=True),
+        )
         categorias = pa.index.union(pb.index)
         distancia = 0.5 * sum(abs(float(pa.get(c, 0)) - float(pb.get(c, 0))) for c in categorias)
         if distancia >= LIMIAR_DRIFT_CATEGORICO:
-            achados.append({
-                "coluna": nome, "tipo": "Composição categórica", "intensidade": round(distancia, 3),
-                "descricao": f"A composição das categorias mudou {distancia:.0%} (distância total).",
-            })
+            achados.append(
+                {
+                    "coluna": nome,
+                    "tipo": "Composição categórica",
+                    "intensidade": round(distancia, 3),
+                    "descricao": f"A composição das categorias mudou {distancia:.0%} (distância total).",
+                }
+            )
     return achados
 
 
@@ -962,9 +963,7 @@ def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[st
     meta_b = tabela_b.payload["metadados_execucao"]
     total_a_desconhecido = bool(meta_a.get("linhas_originais_desconhecidas"))
     total_b_desconhecido = bool(meta_b.get("linhas_originais_desconhecidas"))
-    
-    
-    
+
     linhas_a = int(meta_a.get("linhas_originais", len(tabela_a.df)))
     linhas_b = int(meta_b.get("linhas_originais", len(tabela_b.df)))
     variacao_linhas = (
@@ -997,17 +996,19 @@ def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[st
         valores_a = _conjunto_normalizado(tabela_a.df[chave], f"{tabela_a.nome}.{chave}")
         valores_b = _conjunto_normalizado(tabela_b.df[chave], f"{tabela_b.nome}.{chave}")
         sairam, entraram = valores_a - valores_b, valores_b - valores_a
-        resultado.update({
-            "chave_comparada": chave,
-            "chaves_so_em_a": len(sairam),
-            "chaves_so_em_b": len(entraram),
-            "chaves_em_ambas": len(valores_a & valores_b),
-            "exemplos_sairam": sorted(sairam)[:MAX_CHAVES_LISTADAS],
-            "exemplos_entraram": sorted(entraram)[:MAX_CHAVES_LISTADAS],
-            "comparacao_registros_amostral": bool(
-                meta_a.get("amostragem_aplicada") or meta_b.get("amostragem_aplicada")
-            ),
-        })
+        resultado.update(
+            {
+                "chave_comparada": chave,
+                "chaves_so_em_a": len(sairam),
+                "chaves_so_em_b": len(entraram),
+                "chaves_em_ambas": len(valores_a & valores_b),
+                "exemplos_sairam": sorted(sairam)[:MAX_CHAVES_LISTADAS],
+                "exemplos_entraram": sorted(entraram)[:MAX_CHAVES_LISTADAS],
+                "comparacao_registros_amostral": bool(
+                    meta_a.get("amostragem_aplicada") or meta_b.get("amostragem_aplicada")
+                ),
+            }
+        )
     else:
         resultado["chave_comparada"] = None
         resultado["motivo_sem_chave"] = (
@@ -1023,54 +1024,64 @@ def reconciliar(tabela_a: TabelaCarregada, tabela_b: TabelaCarregada) -> dict[st
 def _avisos_da_conferencia(resultado: dict[str, Any]) -> list[dict[str, Any]]:
     avisos: list[dict[str, Any]] = []
     if resultado["colunas_so_em_a"]:
-        avisos.append({
-            "severidade": "🔴 ALTA",
-            "tipo": "Coluna sumiu",
-            "mensagem": (
-                f"{len(resultado['colunas_so_em_a'])} coluna(s) existiam em "
-                f"`{resultado['tabela_a']}` e não vieram em `{resultado['tabela_b']}`: "
-                f"{', '.join(resultado['colunas_so_em_a'][:6])}. "
-                "Qualquer relatório que use essas colunas quebra."
-            ),
-        })
+        avisos.append(
+            {
+                "severidade": "🔴 ALTA",
+                "tipo": "Coluna sumiu",
+                "mensagem": (
+                    f"{len(resultado['colunas_so_em_a'])} coluna(s) existiam em "
+                    f"`{resultado['tabela_a']}` e não vieram em `{resultado['tabela_b']}`: "
+                    f"{', '.join(resultado['colunas_so_em_a'][:6])}. "
+                    "Qualquer relatório que use essas colunas quebra."
+                ),
+            }
+        )
     if resultado["colunas_so_em_b"]:
-        avisos.append({
-            "severidade": "🟡 MÉDIA",
-            "tipo": "Coluna nova",
-            "mensagem": (
-                f"{len(resultado['colunas_so_em_b'])} coluna(s) apareceram em "
-                f"`{resultado['tabela_b']}`: {', '.join(resultado['colunas_so_em_b'][:6])}."
-            ),
-        })
+        avisos.append(
+            {
+                "severidade": "🟡 MÉDIA",
+                "tipo": "Coluna nova",
+                "mensagem": (
+                    f"{len(resultado['colunas_so_em_b'])} coluna(s) apareceram em "
+                    f"`{resultado['tabela_b']}`: {', '.join(resultado['colunas_so_em_b'][:6])}."
+                ),
+            }
+        )
     variacao = resultado.get("variacao_linhas")
     if variacao is not None and abs(variacao) >= 0.2:
-        avisos.append({
-            "severidade": "🔴 ALTA" if abs(variacao) >= 0.5 else "🟡 MÉDIA",
-            "tipo": "Volume mudou muito",
-            "mensagem": (
-                f"O número de linhas {'subiu' if variacao > 0 else 'caiu'} {abs(variacao):.1%} "
-                f"({resultado['linhas_a']:,} → {resultado['linhas_b']:,}). Confirme se o "
-                "recorte da extração é o mesmo antes de comparar números."
-            ),
-        })
+        avisos.append(
+            {
+                "severidade": "🔴 ALTA" if abs(variacao) >= 0.5 else "🟡 MÉDIA",
+                "tipo": "Volume mudou muito",
+                "mensagem": (
+                    f"O número de linhas {'subiu' if variacao > 0 else 'caiu'} {abs(variacao):.1%} "
+                    f"({resultado['linhas_a']:,} → {resultado['linhas_b']:,}). Confirme se o "
+                    "recorte da extração é o mesmo antes de comparar números."
+                ),
+            }
+        )
     graves = [v for v in resultado["variacoes_de_coluna"] if v["severidade"] == "🔴 ALTA"]
     if graves:
-        avisos.append({
-            "severidade": "🔴 ALTA",
-            "tipo": "Coluna mudou de comportamento",
-            "mensagem": (
-                f"{len(graves)} coluna(s) continuam no arquivo mas mudaram de tipo ou de "
-                f"preenchimento: {', '.join(v['coluna'] for v in graves[:6])}. "
-                "É o defeito de extração que passa despercebido, porque o nome não mudou."
-            ),
-        })
+        avisos.append(
+            {
+                "severidade": "🔴 ALTA",
+                "tipo": "Coluna mudou de comportamento",
+                "mensagem": (
+                    f"{len(graves)} coluna(s) continuam no arquivo mas mudaram de tipo ou de "
+                    f"preenchimento: {', '.join(v['coluna'] for v in graves[:6])}. "
+                    "É o defeito de extração que passa despercebido, porque o nome não mudou."
+                ),
+            }
+        )
     if resultado.get("drifts_de_distribuicao"):
-        avisos.append({
-            "severidade": "🟡 MÉDIA",
-            "tipo": "Distribuição mudou",
-            "mensagem": (
-                f"{len(resultado['drifts_de_distribuicao'])} coluna(s) mantiveram o schema, "
-                "mas mudaram materialmente de distribuição. Confirme se o recorte ou processo mudou."
-            ),
-        })
+        avisos.append(
+            {
+                "severidade": "🟡 MÉDIA",
+                "tipo": "Distribuição mudou",
+                "mensagem": (
+                    f"{len(resultado['drifts_de_distribuicao'])} coluna(s) mantiveram o schema, "
+                    "mas mudaram materialmente de distribuição. Confirme se o recorte ou processo mudou."
+                ),
+            }
+        )
     return avisos

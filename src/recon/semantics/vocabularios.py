@@ -52,38 +52,48 @@ def carregar_vocabularios(
                 raise ValueError(f"'{chave}' em '{caminho}' precisa mapear categoria para termos.")
             for categoria, termos in secoes.items():
                 if not isinstance(termos, list) or not all(isinstance(t, str) for t in termos):
-                    raise ValueError(f"Termos de '{categoria}' em '{caminho}' precisam ser uma lista de texto.")
+                    raise ValueError(
+                        f"Termos de '{categoria}' em '{caminho}' precisam ser uma lista de texto."
+                    )
                 destino[str(categoria)] = tuple(destino.get(str(categoria), ()) + tuple(termos))
         extras = dados.get("gazetteers", [])
         if not isinstance(extras, list):
             raise ValueError(f"'gazetteers' em '{caminho}' precisa ser uma lista.")
         for item in extras:
-            if not isinstance(item, dict) or not {"nome", "valores", "categoria", "eixo"} <= item.keys():
+            if (
+                not isinstance(item, dict)
+                or not {"nome", "valores", "categoria", "eixo"} <= item.keys()
+            ):
                 raise ValueError(f"Gazetteer inválido em '{caminho}'.")
             valores = item["valores"]
             if not isinstance(valores, list) or not all(isinstance(v, str) for v in valores):
                 raise ValueError(f"Valores do gazetteer '{item.get('nome')}' precisam ser texto.")
-            gazetteers.append({
-                "nome": str(item["nome"]), "valores": set(valores),
-                "categoria": str(item["categoria"]), "eixo": str(item["eixo"]),
-                "cobertura_minima": float(item.get("cobertura_minima", 0.8)),
-                "peso": float(item.get("peso", 0.8)),
-                "max_distintos": int(item.get("max_distintos", 100)),
-            })
+            gazetteers.append(
+                {
+                    "nome": str(item["nome"]),
+                    "valores": set(valores),
+                    "categoria": str(item["categoria"]),
+                    "eixo": str(item["eixo"]),
+                    "cobertura_minima": float(item.get("cobertura_minima", 0.8)),
+                    "peso": float(item.get("peso", 0.8)),
+                    "max_distintos": int(item.get("max_distintos", 100)),
+                }
+            )
         ajustes = dados.get("correcoes_colunas", {})
         if not isinstance(ajustes, dict) or not all(
             isinstance(coluna, str) and isinstance(semantica, str)
             for coluna, semantica in ajustes.items()
         ):
-            raise ValueError(f"'correcoes_colunas' em '{caminho}' precisa mapear coluna para texto.")
+            raise ValueError(
+                f"'correcoes_colunas' em '{caminho}' precisa mapear coluna para texto."
+            )
         correcoes.update(ajustes)
     return criar_contexto(fortes, fuzzy, tuple(gazetteers), correcoes)
 
 
 def exportar_modelo_de_correcoes(payload: dict[str, Any], caminho: str) -> None:
     correcoes = {
-        str(coluna["Coluna"]): str(coluna["Semantica_IA"])
-        for coluna in payload.get("colunas", [])
+        str(coluna["Coluna"]): str(coluna["Semantica_IA"]) for coluna in payload.get("colunas", [])
     }
     destino = Path(caminho)
     texto = (

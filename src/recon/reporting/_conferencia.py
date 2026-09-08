@@ -19,10 +19,14 @@ def _cartao(rotulo: str, valor: Any) -> str:
 
 def _linhas_variacao(payload: dict[str, Any]) -> list[list[str]]:
     return [
-        [v["coluna"], v["severidade"], f"{v['pct_nulos_a']:.1f}% → {v['pct_nulos_b']:.1f}%",
-         f"{v['unicos_a']:,} → {v['unicos_b']:,}",
-         f"{v['tipo_a']} → {v['tipo_b']}" if v["mudou_tipo"] else v["tipo_a"],
-         v["descricao"]]
+        [
+            v["coluna"],
+            v["severidade"],
+            f"{v['pct_nulos_a']:.1f}% → {v['pct_nulos_b']:.1f}%",
+            f"{v['unicos_a']:,} → {v['unicos_b']:,}",
+            f"{v['tipo_a']} → {v['tipo_b']}" if v["mudou_tipo"] else v["tipo_a"],
+            v["descricao"],
+        ]
         for v in payload["variacoes_de_coluna"]
     ]
 
@@ -50,7 +54,9 @@ def exportar_conferencia_markdown(payload: dict[str, Any], caminho: str) -> None
             "registro e por coluna descrevem as linhas amostradas."
         )
     if p["colunas_so_em_a"]:
-        partes.append(f"- Só na versão anterior: {', '.join(f'`{c}`' for c in p['colunas_so_em_a'])}")
+        partes.append(
+            f"- Só na versão anterior: {', '.join(f'`{c}`' for c in p['colunas_so_em_a'])}"
+        )
     if p["colunas_so_em_b"]:
         partes.append(f"- Só na versão nova: {', '.join(f'`{c}`' for c in p['colunas_so_em_b'])}")
     partes.append("")
@@ -67,7 +73,9 @@ def exportar_conferencia_markdown(payload: dict[str, Any], caminho: str) -> None
         partes.append(f"- Saíram (só na anterior): **{p['chaves_so_em_a']:,}**")
         partes.append(f"- Entraram (só na nova): **{p['chaves_so_em_b']:,}**")
         if p.get("comparacao_registros_amostral"):
-            partes.append("- Comparação de registros indicativa: ao menos uma versão foi amostrada.")
+            partes.append(
+                "- Comparação de registros indicativa: ao menos uma versão foi amostrada."
+            )
         for rotulo, chave in (("Saíram", "exemplos_sairam"), ("Entraram", "exemplos_entraram")):
             if p.get(chave):
                 partes.append(f"- {rotulo}, exemplos: {', '.join(f'`{v}`' for v in p[chave][:10])}")
@@ -105,9 +113,7 @@ def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
         "volume, registros e comportamento das colunas.</p></header>",
     ]
 
-    variacao = (
-        f"{p['variacao_linhas']:+.1%}" if p.get("variacao_linhas") is not None else "—"
-    )
+    variacao = f"{p['variacao_linhas']:+.1%}" if p.get("variacao_linhas") is not None else "—"
     cartoes = [
         _cartao("Linhas antes", f"{p['linhas_a']:,}"),
         _cartao("Linhas depois", f"{p['linhas_b']:,}"),
@@ -157,7 +163,8 @@ def exportar_conferencia_html(payload: dict[str, Any], caminho: str) -> None:
     if p.get("chave_comparada"):
         aviso_amostra = (
             " <b>Comparação indicativa:</b> ao menos uma versão foi analisada por amostragem."
-            if p.get("comparacao_registros_amostral") else ""
+            if p.get("comparacao_registros_amostral")
+            else ""
         )
         partes.append(
             f"<p class='sub'>Comparados pela chave <code>{_e(p['chave_comparada'])}</code>: "

@@ -40,7 +40,9 @@ def _linha_testes(testes: dict[str, Any]) -> list[str]:
 
     shapiro = testes.get("shapiro_wilk") or {}
     if shapiro.get("aplicavel"):
-        relevante = " — desvio relevante" if shapiro.get("desvio_relevante") else " — desvio pequeno"
+        relevante = (
+            " — desvio relevante" if shapiro.get("desvio_relevante") else " — desvio pequeno"
+        )
         fragmentos.append(
             f"Shapiro-Wilk W={_num(shapiro.get('estatistica_w'))} p={_num(shapiro.get('p_valor'))}"
             f" (normal provável: {'sim' if shapiro.get('normal_provavel') else 'não'}{relevante})"
@@ -54,7 +56,9 @@ def _linha_testes(testes: dict[str, Any]) -> list[str]:
 
     dist = testes.get("distribuicao_provavel") or {}
     if dist.get("aplicavel"):
-        conclusiva = "" if dist.get("escolha_conclusiva", True) else " (empate técnico com a segunda)"
+        conclusiva = (
+            "" if dist.get("escolha_conclusiva", True) else " (empate técnico com a segunda)"
+        )
         fragmentos.append(
             f"Distribuição provável: {dist.get('distribuicao')} "
             f"[AIC {_num(dist.get('aic'))}{conclusiva}]"
@@ -114,8 +118,7 @@ def _alertas_coluna(coluna: dict[str, Any]) -> list[str]:
     if coluna.get("Dado_Sensivel_LGPD", "Nenhum") != "Nenhum":
         alertas.append(
             f"🔒 Dado sensível LGPD ({coluna['Dado_Sensivel_LGPD']}) — valores mascarados"
-            + (", estatísticas de posição suprimidas"
-               if flags.get("stats_suprimidas_lgpd") else "")
+            + (", estatísticas de posição suprimidas" if flags.get("stats_suprimidas_lgpd") else "")
         )
 
     return alertas
@@ -140,8 +143,6 @@ def _bloco_coluna(coluna: dict[str, Any]) -> list[str]:
             f"{coluna['Semantica_Origem']}"
         )
 
-    
-    
     if coluna.get("Semantica_Conclusiva") is False:
         alternativas = [
             f"{h['semantica']} ({_pct(h['confianca'])})"
@@ -155,14 +156,10 @@ def _bloco_coluna(coluna: dict[str, Any]) -> list[str]:
             )
 
     qual = coluna.get("Qualidade", {})
-    linha_base = (
-        f"- Nulos: {_num(coluna['Qtd_Nulos'])} ({coluna['Pct_Nulos']:.1f}%)"
-    )
+    linha_base = f"- Nulos: {_num(coluna['Qtd_Nulos'])} ({coluna['Pct_Nulos']:.1f}%)"
     if qual.get("nulos_efetivos_qtd", 0) > coluna["Qtd_Nulos"]:
         linha_base += f" · **nulos efetivos: {qual['nulos_efetivos_pct']:.1f}%** (com sentinelas)"
-    linha_base += (
-        f" · Únicos: {_num(coluna['Qtd_Unicos'])} ({_pct(coluna['Ratio_Unicidade'])})"
-    )
+    linha_base += f" · Únicos: {_num(coluna['Qtd_Unicos'])} ({_pct(coluna['Ratio_Unicidade'])})"
     partes.append(linha_base)
 
     if "min" in extras:
@@ -186,7 +183,8 @@ def _bloco_coluna(coluna: dict[str, Any]) -> list[str]:
         partes.append(
             f"- Comprimento: {_num(extras['str_len_min'])}–{_num(extras['str_len_max'])} "
             f"(média {_num(extras['str_len_media'])}"
-            + (", fixo" if extras.get("comprimento_fixo") else "") + ")"
+            + (", fixo" if extras.get("comprimento_fixo") else "")
+            + ")"
         )
     if "qtd_true" in extras:
         partes.append(
@@ -277,18 +275,14 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
         )
 
     if score:
-        partes.append(
-            f"## Qualidade geral: **{score['score']}/100** (nota {score['nota']})\n"
-        )
+        partes.append(f"## Qualidade geral: **{score['score']}/100** (nota {score['nota']})\n")
         criticas = score.get("colunas_criticas") or []
         if criticas:
             partes.append(
                 f"Colunas mais comprometidas ({score.get('colunas_comprometidas', 0)} no total):\n"
             )
             for c in criticas[:5]:
-                partes.append(
-                    f"- `{c['coluna']}` — {', '.join(c['motivos'])}"
-                )
+                partes.append(f"- `{c['coluna']}` — {', '.join(c['motivos'])}")
             partes.append("")
 
         if score.get("penalidades"):
@@ -301,10 +295,13 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
             partes.append("")
         metodologia = score.get("metodologia") or {}
         if metodologia.get("descricao"):
-            partes.append(f"> Como interpretar: {metodologia['descricao']} Método {metodologia.get('versao', '—')}.\n")
+            partes.append(
+                f"> Como interpretar: {metodologia['descricao']} Método {metodologia.get('versao', '—')}.\n"
+            )
 
     total_linhas = (
-        "não contabilizado (leitura limitada)" if meta.get("linhas_originais_desconhecidas")
+        "não contabilizado (leitura limitada)"
+        if meta.get("linhas_originais_desconhecidas")
         else f"{meta['linhas_originais']:,}"
     )
     linhas_resumo = [
@@ -362,11 +359,22 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
             )
 
     partes.append("\n## Visão geral das colunas\n")
-    partes.append(_tabela(
-        [[c["Coluna"], c["Tipo_Inferred"], c["Semantica_IA"], f"{c['Pct_Nulos']:.1f}%",
-          f"{c['Qtd_Unicos']:,}", c["Caracteristica"]] for c in payload["colunas"]],
-        ["Coluna", "Tipo", "Semântica", "% Nulos", "Únicos", "Característica"],
-    ))
+    partes.append(
+        _tabela(
+            [
+                [
+                    c["Coluna"],
+                    c["Tipo_Inferred"],
+                    c["Semantica_IA"],
+                    f"{c['Pct_Nulos']:.1f}%",
+                    f"{c['Qtd_Unicos']:,}",
+                    c["Caracteristica"],
+                ]
+                for c in payload["colunas"]
+            ],
+            ["Coluna", "Tipo", "Semântica", "% Nulos", "Únicos", "Característica"],
+        )
+    )
 
     partes.append("\n## Detalhe por coluna\n")
     for coluna in payload["colunas"]:
@@ -404,11 +412,15 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
     if payload.get("correlacoes"):
         tem_relacao = True
         partes.append("**Correlações relevantes**\n")
-        partes.append(_tabela(
-            [[c["coluna_a"], c["coluna_b"], c["metrica"], _num(c["valor"]), c["forca"]]
-             for c in payload["correlacoes"]],
-            ["Coluna A", "Coluna B", "Métrica", "Valor", "Força"],
-        ))
+        partes.append(
+            _tabela(
+                [
+                    [c["coluna_a"], c["coluna_b"], c["metrica"], _num(c["valor"]), c["forca"]]
+                    for c in payload["correlacoes"]
+                ],
+                ["Coluna A", "Coluna B", "Métrica", "Valor", "Força"],
+            )
+        )
         partes.append("")
     if not tem_relacao:
         partes.append("Nenhuma relação relevante detectada entre as colunas.")
@@ -439,12 +451,21 @@ def exportar_markdown(payload: dict[str, Any], caminho: str) -> None:
             partes.append(f"- {e['descricao']}")
 
     partes.append("\n## Gap Analysis de KPIs\n")
-    partes.append(_tabela(
-        [[g["kpi_id"], g["kpi_nome"], g["status"], g["cobertura_pct"],
-          ", ".join(g["semanticas_ausentes"]) or "—"]
-         for g in payload["gap_analysis_kpis"]],
-        ["KPI", "Nome", "Status", "Cobertura", "Semânticas ausentes"],
-    ))
+    partes.append(
+        _tabela(
+            [
+                [
+                    g["kpi_id"],
+                    g["kpi_nome"],
+                    g["status"],
+                    g["cobertura_pct"],
+                    ", ".join(g["semanticas_ausentes"]) or "—",
+                ]
+                for g in payload["gap_analysis_kpis"]
+            ],
+            ["KPI", "Nome", "Status", "Cobertura", "Semânticas ausentes"],
+        )
+    )
 
     if payload.get("analise_temporal_series"):
         partes.append("\n## Análise Temporal\n")

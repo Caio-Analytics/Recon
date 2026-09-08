@@ -8,34 +8,33 @@ from .contexto import contexto_atual
 from .evidence import EIXO_DOMINIO, EIXO_PAPEL, Evidencia
 from .tokens import expandir_abreviatura, normalizar, tokens_expandidos
 
-
-
-PAPEIS_ESTRUTURAIS = frozenset({
-    config.SEMANTICA_CHAVE_ID,
-    config.SEMANTICA_DATA_CALENDARIO,
-    "Valor Financeiro",
-    "Quantidade / Métrica",
-    "Contato / Rede",
-    "Status / Indicador / Flag",
-    "Resultado de Avaliação",
-})
+PAPEIS_ESTRUTURAIS = frozenset(
+    {
+        config.SEMANTICA_CHAVE_ID,
+        config.SEMANTICA_DATA_CALENDARIO,
+        "Valor Financeiro",
+        "Quantidade / Métrica",
+        "Contato / Rede",
+        "Status / Indicador / Flag",
+        "Resultado de Avaliação",
+    }
+)
 
 _MAPA_PADRAO_SEMANTICA: dict[str, tuple[str, str]] = {
-    "CPF":      (config.SEMANTICA_CHAVE_ID,   EIXO_PAPEL),
-    "CNPJ":     (config.SEMANTICA_CHAVE_ID,   EIXO_PAPEL),
-    "UUID":     (config.SEMANTICA_CHAVE_ID,   EIXO_PAPEL),
-    "E-mail":   ("Contato / Rede",            EIXO_PAPEL),
-    "Telefone": ("Contato / Rede",            EIXO_PAPEL),
-    "CEP":      ("Localização Geográfica",    EIXO_DOMINIO),
+    "CPF": (config.SEMANTICA_CHAVE_ID, EIXO_PAPEL),
+    "CNPJ": (config.SEMANTICA_CHAVE_ID, EIXO_PAPEL),
+    "UUID": (config.SEMANTICA_CHAVE_ID, EIXO_PAPEL),
+    "E-mail": ("Contato / Rede", EIXO_PAPEL),
+    "Telefone": ("Contato / Rede", EIXO_PAPEL),
+    "CEP": ("Localização Geográfica", EIXO_DOMINIO),
 }
+
 
 def reconstruir_indice_tokens_fortes() -> None:
     pass
 
+
 _DECAIMENTO_POSICIONAL = 0.03
-
-
-
 
 
 _COBERTURA_MINIMA_PREFIXO = 0.7
@@ -59,16 +58,12 @@ def _peso_posicional(indice: int) -> float:
     return max(1.0 - _DECAIMENTO_POSICIONAL * indice, 0.5)
 
 
-
-
 def por_padrao_conteudo(detectado_padrao: str) -> list[Evidencia]:
     entrada = _MAPA_PADRAO_SEMANTICA.get(detectado_padrao)
     if entrada is None:
         return []
     categoria, eixo = entrada
     return [Evidencia(categoria, eixo, 0.98, f"conteúdo validado como {detectado_padrao}")]
-
-
 
 
 def por_gazetteer(perfil: PerfilConteudo) -> list[Evidencia]:
@@ -88,11 +83,14 @@ def por_gazetteer(perfil: PerfilConteudo) -> list[Evidencia]:
         cobertura = contidos / len(normalizados)
         if cobertura < gazetteer["cobertura_minima"]:
             continue
-        achados.append(Evidencia(
-            gazetteer["categoria"], gazetteer["eixo"],
-            round(gazetteer["peso"] * cobertura, 4),
-            f"valores correspondem a {gazetteer['nome']} ({cobertura:.0%} da coluna)",
-        ))
+        achados.append(
+            Evidencia(
+                gazetteer["categoria"],
+                gazetteer["eixo"],
+                round(gazetteer["peso"] * cobertura, 4),
+                f"valores correspondem a {gazetteer['nome']} ({cobertura:.0%} da coluna)",
+            )
+        )
     return achados
 
 
@@ -112,13 +110,12 @@ def _qualificador_de_borda(token: str, posicao: str) -> Evidencia | None:
         if len(categorias) != 1:
             continue
         origem = (
-            f"qualificador {posicao} '{palavra}'" if palavra == token
+            f"qualificador {posicao} '{palavra}'"
+            if palavra == token
             else f"qualificador {posicao} '{token}' → '{palavra}'"
         )
         return Evidencia(categorias[0], EIXO_PAPEL, round(0.9 * confianca, 4), origem)
     return None
-
-
 
 
 def por_token_forte(tokens: list[str]) -> list[Evidencia]:
@@ -144,7 +141,8 @@ def por_token_forte(tokens: list[str]) -> list[Evidencia]:
             )
             peso = 0.85 * peso_token * confianca_expansao * _peso_posicional(indice)
             origem = (
-                f"token '{palavra}'" if palavra == original
+                f"token '{palavra}'"
+                if palavra == original
                 else f"abreviatura '{original}' → '{palavra}'"
             )
             evidencias.append(Evidencia(categoria, EIXO_PAPEL, round(peso, 4), origem))
@@ -159,25 +157,20 @@ def _fator_truncagem(candidato: str, palavra: str) -> float:
     return 1.0 if cobertura > _COBERTURA_MINIMA_PREFIXO else cobertura
 
 
-
-
 def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
     melhores: dict[str, tuple[float, str]] = {}
 
-    
-    
-    
-    
-    
     candidatos_nome = [(nome_limpo, 1.0, nome_limpo)] + [
-        c for c in tokens_expandidos(tokens)
+        c
+        for c in tokens_expandidos(tokens)
         if not (c[0] == c[2] and c[0] in contexto_atual().indice_tokens_fortes)
     ]
     for categoria, palavras_chave in contexto_atual().categorias_fuzzy.items():
         for palavra in palavras_chave:
             palavra_norm = normalizar(palavra)
             threshold = (
-                config.THRESHOLD_FUZZY_CURTO if len(palavra_norm) <= 3
+                config.THRESHOLD_FUZZY_CURTO
+                if len(palavra_norm) <= 3
                 else config.THRESHOLD_FUZZY_PADRAO
             )
             for indice, (candidato, confianca, original) in enumerate(candidatos_nome):
@@ -186,24 +179,24 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
                 if similaridade < threshold:
                     continue
                 similaridade *= _fator_truncagem(candidato_norm, palavra_norm)
-                
-                
-                
-                
-                
-                
+
                 peso_qualificador = (
-                    config.PESO_TOKEN_QUALIFICADOR if original in config.TOKENS_QUALIFICADORES
+                    config.PESO_TOKEN_QUALIFICADOR
+                    if original in config.TOKENS_QUALIFICADORES
                     else 1.0
                 )
                 peso = (
-                    0.8 * similaridade * confianca * peso_qualificador
+                    0.8
+                    * similaridade
+                    * confianca
+                    * peso_qualificador
                     * _peso_posicional(max(indice - 1, 0))
                 )
                 atual = melhores.get(categoria)
                 if atual is None or peso > atual[0]:
                     origem = (
-                        f"nome parecido com '{palavra}'" if candidato == original
+                        f"nome parecido com '{palavra}'"
+                        if candidato == original
                         else f"abreviatura '{original}' → '{candidato}' ~ '{palavra}'"
                     )
                     melhores[categoria] = (peso, origem)
@@ -214,46 +207,63 @@ def por_fuzzy(nome_limpo: str, tokens: list[str]) -> list[Evidencia]:
     ]
 
 
-
-
 def por_assinatura_estrutural(perfil: PerfilConteudo) -> list[Evidencia]:
     evidencias: list[Evidencia] = []
     tipo = perfil.tipo_dados
 
     if tipo == "Booleano":
-        evidencias.append(Evidencia(
-            "Status / Indicador / Flag", EIXO_PAPEL, 0.7, "coluna booleana"
-        ))
+        evidencias.append(
+            Evidencia("Status / Indicador / Flag", EIXO_PAPEL, 0.7, "coluna booleana")
+        )
 
     if tipo == "Número Inteiro" and perfil.monotonica_crescente and perfil.ratio_unicidade >= 0.99:
-        evidencias.append(Evidencia(
-            config.SEMANTICA_CHAVE_ID, EIXO_PAPEL, 0.6,
-            "inteiro único e crescente (cara de chave sequencial)",
-        ))
+        evidencias.append(
+            Evidencia(
+                config.SEMANTICA_CHAVE_ID,
+                EIXO_PAPEL,
+                0.6,
+                "inteiro único e crescente (cara de chave sequencial)",
+            )
+        )
 
-    if (tipo == "Número Decimal" and perfil.casas_decimais_fixas == 2
-            and perfil.minimo is not None and perfil.minimo >= 0
-            and perfil.assimetria is not None and perfil.assimetria > 0.5):
-        evidencias.append(Evidencia(
-            "Valor Financeiro", EIXO_PAPEL, 0.45,
-            "decimal de 2 casas, não negativo e assimétrico à direita (perfil monetário)",
-        ))
+    if (
+        tipo == "Número Decimal"
+        and perfil.casas_decimais_fixas == 2
+        and perfil.minimo is not None
+        and perfil.minimo >= 0
+        and perfil.assimetria is not None
+        and perfil.assimetria > 0.5
+    ):
+        evidencias.append(
+            Evidencia(
+                "Valor Financeiro",
+                EIXO_PAPEL,
+                0.45,
+                "decimal de 2 casas, não negativo e assimétrico à direita (perfil monetário)",
+            )
+        )
 
     if tipo.startswith("Texto") and perfil.str_len_media is not None:
         if perfil.str_len_media > 40 and perfil.ratio_unicidade > 0.5:
-            evidencias.append(Evidencia(
-                "Texto Descritivo Livre", EIXO_PAPEL, 0.55,
-                f"texto longo (média de {perfil.str_len_media:.0f} caracteres) e pouco repetido",
-            ))
+            evidencias.append(
+                Evidencia(
+                    "Texto Descritivo Livre",
+                    EIXO_PAPEL,
+                    0.55,
+                    f"texto longo (média de {perfil.str_len_media:.0f} caracteres) e pouco repetido",
+                )
+            )
         elif perfil.comprimento_fixo and perfil.ratio_unicidade > 0.9:
-            evidencias.append(Evidencia(
-                config.SEMANTICA_CHAVE_ID, EIXO_PAPEL, 0.5,
-                "texto de comprimento fixo e quase único (cara de código)",
-            ))
+            evidencias.append(
+                Evidencia(
+                    config.SEMANTICA_CHAVE_ID,
+                    EIXO_PAPEL,
+                    0.5,
+                    "texto de comprimento fixo e quase único (cara de código)",
+                )
+            )
 
     return evidencias
-
-
 
 
 def por_contexto_da_tabela(
@@ -266,17 +276,20 @@ def por_contexto_da_tabela(
     vistos: set[str] = set()
     for palavra, confianca, original in tokens_expandidos(tokens):
         if palavra == original or confianca >= 0.85:
-            continue  
+            continue
         for categoria in contexto_atual().indice_tokens_fortes.get(palavra, ()):
             chave = f"{categoria}|{palavra}"
             if chave in vistos or categoria not in dominios_da_tabela:
                 continue
             vistos.add(chave)
-            evidencias.append(Evidencia(
-                categoria, EIXO_PAPEL,
-                round(0.4 * dominios_da_tabela[categoria], 4),
-                f"contexto da tabela favorece '{original}' → '{palavra}'",
-            ))
+            evidencias.append(
+                Evidencia(
+                    categoria,
+                    EIXO_PAPEL,
+                    round(0.4 * dominios_da_tabela[categoria], 4),
+                    f"contexto da tabela favorece '{original}' → '{palavra}'",
+                )
+            )
         for categoria, forca in dominios_da_tabela.items():
             if categoria not in contexto_atual().categorias_fuzzy:
                 continue
@@ -285,10 +298,14 @@ def por_contexto_da_tabela(
                 if chave in vistos:
                     continue
                 vistos.add(chave)
-                evidencias.append(Evidencia(
-                    categoria, EIXO_DOMINIO, round(0.4 * forca, 4),
-                    f"contexto da tabela favorece '{original}' → '{palavra}'",
-                ))
+                evidencias.append(
+                    Evidencia(
+                        categoria,
+                        EIXO_DOMINIO,
+                        round(0.4 * forca, 4),
+                        f"contexto da tabela favorece '{original}' → '{palavra}'",
+                    )
+                )
     return evidencias
 
 

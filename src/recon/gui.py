@@ -17,33 +17,20 @@ from . import __version__
 from .ingestion import EXTENSOES_DESCOBERTAS as EXTENSOES
 from .ingestion import EXTENSOES_SUPORTADAS
 
-
-
 _Conclusao = tuple[Path, list[Path], list[tuple[str, str]]]
 
 
-
-
-
-
-
-
-
-
-
-
-
 CORES = {
-    "fundo": "#0d1117",        
-    "superficie": "#161b22",   
-    "campo": "#010409",        
+    "fundo": "#0d1117",
+    "superficie": "#161b22",
+    "campo": "#010409",
     "borda": "#30363d",
     "borda_suave": "#21262d",
     "texto": "#e6edf3",
     "texto_suave": "#8b949e",
     "texto_fraco": "#6e7681",
-    "roxo": "#bc8cff",         
-    "roxo_forte": "#8957e5",   
+    "roxo": "#bc8cff",
+    "roxo_forte": "#8957e5",
     "roxo_hover": "#a371f7",
     "azul": "#58a6ff",
     "ciano": "#39c5cf",
@@ -55,15 +42,24 @@ CORES = {
 }
 
 
-
-
 _FAMILIAS_TEXTO = (
-    "Segoe UI", "Inter", "Ubuntu", "Cantarell", "Noto Sans",
-    "DejaVu Sans", "Helvetica Neue", "TkDefaultFont",
+    "Segoe UI",
+    "Inter",
+    "Ubuntu",
+    "Cantarell",
+    "Noto Sans",
+    "DejaVu Sans",
+    "Helvetica Neue",
+    "TkDefaultFont",
 )
 _FAMILIAS_MONO = (
-    "Cascadia Mono", "Consolas", "JetBrains Mono", "Ubuntu Mono",
-    "DejaVu Sans Mono", "Menlo", "TkFixedFont",
+    "Cascadia Mono",
+    "Consolas",
+    "JetBrains Mono",
+    "Ubuntu Mono",
+    "DejaVu Sans Mono",
+    "Menlo",
+    "TkFixedFont",
 )
 _ESCOLHIDAS = {"texto": "TkDefaultFont", "mono": "TkFixedFont"}
 
@@ -72,17 +68,14 @@ def _fonte(tamanho: int = 10, *, negrito: bool = False, mono: bool = False) -> t
     familia = _ESCOLHIDAS["mono" if mono else "texto"]
     return (familia, tamanho, "bold") if negrito else (familia, tamanho)
 
+
 _TIPOS_DIALOGO = [
     ("Planilhas e dados", " ".join(f"*{e}" for e in EXTENSOES_SUPORTADAS)),
     ("Todos os arquivos", "*.*"),
 ]
 
 
-
 PREFIXO_SAIDA = "recon"
-
-
-
 
 
 FORMATOS: tuple[tuple[str, str, str], ...] = (
@@ -100,7 +93,6 @@ _AVISO_DEMORA = (
 
 @dataclass(frozen=True)
 class Acao:
-
     chave: str
     aba: str
     resumo: str
@@ -235,11 +227,9 @@ Nada é enviado para a internet. Tudo roda no seu computador.
 """
 
 
-
 def arquivos_suportados(pasta: Path) -> list[str]:
     return sorted(
-        str(p) for p in pasta.iterdir()
-        if p.is_file() and str(p).lower().endswith(tuple(EXTENSOES))
+        str(p) for p in pasta.iterdir() if p.is_file() and str(p).lower().endswith(tuple(EXTENSOES))
     )
 
 
@@ -323,16 +313,14 @@ def executar_analise(
     elif acao.chave == "individual":
         for caminho in caminhos:
             profiler.processar_arquivo(
-                caminho, saida_base=saida_base, formatos=escolhidos,
+                caminho,
+                saida_base=saida_base,
+                formatos=escolhidos,
                 gerar_limpeza=gerar_limpeza,
             )
     else:
-        _, falhas = profiler.processar_lote(
-            caminhos, saida_base=saida_base, formatos=escolhidos
-        )
+        _, falhas = profiler.processar_lote(caminhos, saida_base=saida_base, formatos=escolhidos)
 
-    
-    
     padroes = [f"{PREFIXO_SAIDA}*.html", f"{PREFIXO_SAIDA}*.md", f"{PREFIXO_SAIDA}*.json"]
     for padrao in padroes:
         gerados = sorted(pasta_saida.glob(padrao))
@@ -342,13 +330,12 @@ def executar_analise(
 
 
 def abrir_no_explorador(caminho: Path) -> None:
-    abrir_nativo = getattr(os, "startfile", None)  
+    abrir_nativo = getattr(os, "startfile", None)
     if abrir_nativo is not None:
         abrir_nativo(str(caminho))
         return
     comando = "open" if sys.platform == "darwin" else "xdg-open"
     subprocess.run([comando, str(caminho)], check=False)
-
 
 
 def _ajustar_dpi() -> None:
@@ -365,9 +352,7 @@ def _escolher_fontes(raiz: tk.Tk) -> None:
 
     instaladas = set(tkfont.families(raiz))
     for papel, preferidas in (("texto", _FAMILIAS_TEXTO), ("mono", _FAMILIAS_MONO)):
-        _ESCOLHIDAS[papel] = next(
-            (f for f in preferidas if f in instaladas), _ESCOLHIDAS[papel]
-        )
+        _ESCOLHIDAS[papel] = next((f for f in preferidas if f in instaladas), _ESCOLHIDAS[papel])
     for nome in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont"):
         tkfont.nametofont(nome, raiz).configure(family=_ESCOLHIDAS["texto"], size=10)
     tkfont.nametofont("TkFixedFont", raiz).configure(family=_ESCOLHIDAS["mono"], size=9)
@@ -381,18 +366,22 @@ def _aplicar_estilo(raiz: tk.Tk) -> None:
 
     estilo.configure(
         ".",
-        background=CORES["fundo"], foreground=CORES["texto"],
-        fieldbackground=CORES["campo"], bordercolor=CORES["borda"],
-        darkcolor=CORES["fundo"], lightcolor=CORES["fundo"],
-        troughcolor=CORES["campo"], focuscolor=CORES["fundo"],
-        insertcolor=CORES["texto"], font=_fonte(10),
+        background=CORES["fundo"],
+        foreground=CORES["texto"],
+        fieldbackground=CORES["campo"],
+        bordercolor=CORES["borda"],
+        darkcolor=CORES["fundo"],
+        lightcolor=CORES["fundo"],
+        troughcolor=CORES["campo"],
+        focuscolor=CORES["fundo"],
+        insertcolor=CORES["texto"],
+        font=_fonte(10),
     )
     estilo.configure("TFrame", background=CORES["fundo"])
     estilo.configure("Painel.TFrame", background=CORES["fundo"])
     estilo.configure("TLabel", background=CORES["fundo"], foreground=CORES["texto"])
     estilo.configure("Separador.TFrame", background=CORES["borda_suave"])
 
-    
     estilo.configure("Titulo.TLabel", font=_fonte(16, negrito=True), foreground=CORES["texto"])
     estilo.configure("Sub.TLabel", font=_fonte(9), foreground=CORES["texto_suave"])
     estilo.configure("Secao.TLabel", font=_fonte(9, negrito=True), foreground=CORES["texto_suave"])
@@ -403,30 +392,37 @@ def _aplicar_estilo(raiz: tk.Tk) -> None:
         "StatusErro.TLabel", font=_fonte(9, negrito=True), foreground=CORES["vermelho"]
     )
     estilo.configure(
-        "Explicacao.TLabel", font=_fonte(9), foreground=CORES["texto_suave"],
+        "Explicacao.TLabel",
+        font=_fonte(9),
+        foreground=CORES["texto_suave"],
     )
     estilo.configure("Resumo.TLabel", font=_fonte(9), foreground=CORES["texto_suave"])
 
-    
     for acao in ACOES:
         estilo.configure(
             f"{acao.chave}.Titulo.TLabel", font=_fonte(13, negrito=True), foreground=acao.cor
         )
         estilo.configure(f"{acao.chave}.Regua.TFrame", background=acao.cor)
 
-    
-    
-    
     estilo.configure(
         "TButton",
-        background=CORES["botao"], foreground=CORES["texto"],
-        bordercolor=CORES["borda"], lightcolor=CORES["botao"], darkcolor=CORES["botao"],
-        borderwidth=1, focusthickness=0, padding=(12, 7), font=_fonte(9),
+        background=CORES["botao"],
+        foreground=CORES["texto"],
+        bordercolor=CORES["borda"],
+        lightcolor=CORES["botao"],
+        darkcolor=CORES["botao"],
+        borderwidth=1,
+        focusthickness=0,
+        padding=(12, 7),
+        font=_fonte(9),
     )
     estilo.map(
         "TButton",
-        background=[("disabled", CORES["fundo"]), ("pressed", CORES["borda_suave"]),
-                    ("active", CORES["botao_hover"])],
+        background=[
+            ("disabled", CORES["fundo"]),
+            ("pressed", CORES["borda_suave"]),
+            ("active", CORES["botao_hover"]),
+        ],
         foreground=[("disabled", CORES["desabilitado"])],
         bordercolor=[("disabled", CORES["borda_suave"]), ("active", CORES["texto_fraco"])],
         lightcolor=[("active", CORES["botao_hover"]), ("disabled", CORES["fundo"])],
@@ -434,10 +430,13 @@ def _aplicar_estilo(raiz: tk.Tk) -> None:
     )
     estilo.configure(
         "Analisar.TButton",
-        background=CORES["roxo_forte"], foreground="#ffffff",
+        background=CORES["roxo_forte"],
+        foreground="#ffffff",
         bordercolor=CORES["roxo_forte"],
-        lightcolor=CORES["roxo_forte"], darkcolor=CORES["roxo_forte"],
-        font=_fonte(10, negrito=True), padding=(22, 11),
+        lightcolor=CORES["roxo_forte"],
+        darkcolor=CORES["roxo_forte"],
+        font=_fonte(10, negrito=True),
+        padding=(22, 11),
     )
     estilo.map(
         "Analisar.TButton",
@@ -448,40 +447,51 @@ def _aplicar_estilo(raiz: tk.Tk) -> None:
         darkcolor=[("active", CORES["roxo_hover"]), ("disabled", CORES["botao"])],
     )
 
-    
     estilo.configure(
         "TLabelframe",
-        background=CORES["fundo"], bordercolor=CORES["borda"],
-        lightcolor=CORES["fundo"], darkcolor=CORES["fundo"], borderwidth=1,
+        background=CORES["fundo"],
+        bordercolor=CORES["borda"],
+        lightcolor=CORES["fundo"],
+        darkcolor=CORES["fundo"],
+        borderwidth=1,
     )
     estilo.configure(
         "TLabelframe.Label",
-        background=CORES["fundo"], foreground=CORES["texto_suave"],
+        background=CORES["fundo"],
+        foreground=CORES["texto_suave"],
         font=_fonte(9, negrito=True),
     )
     estilo.configure(
         "TEntry",
-        fieldbackground=CORES["campo"], foreground=CORES["texto"],
-        bordercolor=CORES["borda"], lightcolor=CORES["borda"], darkcolor=CORES["borda"],
-        insertcolor=CORES["texto"], padding=(8, 7), borderwidth=1,
+        fieldbackground=CORES["campo"],
+        foreground=CORES["texto"],
+        bordercolor=CORES["borda"],
+        lightcolor=CORES["borda"],
+        darkcolor=CORES["borda"],
+        insertcolor=CORES["texto"],
+        padding=(8, 7),
+        borderwidth=1,
     )
     estilo.map("TEntry", bordercolor=[("focus", CORES["azul"])])
 
     estilo.configure(
         "TCheckbutton",
-        background=CORES["fundo"], foreground=CORES["texto"],
-        indicatorbackground=CORES["campo"], indicatorforeground=CORES["fundo"],
-        
-        
-        upperbordercolor=CORES["borda"], lowerbordercolor=CORES["borda"],
-        bordercolor=CORES["borda"], focusthickness=0, font=_fonte(9), padding=(0, 3),
+        background=CORES["fundo"],
+        foreground=CORES["texto"],
+        indicatorbackground=CORES["campo"],
+        indicatorforeground=CORES["fundo"],
+        upperbordercolor=CORES["borda"],
+        lowerbordercolor=CORES["borda"],
+        bordercolor=CORES["borda"],
+        focusthickness=0,
+        font=_fonte(9),
+        padding=(0, 3),
     )
     estilo.map(
         "TCheckbutton",
         background=[("active", CORES["fundo"])],
         foreground=[("disabled", CORES["desabilitado"])],
-        indicatorbackground=[("selected", CORES["roxo_forte"]),
-                             ("active", CORES["borda_suave"])],
+        indicatorbackground=[("selected", CORES["roxo_forte"]), ("active", CORES["borda_suave"])],
         indicatorforeground=[("selected", "#ffffff")],
         upperbordercolor=[("selected", CORES["roxo_forte"]), ("active", CORES["texto_fraco"])],
         lowerbordercolor=[("selected", CORES["roxo_forte"]), ("active", CORES["texto_fraco"])],
@@ -489,21 +499,29 @@ def _aplicar_estilo(raiz: tk.Tk) -> None:
 
     estilo.configure(
         "TProgressbar",
-        background=CORES["roxo"], troughcolor=CORES["campo"],
-        bordercolor=CORES["borda_suave"], lightcolor=CORES["roxo"], darkcolor=CORES["roxo"],
-        thickness=6, borderwidth=0,
+        background=CORES["roxo"],
+        troughcolor=CORES["campo"],
+        bordercolor=CORES["borda_suave"],
+        lightcolor=CORES["roxo"],
+        darkcolor=CORES["roxo"],
+        thickness=6,
+        borderwidth=0,
     )
     estilo.configure(
         "TScrollbar",
-        background=CORES["borda"], troughcolor=CORES["fundo"],
-        bordercolor=CORES["fundo"], arrowcolor=CORES["texto_suave"],
-        lightcolor=CORES["borda"], darkcolor=CORES["borda"], borderwidth=0, arrowsize=12,
+        background=CORES["borda"],
+        troughcolor=CORES["fundo"],
+        bordercolor=CORES["fundo"],
+        arrowcolor=CORES["texto_suave"],
+        lightcolor=CORES["borda"],
+        darkcolor=CORES["borda"],
+        borderwidth=0,
+        arrowsize=12,
     )
     estilo.map("TScrollbar", background=[("active", CORES["texto_fraco"])])
 
 
 class PainelAcao(ttk.Frame):
-
     def __init__(self, mestre: tk.Misc, acao: Acao, ao_mudar: Callable[[], None]):
         super().__init__(mestre, padding=(20, 18), style="Painel.TFrame")
         self.acao = acao
@@ -513,33 +531,33 @@ class PainelAcao(ttk.Frame):
 
         cabecalho = ttk.Frame(self, style="Painel.TFrame")
         cabecalho.pack(fill="x")
-        ttk.Frame(
-            cabecalho, style=f"{acao.chave}.Regua.TFrame", width=4, height=20
-        ).pack(side="left", padx=(0, 11))
-        ttk.Label(
-            cabecalho, text=acao.titulo, style=f"{acao.chave}.Titulo.TLabel"
-        ).pack(side="left")
+        ttk.Frame(cabecalho, style=f"{acao.chave}.Regua.TFrame", width=4, height=20).pack(
+            side="left", padx=(0, 11)
+        )
+        ttk.Label(cabecalho, text=acao.titulo, style=f"{acao.chave}.Titulo.TLabel").pack(
+            side="left"
+        )
 
         ttk.Label(
-            self, text=acao.explicacao, style="Explicacao.TLabel",
-            wraplength=640, justify="left",
+            self,
+            text=acao.explicacao,
+            style="Explicacao.TLabel",
+            wraplength=640,
+            justify="left",
         ).pack(anchor="w", pady=(8, 16))
 
         botoes = ttk.Frame(self, style="Painel.TFrame")
         botoes.pack(anchor="w", fill="x")
         rotulo = "Procurar arquivo…" if acao.minimo == 1 else "Procurar arquivos…"
         ttk.Button(botoes, text=rotulo, command=self._escolher_arquivos).pack(side="left")
-        ttk.Button(
-            botoes, text="Escolher uma pasta inteira…", command=self._escolher_pasta
-        ).pack(side="left", padx=6)
+        ttk.Button(botoes, text="Escolher uma pasta inteira…", command=self._escolher_pasta).pack(
+            side="left", padx=6
+        )
         ttk.Button(botoes, text="Limpar", command=self._limpar).pack(side="left")
 
         self.resumo = ttk.Label(self, text=resumir_selecao([]), style="Resumo.TLabel")
         self.resumo.pack(anchor="w", pady=(12, 5))
 
-        
-        
-        
         if acao.limpeza:
             ttk.Checkbutton(
                 self,
@@ -547,17 +565,22 @@ class PainelAcao(ttk.Frame):
                 variable=self.gerar_limpeza,
             ).pack(side="bottom", anchor="w", pady=(10, 0))
 
-        
-        
-        
         moldura = ttk.Frame(self, style="Painel.TFrame")
         moldura.pack(fill="x")
         self.lista = tk.Listbox(
-            moldura, height=5, activestyle="none", borderwidth=0, relief="flat",
-            background=CORES["campo"], foreground=CORES["texto"],
-            selectbackground=acao.cor, selectforeground=CORES["fundo"],
-            highlightthickness=1, highlightbackground=CORES["borda"],
-            highlightcolor=CORES["borda"], font=_fonte(9),
+            moldura,
+            height=5,
+            activestyle="none",
+            borderwidth=0,
+            relief="flat",
+            background=CORES["campo"],
+            foreground=CORES["texto"],
+            selectbackground=acao.cor,
+            selectforeground=CORES["fundo"],
+            highlightthickness=1,
+            highlightbackground=CORES["borda"],
+            highlightcolor=CORES["borda"],
+            font=_fonte(9),
         )
         barra = ttk.Scrollbar(moldura, orient="vertical", command=self.lista.yview)
         self.lista.configure(yscrollcommand=barra.set)
@@ -571,10 +594,12 @@ class PainelAcao(ttk.Frame):
             )
             escolhidos = [escolhido] if escolhido else []
         else:
-            escolhidos = list(filedialog.askopenfilenames(
-                title="Escolha os arquivos (segure Ctrl para marcar vários)",
-                filetypes=_TIPOS_DIALOGO,
-            ))
+            escolhidos = list(
+                filedialog.askopenfilenames(
+                    title="Escolha os arquivos (segure Ctrl para marcar vários)",
+                    filetypes=_TIPOS_DIALOGO,
+                )
+            )
         if escolhidos:
             self._definir(escolhidos)
 
@@ -614,22 +639,28 @@ class PainelAcao(ttk.Frame):
 class PainelAjuda(ttk.Frame):
     def __init__(self, mestre: tk.Misc):
         super().__init__(mestre, padding=(20, 18), style="Painel.TFrame")
-        
-        
-        
-        
+
         texto = tk.Text(
-            self, height=15, wrap="word", borderwidth=0, highlightthickness=0,
-            background=CORES["fundo"], foreground=CORES["texto_suave"],
-            selectbackground=CORES["borda"], selectforeground=CORES["texto"],
-            font=_fonte(9), padx=6, pady=2, spacing1=1, spacing3=2, cursor="arrow",
+            self,
+            height=15,
+            wrap="word",
+            borderwidth=0,
+            highlightthickness=0,
+            background=CORES["fundo"],
+            foreground=CORES["texto_suave"],
+            selectbackground=CORES["borda"],
+            selectforeground=CORES["texto"],
+            font=_fonte(9),
+            padx=6,
+            pady=2,
+            spacing1=1,
+            spacing3=2,
+            cursor="arrow",
         )
         barra = ttk.Scrollbar(self, orient="vertical", command=texto.yview)
         texto.configure(yscrollcommand=barra.set)
         texto.insert("1.0", _AJUDA)
 
-        
-        
         texto.tag_configure(
             "secao", foreground=CORES["roxo"], font=_fonte(9, negrito=True), spacing1=8
         )
@@ -643,9 +674,9 @@ class PainelAjuda(ttk.Frame):
 
 
 class ItemNavegacao(tk.Frame):
-
-    def __init__(self, mestre: tk.Misc, rotulo: str, apoio: str, cor: str,
-                 ao_clicar: Callable[[], None]):
+    def __init__(
+        self, mestre: tk.Misc, rotulo: str, apoio: str, cor: str, ao_clicar: Callable[[], None]
+    ):
         super().__init__(mestre, background=CORES["fundo"], cursor="hand2")
         self.cor = cor
         self.selecionado = False
@@ -655,13 +686,23 @@ class ItemNavegacao(tk.Frame):
         interno = tk.Frame(self, background=CORES["fundo"], padx=13, pady=9)
         interno.pack(side="left", fill="both", expand=True)
         self.rotulo = tk.Label(
-            interno, text=rotulo, background=CORES["fundo"], foreground=CORES["texto"],
-            font=_fonte(10, negrito=True), anchor="w",
+            interno,
+            text=rotulo,
+            background=CORES["fundo"],
+            foreground=CORES["texto"],
+            font=_fonte(10, negrito=True),
+            anchor="w",
         )
         self.rotulo.pack(fill="x")
         self.apoio = tk.Label(
-            interno, text=apoio, background=CORES["fundo"], foreground=CORES["texto_fraco"],
-            font=_fonte(8), anchor="w", wraplength=150, justify="left",
+            interno,
+            text=apoio,
+            background=CORES["fundo"],
+            foreground=CORES["texto_fraco"],
+            font=_fonte(8),
+            anchor="w",
+            wraplength=150,
+            justify="left",
         )
         self.apoio.pack(fill="x")
 
@@ -697,7 +738,7 @@ class JanelaRecon:
         self.fila: queue.Queue[tuple[str, object]] = queue.Queue()
         self.rodando = False
         self.ultima_saida: Path | None = None
-        self._pasta_atual: str = ""   
+        self._pasta_atual: str = ""
         self.saida_escolhida = tk.StringVar()
         self.paineis: list[PainelAcao] = []
         self.itens: list[ItemNavegacao] = []
@@ -721,16 +762,15 @@ class JanelaRecon:
         y = max((tela_altura - altura) // 3, 0)
         self.raiz.geometry(f"{largura}x{altura}+{x}+{y}")
 
-    
     def _montar(self) -> None:
         topo = ttk.Frame(self.raiz, padding=(20, 16, 20, 12))
         topo.pack(fill="x")
         titulo = ttk.Frame(topo)
         titulo.pack(anchor="w")
         ttk.Label(titulo, text="Recon", style="Titulo.TLabel").pack(side="left")
-        ttk.Label(
-            titulo, text=__version__, style="Sub.TLabel"
-        ).pack(side="left", anchor="s", pady=(0, 4), padx=(8, 0))
+        ttk.Label(titulo, text=__version__, style="Sub.TLabel").pack(
+            side="left", anchor="s", pady=(0, 4), padx=(8, 0)
+        )
         ttk.Label(
             topo,
             text="Descubra o que tem nos seus arquivos antes de começar a analisar.",
@@ -738,20 +778,22 @@ class JanelaRecon:
         ).pack(anchor="w", pady=(2, 0))
         ttk.Frame(self.raiz, style="Separador.TFrame", height=1).pack(fill="x", padx=20)
 
-        
-        
-        
-        
-        
-        
         moldura = ttk.LabelFrame(self.raiz, text=" Mensagens ", padding=8)
         moldura.pack(side="bottom", fill="x", padx=20, pady=(12, 18))
         self.log = tk.Text(
-            moldura, height=5, wrap="word", state="disabled", borderwidth=0,
-            highlightthickness=0, font=_fonte(9, mono=True),
-            background=CORES["campo"], foreground=CORES["texto_suave"],
-            selectbackground=CORES["borda"], selectforeground=CORES["texto"],
-            padx=6, pady=4,
+            moldura,
+            height=5,
+            wrap="word",
+            state="disabled",
+            borderwidth=0,
+            highlightthickness=0,
+            font=_fonte(9, mono=True),
+            background=CORES["campo"],
+            foreground=CORES["texto_suave"],
+            selectbackground=CORES["borda"],
+            selectforeground=CORES["texto"],
+            padx=6,
+            pady=4,
         )
         self.log.tag_configure("ok", foreground=CORES["verde"])
         self.log.tag_configure("erro", foreground=CORES["vermelho"])
@@ -761,17 +803,17 @@ class JanelaRecon:
         self.log.configure(yscrollcommand=barra_log.set)
         self.log.pack(side="left", fill="both", expand=True)
         barra_log.pack(side="right", fill="y")
-        
+
         self._escrever("O andamento da análise aparece aqui.", "dica")
 
         self.status = ttk.Label(
-            self.raiz, text="Escolha um arquivo para começar.",
-            style="Status.TLabel", justify="left",
+            self.raiz,
+            text="Escolha um arquivo para começar.",
+            style="Status.TLabel",
+            justify="left",
         )
         self.status.pack(side="bottom", anchor="w", padx=20, pady=(0, 2))
 
-        
-        
         self.barra = ttk.Progressbar(self.raiz, mode="determinate", value=0)
         self.barra.pack(side="bottom", fill="x", padx=20, pady=(14, 6))
 
@@ -782,8 +824,10 @@ class JanelaRecon:
         )
         self.botao.pack(side="left")
         self.botao_pasta = ttk.Button(
-            acoes, text="Abrir a pasta dos relatórios",
-            command=self._abrir_saida, state="disabled",
+            acoes,
+            text="Abrir a pasta dos relatórios",
+            command=self._abrir_saida,
+            state="disabled",
         )
         self.botao_pasta.pack(side="left", padx=10)
 
@@ -793,9 +837,7 @@ class JanelaRecon:
         ttk.Label(saida, text="Onde salvar", style="Secao.TLabel").pack(anchor="w")
         linha = ttk.Frame(saida)
         linha.pack(fill="x", pady=(5, 0))
-        ttk.Entry(linha, textvariable=self.saida_escolhida).pack(
-            side="left", fill="x", expand=True
-        )
+        ttk.Entry(linha, textvariable=self.saida_escolhida).pack(side="left", fill="x", expand=True)
         ttk.Button(linha, text="Procurar…", command=self._escolher_saida).pack(
             side="left", padx=(8, 0)
         )
@@ -811,17 +853,15 @@ class JanelaRecon:
             linha_formato = ttk.Frame(saida)
             linha_formato.pack(fill="x", pady=(5, 0))
             ttk.Checkbutton(
-                linha_formato, text=rotulo, variable=self.formatos[chave],
+                linha_formato,
+                text=rotulo,
+                variable=self.formatos[chave],
                 command=self._atualizar_botao,
             ).pack(side="left")
             ttk.Label(linha_formato, text=f"— {explicacao}", style="Dica.TLabel").pack(
                 side="left", padx=(8, 0)
             )
 
-        
-        
-        
-        
         corpo = ttk.Frame(self.raiz)
         corpo.pack(fill="both", expand=True, padx=20, pady=(14, 0))
 
@@ -835,7 +875,10 @@ class JanelaRecon:
 
         for indice, acao in enumerate(ACOES):
             item = ItemNavegacao(
-                navegacao, acao.aba, acao.resumo, acao.cor,
+                navegacao,
+                acao.aba,
+                acao.resumo,
+                acao.cor,
                 partial(self.selecionar, indice),
             )
             item.pack(fill="x")
@@ -846,7 +889,10 @@ class JanelaRecon:
             fill="x", pady=10, padx=(3, 0)
         )
         ajuda = ItemNavegacao(
-            navegacao, "Ajuda", "dúvidas frequentes", CORES["texto_suave"],
+            navegacao,
+            "Ajuda",
+            "dúvidas frequentes",
+            CORES["texto_suave"],
             lambda: self.selecionar(len(ACOES)),
         )
         ajuda.pack(fill="x")
@@ -855,7 +901,6 @@ class JanelaRecon:
 
         self.selecionar(0)
 
-    
     def selecionar(self, indice: int) -> None:
         self.indice_ativo = indice
         for i, item in enumerate(self.itens):
@@ -874,7 +919,7 @@ class JanelaRecon:
         if self.rodando:
             return
         painel = self._painel_ativo()
-        if painel is None:  
+        if painel is None:
             self.botao.configure(state="disabled")
             self._dizer("Escolha um dos três modos, à esquerda, para analisar.")
             return
@@ -914,7 +959,6 @@ class JanelaRecon:
     def _dizer(self, texto: str, tom: str = "") -> None:
         self.status.configure(text=texto, style=f"{tom}Status.TLabel" if tom else "Status.TLabel")
 
-    
     def _analisar(self) -> None:
         painel = self._painel_ativo()
         if painel is None or self.rodando:
@@ -953,20 +997,27 @@ class JanelaRecon:
         _log_para_fila(self.fila)
         threading.Thread(
             target=self._trabalhar,
-            args=(painel.acao, list(painel.arquivos), pasta_saida,
-                  painel.gerar_limpeza.get(), formatos),
+            args=(
+                painel.acao,
+                list(painel.arquivos),
+                pasta_saida,
+                painel.gerar_limpeza.get(),
+                formatos,
+            ),
             daemon=True,
         ).start()
         self.raiz.after(120, self._drenar)
 
     def _trabalhar(
-        self, acao: Acao, arquivos: list[str], pasta_saida: Path, limpeza: bool,
+        self,
+        acao: Acao,
+        arquivos: list[str],
+        pasta_saida: Path,
+        limpeza: bool,
         formatos: list[str],
     ) -> None:
         try:
-            gerados, falhas = executar_analise(
-                acao, arquivos, pasta_saida, limpeza, formatos
-            )
+            gerados, falhas = executar_analise(acao, arquivos, pasta_saida, limpeza, formatos)
             self.fila.put(("fim", (pasta_saida, gerados, falhas)))
         except BaseException as erro:  # noqa: BLE001 — vira caixa de diálogo, não traceback
             self.fila.put(("erro", mensagem_amigavel(erro)))
@@ -1005,15 +1056,14 @@ class JanelaRecon:
         self._escrever(f"Pronto. {len(gerados)} relatório(s) gerado(s).", "ok")
 
         principal = next((g for g in gerados if g.name.endswith("_consolidado.html")), None)
-        principal = principal or next(
-            (g for g in gerados if g.name.endswith("_modelo.html")), None
-        )
+        principal = principal or next((g for g in gerados if g.name.endswith("_modelo.html")), None)
         principal = principal or (gerados[0] if gerados else None)
 
         if principal:
             self._dizer(
                 "Pronto! Clique em 'Abrir a pasta dos relatórios' e dê dois cliques "
-                f"no arquivo {principal.name}.", tom="Ok",
+                f"no arquivo {principal.name}.",
+                tom="Ok",
             )
         else:
             self._dizer(
@@ -1076,6 +1126,7 @@ def _silenciar_saida_ausente() -> None:
 def main() -> None:
     try:
         from .gui_qt import main as main_qt
+
         main_qt()
         return
     except ImportError:

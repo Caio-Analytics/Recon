@@ -39,10 +39,7 @@ __all__ = [
 ]
 
 
-
-
 _CONFIANCA_MINIMA_CONTEXTO = 0.7
-
 
 
 _CONFIANCA_MINIMA_DOMINIO = 0.5
@@ -70,7 +67,9 @@ def _coletar_evidencias(
     return evidencias
 
 
-def _refinar_papel(papel: str | None, dominio: str | None, perfil: PerfilConteudo | None) -> str | None:
+def _refinar_papel(
+    papel: str | None, dominio: str | None, perfil: PerfilConteudo | None
+) -> str | None:
     if papel == config.SEMANTICA_NOME_PESSOA:
         if dominio is not None and dominio not in config.DOMINIOS_DE_PESSOA:
             return config.SEMANTICA_ROTULO_ENTIDADE
@@ -93,19 +92,12 @@ def _montar_resultado(
     papel, conf_papel, origem_papel, papel_conclusivo = escolher(ranking_papel)
     dominio, conf_dominio, origem_dominio, _ = escolher(ranking_dominio)
 
-    
-    
-    
-    
     dominio_incerto = dominio is not None and conf_dominio < _CONFIANCA_MINIMA_DOMINIO
     if dominio_incerto:
         dominio, conf_dominio, origem_dominio = None, 0.0, "Sem evidência"
 
     papel = _refinar_papel(papel, dominio, perfil)
 
-    
-    
-    
     if papel in PAPEIS_ESTRUTURAIS:
         semantica, confianca, origem = papel, conf_papel, origem_papel
     elif dominio is not None:
@@ -116,10 +108,16 @@ def _montar_resultado(
         semantica, confianca, origem = config.SEMANTICA_GENERICA, 0.0, "Unmatched"
 
     hipoteses = sorted(
-        [{"semantica": r["categoria"], "eixo": eixo, "confianca": r["confianca"],
-          "evidencias": r["origens"][:3]}
-         for eixo, ranking in ((EIXO_PAPEL, ranking_papel), (EIXO_DOMINIO, ranking_dominio))
-         for r in ranking],
+        [
+            {
+                "semantica": r["categoria"],
+                "eixo": eixo,
+                "confianca": r["confianca"],
+                "evidencias": r["origens"][:3],
+            }
+            for eixo, ranking in ((EIXO_PAPEL, ranking_papel), (EIXO_DOMINIO, ranking_dominio))
+            for r in ranking
+        ],
         key=lambda h: -h["confianca"],
     )[:_MAX_HIPOTESES]
 
@@ -129,10 +127,6 @@ def _montar_resultado(
         "dominio": dominio,
         "confianca_score": round(confianca, 4),
         "origem": origem,
-        
-        
-        
-        
         "conclusiva": not (bool(ranking_papel) and not papel_conclusivo) and not dominio_incerto,
         "hipoteses": hipoteses,
     }
@@ -161,11 +155,16 @@ def inferir_semanticas_da_tabela(entradas: list[dict[str, Any]]) -> list[dict[st
         nome = str(entrada["nome"])
         correcao = contexto_atual().correcoes_colunas.get(nome)
         evidencias = (
-            [Evidencia(correcao, EIXO_PAPEL if correcao in PAPEIS_ESTRUTURAIS else EIXO_DOMINIO,
-                       1.0, "correção explícita do vocabulário")]
-            if correcao else _coletar_evidencias(
-                nome, entrada.get("padrao", "Nenhum"), entrada.get("perfil")
-            )
+            [
+                Evidencia(
+                    correcao,
+                    EIXO_PAPEL if correcao in PAPEIS_ESTRUTURAIS else EIXO_DOMINIO,
+                    1.0,
+                    "correção explícita do vocabulário",
+                )
+            ]
+            if correcao
+            else _coletar_evidencias(nome, entrada.get("padrao", "Nenhum"), entrada.get("perfil"))
         )
         evidencias_por_coluna.append(evidencias)
         resultado = _montar_resultado(evidencias, entrada.get("perfil"))
@@ -206,6 +205,7 @@ def _perfil_de_assunto(resultados: list[dict[str, Any]]) -> dict[str, float]:
 
 def semanticas_para_gap_analysis(registro: dict[str, Any]) -> list[str]:
     return [
-        v for v in (registro.get("semantica"), registro.get("papel"), registro.get("dominio"))
+        v
+        for v in (registro.get("semantica"), registro.get("papel"), registro.get("dominio"))
         if v and v != config.SEMANTICA_GENERICA
     ]

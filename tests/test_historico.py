@@ -5,7 +5,10 @@ from recon.historico import alertas_da_transicao, carregar_limiares
 
 def _extracao(nome: str, score: float, linhas: int = 100) -> dict:
     return {
-        "arquivo": nome, "score": score, "linhas": linhas, "colunas": 3,
+        "arquivo": nome,
+        "score": score,
+        "linhas": linhas,
+        "colunas": 3,
         "linhas_total_desconhecido": False,
     }
 

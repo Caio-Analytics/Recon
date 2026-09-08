@@ -22,29 +22,101 @@ class AcaoAnalise:
 
 
 ACOES_INTERFACE: tuple[AcaoAnalise, ...] = (
-    AcaoAnalise("individual", "Analisar arquivos", "Analisar arquivos",
-                "Cria um perfil completo e separado para cada arquivo selecionado.", 1, "#a78bfa"),
-    AcaoAnalise("lote", "Comparar qualidade", "Comparar arquivos em lote",
-                "Prioriza arquivos com mais problemas, sem misturar os relatórios individuais.", 2, "#60a5fa"),
-    AcaoAnalise("modelo", "Relações", "Entender relações entre tabelas",
-                "Procura chaves, fatos, dimensões e possíveis cruzamentos entre tabelas.", 2, "#22d3ee"),
-    AcaoAnalise("conferencia", "Versões", "Conferir duas versões",
-                "Mostra o que mudou entre uma extração anterior e a nova: volume, schema e registros.", 2, "#fbbf24", 2),
-    AcaoAnalise("historico", "Evolução", "Acompanhar histórico de qualidade",
-                "Compara duas ou mais extrações na ordem escolhida e destaca tendências de qualidade.", 2, "#34d399"),
-    AcaoAnalise("contrato", "Contrato", "Criar contrato de dados",
-                "Registra a estrutura esperada da base em YAML para revisar e reutilizar nas próximas cargas.", 1, "#fb7185", 1),
-    AcaoAnalise("validar", "Validar", "Validar contra contrato",
-                "Confere uma nova carga contra um contrato revisado e aponta o que saiu do esperado.", 1, "#f97316", 1,
-                "Contrato YAML de referência"),
-    AcaoAnalise("dicionario", "Documentar", "Gerar dicionário de dados",
-                "Cria uma planilha XLSX com tipos, exemplos, semântica e recomendações de cada coluna.", 1, "#38bdf8"),
-    AcaoAnalise("url", "Fonte remota", "Analisar dados por URL",
-                "Lê um CSV, JSON ou Parquet por link HTTP(S), inclusive URL assinada, sem salvar credenciais.", 1, "#a78bfa", 1),
-    AcaoAnalise("consulta", "Banco local", "Analisar consulta local",
-                "Executa somente SELECT ou WITH em SQLite ou DuckDB local e perfila o resultado.", 0, "#fbbf24", 0),
-    AcaoAnalise("semantica", "Revisar", "Revisar classificações semânticas",
-                "Gera um YAML para você confirmar ou corrigir a leitura dos campos antes das próximas análises.", 1, "#5eead4", 1),
+    AcaoAnalise(
+        "individual",
+        "Analisar arquivos",
+        "Analisar arquivos",
+        "Cria um perfil completo e separado para cada arquivo selecionado.",
+        1,
+        "#a78bfa",
+    ),
+    AcaoAnalise(
+        "lote",
+        "Comparar qualidade",
+        "Comparar arquivos em lote",
+        "Prioriza arquivos com mais problemas, sem misturar os relatórios individuais.",
+        2,
+        "#60a5fa",
+    ),
+    AcaoAnalise(
+        "modelo",
+        "Relações",
+        "Entender relações entre tabelas",
+        "Procura chaves, fatos, dimensões e possíveis cruzamentos entre tabelas.",
+        2,
+        "#22d3ee",
+    ),
+    AcaoAnalise(
+        "conferencia",
+        "Versões",
+        "Conferir duas versões",
+        "Mostra o que mudou entre uma extração anterior e a nova: volume, schema e registros.",
+        2,
+        "#fbbf24",
+        2,
+    ),
+    AcaoAnalise(
+        "historico",
+        "Evolução",
+        "Acompanhar histórico de qualidade",
+        "Compara duas ou mais extrações na ordem escolhida e destaca tendências de qualidade.",
+        2,
+        "#34d399",
+    ),
+    AcaoAnalise(
+        "contrato",
+        "Contrato",
+        "Criar contrato de dados",
+        "Registra a estrutura esperada da base em YAML para revisar e reutilizar nas próximas cargas.",
+        1,
+        "#fb7185",
+        1,
+    ),
+    AcaoAnalise(
+        "validar",
+        "Validar",
+        "Validar contra contrato",
+        "Confere uma nova carga contra um contrato revisado e aponta o que saiu do esperado.",
+        1,
+        "#f97316",
+        1,
+        "Contrato YAML de referência",
+    ),
+    AcaoAnalise(
+        "dicionario",
+        "Documentar",
+        "Gerar dicionário de dados",
+        "Cria uma planilha XLSX com tipos, exemplos, semântica e recomendações de cada coluna.",
+        1,
+        "#38bdf8",
+    ),
+    AcaoAnalise(
+        "url",
+        "Fonte remota",
+        "Analisar dados por URL",
+        "Lê um CSV, JSON ou Parquet por link HTTP(S), inclusive URL assinada, sem salvar credenciais.",
+        1,
+        "#a78bfa",
+        1,
+    ),
+    AcaoAnalise(
+        "consulta",
+        "Banco local",
+        "Analisar consulta local",
+        "Executa somente SELECT ou WITH em SQLite ou DuckDB local e perfila o resultado.",
+        0,
+        "#fbbf24",
+        0,
+    ),
+    AcaoAnalise(
+        "semantica",
+        "Revisar",
+        "Revisar classificações semânticas",
+        "Gera um YAML para você confirmar ou corrigir a leitura dos campos antes das próximas análises.",
+        1,
+        "#5eead4",
+        1,
+    ),
 )
 
 FORMATOS_INTERFACE: tuple[tuple[str, str, str], ...] = (
@@ -111,7 +183,9 @@ def executar_analise(
     elif acao.chave == "modelo":
         profiler.modelar_conjunto(caminhos, saida_base=saida_base, formatos=escolhidos)
     elif acao.chave == "conferencia":
-        profiler.conferir_versoes(caminhos[0], caminhos[1], saida_base=saida_base, formatos=escolhidos)
+        profiler.conferir_versoes(
+            caminhos[0], caminhos[1], saida_base=saida_base, formatos=escolhidos
+        )
     elif acao.chave == "historico":
         profiler.analisar_historico(caminhos, saida_base=saida_base, formatos=escolhidos)
     elif acao.chave == "contrato":
@@ -123,7 +197,9 @@ def executar_analise(
         nome = (nome_contrato or f"{PREFIXO_SAIDA}_contrato.yaml").strip()
         caminho_nome = Path(nome)
         if caminho_nome.name != nome or caminho_nome.suffix.lower() not in {".yaml", ".yml"}:
-            raise ValueError("O nome do contrato deve terminar em .yaml ou .yml e não pode incluir pastas.")
+            raise ValueError(
+                "O nome do contrato deve terminar em .yaml ou .yml e não pode incluir pastas."
+            )
         destino = pasta_saida / caminho_nome
         contrato_mod.salvar_contrato(contrato, str(destino))
         return [destino], falhas
@@ -135,7 +211,8 @@ def executar_analise(
             raise ValueError("Escolha o contrato YAML de referência.")
         quadro, nome = carregar_arquivo(caminhos[0], limite_linhas=profiler.limite_amostra)
         resultado = contrato_mod.conferir_contrato(
-            profiler.processar_dataframe(quadro, nome), contrato_mod.carregar_contrato(arquivo_auxiliar)
+            profiler.processar_dataframe(quadro, nome),
+            contrato_mod.carregar_contrato(arquivo_auxiliar),
         )
         destino = pasta_saida / f"{PREFIXO_SAIDA}_validacao.md"
         linhas = ["# Validação de contrato", "", resultado["resumo"], ""]
@@ -171,13 +248,17 @@ def executar_analise(
 
         quadro, nome = carregar_arquivo(caminhos[0], limite_linhas=profiler.limite_amostra)
         destino = pasta_saida / f"{PREFIXO_SAIDA}_correcoes_semanticas.yaml"
-        semantics.exportar_modelo_de_correcoes(profiler.processar_dataframe(quadro, nome), str(destino))
+        semantics.exportar_modelo_de_correcoes(
+            profiler.processar_dataframe(quadro, nome), str(destino)
+        )
         return [destino], falhas
     else:
         raise ValueError(f"Ação de interface desconhecida: {acao.chave}.")
 
     for padrao in (
-        f"{PREFIXO_SAIDA}*.html", f"{PREFIXO_SAIDA}*.pdf", f"{PREFIXO_SAIDA}*.md",
+        f"{PREFIXO_SAIDA}*.html",
+        f"{PREFIXO_SAIDA}*.pdf",
+        f"{PREFIXO_SAIDA}*.md",
         f"{PREFIXO_SAIDA}*.json",
     ):
         gerados = sorted(pasta_saida.glob(padrao))

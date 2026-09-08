@@ -10,10 +10,8 @@ _RE_SEPARADORES = re.compile(r"[_\s\-\.]+")
 _RE_LETRA_NUMERO = re.compile(r"([a-z])(\d)")
 
 
-
 _RAZAO_MAX_EXPANSAO = 4.0
 _MIN_LEN_ABREVIATURA = 2
-
 
 
 _MIN_LEN_ABREVIATURA_ESPECULATIVA = 3
@@ -43,26 +41,14 @@ def expandir_abreviatura(token: str) -> tuple[tuple[str, float], ...]:
     if len(token) < _MIN_LEN_ABREVIATURA or not token.isalpha():
         return ()
 
-    
-    
-    
-    
-    
     if token in _vocabulario_expansao():
         return ()
 
     curadas = ABREVIATURAS.get(token)
     if curadas:
-        
-        
         confianca = 0.85 if len(curadas) == 1 else 0.55
         return tuple((palavra, confianca) for palavra in curadas)
 
-    
-    
-    
-    
-    
     if len(token) < _MIN_LEN_ABREVIATURA_ESPECULATIVA:
         return ()
 
@@ -76,7 +62,7 @@ def expandir_abreviatura(token: str) -> tuple[tuple[str, float], ...]:
             continue
         if not _e_subsequencia(token, palavra):
             continue
-        
+
         cobertura = len(token) / len(palavra)
         candidatos.append((palavra, round(0.35 + 0.35 * cobertura, 4)))
 

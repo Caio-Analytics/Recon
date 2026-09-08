@@ -22,16 +22,18 @@ def _pagina() -> Iterator[object]:
                 yield navegador.new_page(viewport={"width": 1280, "height": 900})
             finally:
                 navegador.close()
-    except Exception as erro:  
+    except Exception as erro:
         pytest.skip(f"Chromium do Playwright indisponível: {erro}")
 
 
 def test_html_interativo_navega_filtra_e_ordena(tmp_path: Path) -> None:
-    dados = pd.DataFrame({
-        "id_venda": range(60),
-        "email_contato": [f"cliente{i}@empresa.test" for i in range(60)],
-        "valor_venda": [float(i * 10) for i in range(60)],
-    })
+    dados = pd.DataFrame(
+        {
+            "id_venda": range(60),
+            "email_contato": [f"cliente{i}@empresa.test" for i in range(60)],
+            "valor_venda": [float(i * 10) for i in range(60)],
+        }
+    )
     relatorio = tmp_path / "perfil.html"
     exportar_html(DataProfiler().processar_dataframe(dados, "vendas"), str(relatorio))
 

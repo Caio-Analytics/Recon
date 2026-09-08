@@ -43,8 +43,13 @@ def criar_contexto(
     return ContextoSemantico(
         categorias_fortes=MappingProxyType(dict(fortes)),
         categorias_fuzzy=MappingProxyType(dict(fuzzy)),
-        gazetteers=tuple(MappingProxyType({**item, "valores": frozenset(item["valores"])}) for item in fontes_gazetteer),
-        indice_tokens_fortes=MappingProxyType({chave: tuple(valor) for chave, valor in indice.items()}),
+        gazetteers=tuple(
+            MappingProxyType({**item, "valores": frozenset(item["valores"])})
+            for item in fontes_gazetteer
+        ),
+        indice_tokens_fortes=MappingProxyType(
+            {chave: tuple(valor) for chave, valor in indice.items()}
+        ),
         palavras_para_abreviatura=tuple(sorted(palavras)),
         correcoes_colunas=MappingProxyType(dict(correcoes_colunas or {})),
     )

@@ -23,95 +23,210 @@ def _payload():
             "amostragem_aplicada": False,
             "total_colunas": 3,
             "score_qualidade": {
-                "score": 72.5, "nota": "C",
-                "penalidades": [{"dimensao": "Nulos (incl. sentinelas)",
-                                 "intensidade": 0.3, "pontos_perdidos": 7.5}],
+                "score": 72.5,
+                "nota": "C",
+                "penalidades": [
+                    {
+                        "dimensao": "Nulos (incl. sentinelas)",
+                        "intensidade": 0.3,
+                        "pontos_perdidos": 7.5,
+                    }
+                ],
             },
             "duplicatas": {"qtd_linhas_duplicadas": 4, "pct_linhas_duplicadas": 0.04},
             "resumo_qualidade": {
-                "colunas_com_nulos": 1, "colunas_100pct_nulas": 0,
-                "colunas_sensiveis_lgpd": 1, "colunas_com_sentinela": 1,
+                "colunas_com_nulos": 1,
+                "colunas_100pct_nulas": 0,
+                "colunas_sensiveis_lgpd": 1,
+                "colunas_com_sentinela": 1,
                 "semanticas_mapeadas": 2,
                 "semanticas_encontradas": ["Chave Identificadora (ID)", "Contato / Rede"],
-                "kpis_habilitados": 0, "total_recomendacoes": 2,
+                "kpis_habilitados": 0,
+                "total_recomendacoes": 2,
             },
         },
         "colunas": [
-            {"Coluna": "id", "Tipo_Inferred": "Número Inteiro",
-             "Semantica_IA": "Chave Identificadora (ID)", "Papel": "Chave Identificadora (ID)",
-             "Dominio": None, "Pct_Nulos": 0.0, "Qtd_Nulos": 0, "Qtd_Unicos": 100,
-             "Ratio_Unicidade": 1.0, "Caracteristica": "🔑 Chave Primária Potencial",
-             "Dado_Sensivel_LGPD": "Nenhum", "Amostra_Valores": "1, 2, 3",
-             "Alertas": {"mistura_tipos": {"tem_mistura": False}, "data_como_texto": False},
-             "Qualidade": {"nulos_efetivos_qtd": 0, "nulos_efetivos_pct": 0.0},
-             "Otimizacao": {"dtype_atual": "int64", "dtype_sugerido": "int8",
-                            "economia_mb": 0.7, "economia_pct": 0.87},
-             "Stats_Extra": {"min": 1, "max": 100, "media": 50.5, "mediana": 50.5,
-                             "desvio_padrao": 29.0, "assimetria": 0.0}},
-            {"Coluna": "cpf", "Tipo_Inferred": "Texto",
-             "Semantica_IA": "Chave Identificadora (ID)", "Papel": "Chave Identificadora (ID)",
-             "Dominio": None, "Pct_Nulos": 2.0, "Qtd_Nulos": 2, "Qtd_Unicos": 98,
-             "Ratio_Unicidade": 0.98, "Caracteristica": "📋 Atributo Geral",
-             "Dado_Sensivel_LGPD": "CPF", "Amostra_Valores": "111********",
-             "Alertas": {"mistura_tipos": {"tem_mistura": False}, "data_como_texto": False,
-                         "stats_suprimidas_lgpd": True},
-             "Qualidade": {"nulos_efetivos_qtd": 2, "nulos_efetivos_pct": 2.0},
-             "Otimizacao": {}, "Stats_Extra": {"str_len_min": 14, "str_len_max": 14,
-                                               "str_len_media": 14.0, "comprimento_fixo": True}},
-            {"Coluna": "score_desempenho", "Tipo_Inferred": "Número Decimal",
-             "Semantica_IA": "Resultado de Avaliação", "Papel": "Resultado de Avaliação",
-             "Dominio": None, "Pct_Nulos": 0.0, "Qtd_Nulos": 0, "Qtd_Unicos": 40,
-             "Ratio_Unicidade": 0.4, "Caracteristica": "📊 Métrica Contínua",
-             "Dado_Sensivel_LGPD": "Nenhum", "Amostra_Valores": "1.5, 2.5",
-             "Alertas": {"mistura_tipos": {"tem_mistura": False}, "data_como_texto": False},
-             "Qualidade": {"nulos_efetivos_qtd": 0, "nulos_efetivos_pct": 0.0,
-                           "sentinelas": {"tem_sentinela": True, "qtd_total": 5, "pct_total": 0.05,
-                                          "valores": [{"valor": -1.0, "qtd": 5, "pct": 0.05}]}},
-             "Otimizacao": {},
-             "Stats_Extra": {
-                 "min": 1.5, "max": 9.5, "media": 5.5, "mediana": 5.5, "desvio_padrao": 2.1,
-                 "assimetria": 0.1,
-                 "outliers_iqr": {"metodo": "IQR", "qtd_outliers_total": 3,
-                                  "limite_inferior": 0.0, "limite_superior": 10.0},
-                 "testes_hipotese": {
-                     "shapiro_wilk": {"aplicavel": True, "estatistica_w": 0.98, "p_valor": 0.1234,
-                                      "normal_provavel": True, "desvio_relevante": False},
-                     "intervalo_confianca_media_95": {"aplicavel": True, "media": 5.5,
-                                                      "limite_inferior": 5.0, "limite_superior": 6.0},
-                     "distribuicao_provavel": {"aplicavel": True, "distribuicao": "normal",
-                                               "criterio": "AIC", "aic": 1234.5,
-                                               "escolha_conclusiva": True},
-                 }}},
+            {
+                "Coluna": "id",
+                "Tipo_Inferred": "Número Inteiro",
+                "Semantica_IA": "Chave Identificadora (ID)",
+                "Papel": "Chave Identificadora (ID)",
+                "Dominio": None,
+                "Pct_Nulos": 0.0,
+                "Qtd_Nulos": 0,
+                "Qtd_Unicos": 100,
+                "Ratio_Unicidade": 1.0,
+                "Caracteristica": "🔑 Chave Primária Potencial",
+                "Dado_Sensivel_LGPD": "Nenhum",
+                "Amostra_Valores": "1, 2, 3",
+                "Alertas": {"mistura_tipos": {"tem_mistura": False}, "data_como_texto": False},
+                "Qualidade": {"nulos_efetivos_qtd": 0, "nulos_efetivos_pct": 0.0},
+                "Otimizacao": {
+                    "dtype_atual": "int64",
+                    "dtype_sugerido": "int8",
+                    "economia_mb": 0.7,
+                    "economia_pct": 0.87,
+                },
+                "Stats_Extra": {
+                    "min": 1,
+                    "max": 100,
+                    "media": 50.5,
+                    "mediana": 50.5,
+                    "desvio_padrao": 29.0,
+                    "assimetria": 0.0,
+                },
+            },
+            {
+                "Coluna": "cpf",
+                "Tipo_Inferred": "Texto",
+                "Semantica_IA": "Chave Identificadora (ID)",
+                "Papel": "Chave Identificadora (ID)",
+                "Dominio": None,
+                "Pct_Nulos": 2.0,
+                "Qtd_Nulos": 2,
+                "Qtd_Unicos": 98,
+                "Ratio_Unicidade": 0.98,
+                "Caracteristica": "📋 Atributo Geral",
+                "Dado_Sensivel_LGPD": "CPF",
+                "Amostra_Valores": "111********",
+                "Alertas": {
+                    "mistura_tipos": {"tem_mistura": False},
+                    "data_como_texto": False,
+                    "stats_suprimidas_lgpd": True,
+                },
+                "Qualidade": {"nulos_efetivos_qtd": 2, "nulos_efetivos_pct": 2.0},
+                "Otimizacao": {},
+                "Stats_Extra": {
+                    "str_len_min": 14,
+                    "str_len_max": 14,
+                    "str_len_media": 14.0,
+                    "comprimento_fixo": True,
+                },
+            },
+            {
+                "Coluna": "score_desempenho",
+                "Tipo_Inferred": "Número Decimal",
+                "Semantica_IA": "Resultado de Avaliação",
+                "Papel": "Resultado de Avaliação",
+                "Dominio": None,
+                "Pct_Nulos": 0.0,
+                "Qtd_Nulos": 0,
+                "Qtd_Unicos": 40,
+                "Ratio_Unicidade": 0.4,
+                "Caracteristica": "📊 Métrica Contínua",
+                "Dado_Sensivel_LGPD": "Nenhum",
+                "Amostra_Valores": "1.5, 2.5",
+                "Alertas": {"mistura_tipos": {"tem_mistura": False}, "data_como_texto": False},
+                "Qualidade": {
+                    "nulos_efetivos_qtd": 0,
+                    "nulos_efetivos_pct": 0.0,
+                    "sentinelas": {
+                        "tem_sentinela": True,
+                        "qtd_total": 5,
+                        "pct_total": 0.05,
+                        "valores": [{"valor": -1.0, "qtd": 5, "pct": 0.05}],
+                    },
+                },
+                "Otimizacao": {},
+                "Stats_Extra": {
+                    "min": 1.5,
+                    "max": 9.5,
+                    "media": 5.5,
+                    "mediana": 5.5,
+                    "desvio_padrao": 2.1,
+                    "assimetria": 0.1,
+                    "outliers_iqr": {
+                        "metodo": "IQR",
+                        "qtd_outliers_total": 3,
+                        "limite_inferior": 0.0,
+                        "limite_superior": 10.0,
+                    },
+                    "testes_hipotese": {
+                        "shapiro_wilk": {
+                            "aplicavel": True,
+                            "estatistica_w": 0.98,
+                            "p_valor": 0.1234,
+                            "normal_provavel": True,
+                            "desvio_relevante": False,
+                        },
+                        "intervalo_confianca_media_95": {
+                            "aplicavel": True,
+                            "media": 5.5,
+                            "limite_inferior": 5.0,
+                            "limite_superior": 6.0,
+                        },
+                        "distribuicao_provavel": {
+                            "aplicavel": True,
+                            "distribuicao": "normal",
+                            "criterio": "AIC",
+                            "aic": 1234.5,
+                            "escolha_conclusiva": True,
+                        },
+                    },
+                },
+            },
         ],
         "recomendacoes_etl": [
-            {"Tabela": "TB_TESTE", "Coluna": "cpf", "Prioridade": "🔴 ALTA", "Camada": "Silver",
-             "Acao": "LGPD: Mascarar 'cpf' (CPF).", "Linhas_Afetadas": 98},
-            {"Tabela": "TB_TESTE", "Coluna": "id", "Prioridade": "🟡 MÉDIA", "Camada": "Silver",
-             "Acao": "Promover 'id' como PK.", "Linhas_Afetadas": 100},
+            {
+                "Tabela": "TB_TESTE",
+                "Coluna": "cpf",
+                "Prioridade": "🔴 ALTA",
+                "Camada": "Silver",
+                "Acao": "LGPD: Mascarar 'cpf' (CPF).",
+                "Linhas_Afetadas": 98,
+            },
+            {
+                "Tabela": "TB_TESTE",
+                "Coluna": "id",
+                "Prioridade": "🟡 MÉDIA",
+                "Camada": "Silver",
+                "Acao": "Promover 'id' como PK.",
+                "Linhas_Afetadas": 100,
+            },
         ],
         "dependencias_funcionais": [
-            {"determinante": "a", "dependente": "b", "tipo": "Equivalência (Bijeção)",
-             "descricao": "'a' e 'b' são equivalentes."},
+            {
+                "determinante": "a",
+                "dependente": "b",
+                "tipo": "Equivalência (Bijeção)",
+                "descricao": "'a' e 'b' são equivalentes.",
+            },
         ],
-        "colunas_redundantes": [{"coluna": "a", "coluna_redundante": "a2",
-                                 "descricao": "'a2' é idêntica a 'a'."}],
+        "colunas_redundantes": [
+            {"coluna": "a", "coluna_redundante": "a2", "descricao": "'a2' é idêntica a 'a'."}
+        ],
         "chaves_compostas": [{"colunas": ["ano", "mes"], "descricao": "ano + mes identificam."}],
-        "correlacoes": [{"coluna_a": "x", "coluna_b": "y", "metrica": "Pearson / Spearman",
-                         "valor": 0.95, "valor_secundario": 0.94, "forca": "forte"}],
+        "correlacoes": [
+            {
+                "coluna_a": "x",
+                "coluna_b": "y",
+                "metrica": "Pearson / Spearman",
+                "valor": 0.95,
+                "valor_secundario": 0.94,
+                "forca": "forte",
+            }
+        ],
         "gap_analysis_kpis": [
-            {"kpi_id": "KPI_HR_001", "kpi_nome": "Volume de Esforço por Departamento",
-             "status": "❌ Bloqueado", "cobertura_pct": "0%",
-             "semanticas_presentes": [], "semanticas_ausentes": ["Estrutura Organizacional"]},
+            {
+                "kpi_id": "KPI_HR_001",
+                "kpi_nome": "Volume de Esforço por Departamento",
+                "status": "❌ Bloqueado",
+                "cobertura_pct": "0%",
+                "semanticas_presentes": [],
+                "semanticas_ausentes": ["Estrutura Organizacional"],
+            },
         ],
         "analise_temporal_series": [
-            {"coluna": "valor", "coluna_temporal_referencia": "dt", "agregacao": "mensal",
-             "n_pontos": 36,
-             "adf": {"aplicavel": True, "estacionaria": True, "p_valor": 0.01},
-             "ljung_box": {"aplicavel": True, "autocorrelacionada": False, "p_valor": 0.4}},
+            {
+                "coluna": "valor",
+                "coluna_temporal_referencia": "dt",
+                "agregacao": "mensal",
+                "n_pontos": 36,
+                "adf": {"aplicavel": True, "estacionaria": True, "p_valor": 0.01},
+                "ljung_box": {"aplicavel": True, "autocorrelacionada": False, "p_valor": 0.4},
+            },
         ],
     }
-
-
 
 
 def test_sanear_floats_converte_nan_para_none():
@@ -137,8 +252,6 @@ def test_json_compacto_e_menor_que_indentado(tmp_path):
     assert json.loads(compacto.read_text(encoding="utf-8"))["colunas"]
 
 
-
-
 def test_nomes_de_aba_diferentes_nao_colidem():
     usados = set()
     primeiro = gerar_nome_unico("Vendas 2024", usados)
@@ -148,17 +261,22 @@ def test_nomes_de_aba_diferentes_nao_colidem():
     assert segundo != primeiro
 
 
-
-
 def test_markdown_tem_secoes_esperadas(tmp_path):
     caminho = tmp_path / "relatorio.md"
     exportar_markdown(_payload(), str(caminho))
     conteudo = caminho.read_text(encoding="utf-8")
 
-    for esperado in ("TB_TESTE", "Qualidade geral", "Principais problemas",
-                     "Visão geral das colunas", "Detalhe por coluna",
-                     "Recomendações ETL", "Relações entre colunas",
-                     "Gap Analysis de KPIs", "Análise Temporal"):
+    for esperado in (
+        "TB_TESTE",
+        "Qualidade geral",
+        "Principais problemas",
+        "Visão geral das colunas",
+        "Detalhe por coluna",
+        "Recomendações ETL",
+        "Relações entre colunas",
+        "Gap Analysis de KPIs",
+        "Análise Temporal",
+    ):
         assert esperado in conteudo
 
 
@@ -186,8 +304,6 @@ def test_markdown_sinaliza_supressao_de_estatisticas_lgpd(tmp_path):
     caminho = tmp_path / "relatorio.md"
     exportar_markdown(_payload(), str(caminho))
     assert "estatísticas de posição suprimidas" in caminho.read_text(encoding="utf-8")
-
-
 
 
 def test_html_e_autocontido_e_sem_recurso_externo(tmp_path):
@@ -241,15 +357,24 @@ def test_html_tem_as_mesmas_secoes_do_markdown(tmp_path):
     import re
 
     payload = _payload()
-    payload["regras_negocio"] = [{
-        "tipo": "Ordem entre datas", "regra": "`a` <= `b`", "descricao": "a nunca é posterior a b",
-        "conformidade": 1.0, "qtd_violacoes": 0, "exemplos_violacao": [],
-    }]
+    payload["regras_negocio"] = [
+        {
+            "tipo": "Ordem entre datas",
+            "regra": "`a` <= `b`",
+            "descricao": "a nunca é posterior a b",
+            "conformidade": 1.0,
+            "qtd_violacoes": 0,
+            "exemplos_violacao": [],
+        }
+    ]
     payload["hierarquias"] = [{"niveis": ["a", "b", "c"], "descricao": "Hierarquia: a → b → c"}]
-    payload["explicacoes_de_medidas"] = [{
-        "medida": "salario", "explicacoes": [{"atributo": "cargo", "eta_quadrado": 0.87}],
-        "descricao": "`salario` é explicada por `cargo`",
-    }]
+    payload["explicacoes_de_medidas"] = [
+        {
+            "medida": "salario",
+            "explicacoes": [{"atributo": "cargo", "eta_quadrado": 0.87}],
+            "descricao": "`salario` é explicada por `cargo`",
+        }
+    ]
 
     md_path, html_path = tmp_path / "r.md", tmp_path / "r.html"
     exportar_markdown(payload, str(md_path))
@@ -258,8 +383,12 @@ def test_html_tem_as_mesmas_secoes_do_markdown(tmp_path):
     md = md_path.read_text(encoding="utf-8")
     html = html_path.read_text(encoding="utf-8")
 
-    for secao in ("Principais problemas", "Regras de negócio inferidas",
-                  "Hierarquias", "O que explica cada medida"):
+    for secao in (
+        "Principais problemas",
+        "Regras de negócio inferidas",
+        "Hierarquias",
+        "O que explica cada medida",
+    ):
         assert secao in md, f"{secao} sumiu do Markdown"
         assert secao in html, f"{secao} falta no HTML"
 
@@ -283,7 +412,7 @@ def test_dicionario_neutraliza_formulas_vindas_da_base(tmp_path):
 
     payload = _payload()
     payload["metadados_execucao"]["tabela"] = "=TabelaExterna"
-    payload["colunas"][0]["Coluna"] = "=HIPERLINK(\"https://exemplo\")"
+    payload["colunas"][0]["Coluna"] = '=HIPERLINK("https://exemplo")'
     payload["colunas"][0]["Amostra_Valores"] = "+1+1"
     caminho = tmp_path / "dicionario.xlsx"
 
@@ -298,24 +427,43 @@ def test_dicionario_neutraliza_formulas_vindas_da_base(tmp_path):
 
 def test_conferencia_html_renderiza_variacao_sem_drift_e_drift_sem_variacao(tmp_path):
     base = {
-        "tabela_a": "antes", "tabela_b": "depois", "linhas_a": 10, "linhas_b": 12,
-        "variacao_linhas": 0.2, "colunas_comuns": 1, "colunas_so_em_a": [],
-        "colunas_so_em_b": [], "avisos": [], "chave_comparada": None,
+        "tabela_a": "antes",
+        "tabela_b": "depois",
+        "linhas_a": 10,
+        "linhas_b": 12,
+        "variacao_linhas": 0.2,
+        "colunas_comuns": 1,
+        "colunas_so_em_a": [],
+        "colunas_so_em_b": [],
+        "avisos": [],
+        "chave_comparada": None,
         "motivo_sem_chave": "Sem chave.",
     }
     variacao = {
-        "coluna": "status", "severidade": "🟡 MÉDIA", "pct_nulos_a": 0.0,
-        "pct_nulos_b": 10.0, "unicos_a": 2, "unicos_b": 3, "tipo_a": "Texto",
-        "tipo_b": "Texto", "mudou_tipo": False, "descricao": "Mais nulos.",
+        "coluna": "status",
+        "severidade": "🟡 MÉDIA",
+        "pct_nulos_a": 0.0,
+        "pct_nulos_b": 10.0,
+        "unicos_a": 2,
+        "unicos_b": 3,
+        "tipo_a": "Texto",
+        "tipo_b": "Texto",
+        "mudou_tipo": False,
+        "descricao": "Mais nulos.",
     }
     drift = {"coluna": "status", "tipo": "categórico", "descricao": "Categorias mudaram."}
 
     somente_variacao = tmp_path / "variacao.html"
-    exportar_conferencia_html({**base, "variacoes_de_coluna": [variacao], "drifts_de_distribuicao": []}, str(somente_variacao))
+    exportar_conferencia_html(
+        {**base, "variacoes_de_coluna": [variacao], "drifts_de_distribuicao": []},
+        str(somente_variacao),
+    )
     assert "Mais nulos." in somente_variacao.read_text(encoding="utf-8")
 
     somente_drift = tmp_path / "drift.html"
-    exportar_conferencia_html({**base, "variacoes_de_coluna": [], "drifts_de_distribuicao": [drift]}, str(somente_drift))
+    exportar_conferencia_html(
+        {**base, "variacoes_de_coluna": [], "drifts_de_distribuicao": [drift]}, str(somente_drift)
+    )
     assert "Categorias mudaram." in somente_drift.read_text(encoding="utf-8")
 
 
@@ -325,7 +473,9 @@ def test_perfil_pdf_e_gerado_a_partir_do_html(tmp_path):
     origem = tmp_path / "vendas.csv"
     origem.write_text("id,valor\n1,10\n2,20\n", encoding="utf-8")
 
-    DataProfiler().processar_arquivo(str(origem), saida_base=str(tmp_path / "perfil"), formatos=["pdf"])
+    DataProfiler().processar_arquivo(
+        str(origem), saida_base=str(tmp_path / "perfil"), formatos=["pdf"]
+    )
 
     pdf = tmp_path / "perfil_vendas.pdf"
     assert pdf.read_bytes().startswith(b"%PDF")

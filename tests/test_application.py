@@ -63,7 +63,9 @@ def test_interface_expoe_contrato_validacao_e_dicionario(tmp_path):
     validacao, falhas = executar_analise(
         _acao("validar"), [str(dados)], tmp_path, ["html"], arquivo_auxiliar=str(contrato[0])
     )
-    dicionario, falhas_dicionario = executar_analise(_acao("dicionario"), [str(dados)], tmp_path, ["html"])
+    dicionario, falhas_dicionario = executar_analise(
+        _acao("dicionario"), [str(dados)], tmp_path, ["html"]
+    )
 
     assert not falhas and not falhas_dicionario
     assert "Validação de contrato" in validacao[0].read_text(encoding="utf-8")
@@ -93,8 +95,12 @@ def test_interface_expoe_consulta_local_e_revisao_semantica(tmp_path):
         conexao.close()
 
     consulta, falhas = executar_analise(
-        _acao("consulta"), [], tmp_path, ["html"],
-        conexao=f"sqlite:///{banco}", sql="SELECT * FROM clientes",
+        _acao("consulta"),
+        [],
+        tmp_path,
+        ["html"],
+        conexao=f"sqlite:///{banco}",
+        sql="SELECT * FROM clientes",
     )
     dados = tmp_path / "clientes.csv"
     pd.DataFrame({"id": [1, 2], "nome": ["Ana", "Bia"]}).to_csv(dados, index=False)

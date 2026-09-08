@@ -91,4 +91,6 @@ def exportar_parquet(payload: dict[str, Any], caminho_base: str, nome_safe: str)
     pd.DataFrame([meta]).to_parquet(f"{caminho_base}_{nome_safe}_metadata.parquet", index=False)
     arquivos += 1
 
-    logger.info(f"✓ Parquet exportado: {arquivos} arquivos com prefixo '{caminho_base}_{nome_safe}_'")
+    logger.info(
+        f"✓ Parquet exportado: {arquivos} arquivos com prefixo '{caminho_base}_{nome_safe}_'"
+    )

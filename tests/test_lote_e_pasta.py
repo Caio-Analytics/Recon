@@ -12,34 +12,44 @@ runner = CliRunner()
 def _tres_arquivos(pasta):
     rng = np.random.default_rng(3)
     n = 200
-    empregados = pd.DataFrame({
-        "matricula": range(50000, 50000 + n),
-        "nome": [f"C{i}" for i in range(n)],
-        "diretoria": rng.choice(["Ops", "TI", "RH"], n),
-        "salario": np.round(rng.lognormal(8.5, 0.3, n), 2),
-    })
-    cursos = pd.DataFrame({
-        "cod_curso": [f"C{i:03d}" for i in range(20)],
-        "nome_curso": [f"Curso {i}" for i in range(20)],
-        "carga_horaria": rng.integers(2, 40, 20),
-    })
-    treinamentos = pd.DataFrame({
-        "id_realizacao": range(1, 601),
-        "matricula": rng.choice(empregados["matricula"], 600),
-        "cod_curso": rng.choice(cursos["cod_curso"], 600),
-        "nota": np.round(rng.uniform(5, 10, 600), 1),
-    })
-    for nome, df in (("empregados", empregados), ("cursos", cursos),
-                     ("treinamentos", treinamentos)):
+    empregados = pd.DataFrame(
+        {
+            "matricula": range(50000, 50000 + n),
+            "nome": [f"C{i}" for i in range(n)],
+            "diretoria": rng.choice(["Ops", "TI", "RH"], n),
+            "salario": np.round(rng.lognormal(8.5, 0.3, n), 2),
+        }
+    )
+    cursos = pd.DataFrame(
+        {
+            "cod_curso": [f"C{i:03d}" for i in range(20)],
+            "nome_curso": [f"Curso {i}" for i in range(20)],
+            "carga_horaria": rng.integers(2, 40, 20),
+        }
+    )
+    treinamentos = pd.DataFrame(
+        {
+            "id_realizacao": range(1, 601),
+            "matricula": rng.choice(empregados["matricula"], 600),
+            "cod_curso": rng.choice(cursos["cod_curso"], 600),
+            "nota": np.round(rng.uniform(5, 10, 600), 1),
+        }
+    )
+    for nome, df in (
+        ("empregados", empregados),
+        ("cursos", cursos),
+        ("treinamentos", treinamentos),
+    ):
         df.to_csv(pasta / f"{nome}.csv", index=False)
     return [str(pasta / f"{n}.csv") for n in ("empregados", "cursos", "treinamentos")]
 
 
-
-
 def test_histograma_gera_svg_sem_dependencia_externa():
-    dados = {"faixas": [{"de": i, "ate": i + 1, "qtd": i * 3} for i in range(10)],
-             "min": 0, "max": 10}
+    dados = {
+        "faixas": [{"de": i, "ate": i + 1, "qtd": i * 3} for i in range(10)],
+        "min": 0,
+        "max": 10,
+    }
     svg = _graficos.histograma(dados)
 
     assert svg.startswith("<svg")
@@ -64,8 +74,9 @@ def test_barra_de_completude_separa_nulo_de_sentinela():
 def test_coluna_sensivel_nao_ganha_grafico():
     coluna = {
         "Dado_Sensivel_LGPD": "CPF",
-        "Stats_Extra": {"histograma": {"faixas": [{"de": 0, "ate": 1, "qtd": 5}],
-                                       "min": 0, "max": 1}},
+        "Stats_Extra": {
+            "histograma": {"faixas": [{"de": 0, "ate": 1, "qtd": 5}], "min": 0, "max": 1}
+        },
     }
     assert _graficos.graficos_da_coluna(coluna) == ""
 
@@ -74,9 +85,7 @@ def test_html_de_coluna_numerica_traz_histograma(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     rng = np.random.default_rng(1)
     caminho = tmp_path / "n.csv"
-    pd.DataFrame({"vl_total": np.round(rng.lognormal(8, 0.4, 500), 2)}).to_csv(
-        caminho, index=False
-    )
+    pd.DataFrame({"vl_total": np.round(rng.lognormal(8, 0.4, 500), 2)}).to_csv(caminho, index=False)
 
     DataProfiler().processar_arquivo(str(caminho), saida_base="s", formatos=["html"])
 
@@ -85,15 +94,11 @@ def test_html_de_coluna_numerica_traz_histograma(tmp_path, monkeypatch):
     assert "<svg" in html
 
 
-
-
 def test_lote_gera_um_html_com_todos_os_arquivos(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     arquivos = _tres_arquivos(tmp_path)
 
-    payloads, falhas = DataProfiler().processar_lote(
-        arquivos, saida_base="l", formatos=["html"]
-    )
+    payloads, falhas = DataProfiler().processar_lote(arquivos, saida_base="l", formatos=["html"])
 
     assert len(payloads) == 3
     assert falhas == []
@@ -107,17 +112,20 @@ def test_lote_gera_um_html_com_todos_os_arquivos(tmp_path, monkeypatch):
 def test_lote_ordena_do_pior_para_o_melhor(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     limpa = pd.DataFrame({"id": range(200), "uf": ["SP", "RJ"] * 100})
-    suja = pd.DataFrame({
-        "id": range(200),
-        "morta": [None] * 200,
-        "obs": ["ObservaÃ§Ã£o"] * 100 + ["-"] * 100,
-    })
+    suja = pd.DataFrame(
+        {
+            "id": range(200),
+            "morta": [None] * 200,
+            "obs": ["ObservaÃ§Ã£o"] * 100 + ["-"] * 100,
+        }
+    )
     limpa.to_csv(tmp_path / "limpa.csv", index=False)
     suja.to_csv(tmp_path / "suja.csv", index=False)
 
     DataProfiler().processar_lote(
         [str(tmp_path / "limpa.csv"), str(tmp_path / "suja.csv")],
-        saida_base="l", formatos=["html"],
+        saida_base="l",
+        formatos=["html"],
     )
 
     html = (tmp_path / "l_consolidado.html").read_text(encoding="utf-8")
@@ -146,14 +154,13 @@ def test_lote_continua_apos_falha_e_reporta(tmp_path, monkeypatch):
 
     payloads, falhas = DataProfiler().processar_lote(
         [str(tmp_path / "ruim.csv"), str(tmp_path / "bom.csv")],
-        saida_base="l", formatos=["html"],
+        saida_base="l",
+        formatos=["html"],
     )
 
     assert len(payloads) == 1
     assert len(falhas) == 1
     assert "ruim.csv" in falhas[0][0]
-
-
 
 
 def test_pasta_com_um_arquivo_vira_individual(tmp_path, monkeypatch):

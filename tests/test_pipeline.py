@@ -15,9 +15,15 @@ def test_processar_dataframe_retorna_payload_completo(df_rh_exemplo):
     assert meta["versao_profiler"] == __version__
     assert meta["schema_version"] == config.SCHEMA_VERSION
     assert len(resultado["colunas"]) == len(df_rh_exemplo.columns)
-    for chave in ("recomendacoes_etl", "dependencias_funcionais", "colunas_redundantes",
-                  "chaves_compostas", "correlacoes", "gap_analysis_kpis",
-                  "analise_temporal_series"):
+    for chave in (
+        "recomendacoes_etl",
+        "dependencias_funcionais",
+        "colunas_redundantes",
+        "chaves_compostas",
+        "correlacoes",
+        "gap_analysis_kpis",
+        "analise_temporal_series",
+    ):
         assert chave in resultado
 
 
@@ -37,7 +43,9 @@ def test_insight_temporal_de_admissao_nao_sugere_causalidade():
             {"Coluna": "hire_date", "Semantica_IA": config.SEMANTICA_DATA_CALENDARIO},
             {"Coluna": "salary", "Semantica_IA": "Valor Financeiro"},
         ],
-        "analise_temporal_series": [{"coluna": "salary", "coluna_temporal_referencia": "hire_date"}],
+        "analise_temporal_series": [
+            {"coluna": "salary", "coluna_temporal_referencia": "hire_date"}
+        ],
         "metadados_execucao": {},
     }
 
@@ -51,7 +59,9 @@ def test_vocabulario_customizado_nao_vaza_para_a_execucao_seguinte(tmp_path, df_
     from recon import config
 
     caminho = tmp_path / "dominio.yaml"
-    caminho.write_text("categorias_fortes:\n  Categoria Temporaria: [aurora_local]\n", encoding="utf-8")
+    caminho.write_text(
+        "categorias_fortes:\n  Categoria Temporaria: [aurora_local]\n", encoding="utf-8"
+    )
     DataProfiler(vocabularios=str(caminho)).processar_dataframe(df_rh_exemplo, "COM_VOCAB")
 
     assert "Categoria Temporaria" not in config.CATEGORIAS_FORTES
@@ -62,7 +72,9 @@ def test_vocabularios_concorrentes_ficam_isolados_por_execucao(tmp_path):
 
     primeiro = tmp_path / "primeiro.yaml"
     segundo = tmp_path / "segundo.yaml"
-    primeiro.write_text("categorias_fortes:\n  Domínio Aurora: [aurora_interna]\n", encoding="utf-8")
+    primeiro.write_text(
+        "categorias_fortes:\n  Domínio Aurora: [aurora_interna]\n", encoding="utf-8"
+    )
     segundo.write_text("categorias_fortes:\n  Domínio Brisa: [brisa_interna]\n", encoding="utf-8")
 
     def analisar(caminho, coluna):
@@ -72,17 +84,21 @@ def test_vocabularios_concorrentes_ficam_isolados_por_execucao(tmp_path):
         return payload["colunas"][0]["Semantica_IA"]
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        resultados = list(executor.map(
-            lambda args: analisar(*args),
-            [(primeiro, "aurora_interna"), (segundo, "brisa_interna")],
-        ))
+        resultados = list(
+            executor.map(
+                lambda args: analisar(*args),
+                [(primeiro, "aurora_interna"), (segundo, "brisa_interna")],
+            )
+        )
 
     assert resultados == ["Domínio Aurora", "Domínio Brisa"]
 
 
 def test_correcao_semantica_por_coluna_prevalece_somente_na_execucao(tmp_path):
     caminho = tmp_path / "correcoes.yaml"
-    caminho.write_text("correcoes_colunas:\n  codigo_interno: Categoria Revisada\n", encoding="utf-8")
+    caminho.write_text(
+        "correcoes_colunas:\n  codigo_interno: Categoria Revisada\n", encoding="utf-8"
+    )
 
     corrigido = DataProfiler(vocabularios=str(caminho)).processar_dataframe(
         pd.DataFrame({"codigo_interno": ["A", "B"] * 30}), "teste"
@@ -102,7 +118,9 @@ def test_versao_do_payload_vem_do_pacote(df_rh_exemplo):
 
 
 def test_score_de_qualidade_presente_no_payload(df_rh_exemplo):
-    score = DataProfiler().processar_dataframe(df_rh_exemplo, "T")["metadados_execucao"]["score_qualidade"]
+    score = DataProfiler().processar_dataframe(df_rh_exemplo, "T")["metadados_execucao"][
+        "score_qualidade"
+    ]
     assert 0 <= score["score"] <= 100
     assert score["nota"] in {"A", "B", "C", "D", "E"}
 
@@ -158,10 +176,12 @@ def test_duplicatas_e_redundancia_aparecem_no_payload():
 
 
 def test_sentinelas_viram_recomendacao_de_alta_prioridade():
-    df = pd.DataFrame({
-        "uf": ["SP"] * 300 + ["N/A"] * 100 + ["RJ"] * 100,
-        "valor": range(500),
-    })
+    df = pd.DataFrame(
+        {
+            "uf": ["SP"] * 300 + ["N/A"] * 100 + ["RJ"] * 100,
+            "valor": range(500),
+        }
+    )
     resultado = DataProfiler().processar_dataframe(df, "T")
 
     recomendacoes_uf = [r for r in resultado["recomendacoes_etl"] if r["Coluna"] == "uf"]
@@ -170,8 +190,10 @@ def test_sentinelas_viram_recomendacao_de_alta_prioridade():
 
 def test_analise_temporal_roda_com_coluna_de_data(df_rh_exemplo):
     resultado = DataProfiler().processar_dataframe(df_rh_exemplo, "TB_TESTE")
-    assert all(t["coluna_temporal_referencia"] == "dt_admissao"
-               for t in resultado["analise_temporal_series"])
+    assert all(
+        t["coluna_temporal_referencia"] == "dt_admissao"
+        for t in resultado["analise_temporal_series"]
+    )
 
 
 def test_amostragem_e_sinalizada_no_payload():
@@ -221,10 +243,12 @@ def test_formato_invalido_levanta_value_error(tmp_path):
 
 
 def test_coluna_de_nome_sai_do_relatorio_mascarada():
-    df = pd.DataFrame({
-        "FULL_NAME": [f"MARIA SOUZA {i}" for i in range(60)],
-        "VALOR": range(60),
-    })
+    df = pd.DataFrame(
+        {
+            "FULL_NAME": [f"MARIA SOUZA {i}" for i in range(60)],
+            "VALOR": range(60),
+        }
+    )
     resultado = DataProfiler().processar_dataframe(df, "cadastro")
     nome = next(c for c in resultado["colunas"] if c["Coluna"] == "FULL_NAME")
 
@@ -268,14 +292,16 @@ def test_script_limpeza_nao_executa_codigo_vindo_do_cabecalho(tmp_path):
             "layout": {},
             "duplicatas": {},
         },
-        "colunas": [{
-            "Coluna": coluna_maliciosa,
-            "Caracteristica": "⚠️ Coluna 100% Vazia",
-            "Alertas": {},
-            "Qualidade": {},
-            "Otimizacao": {},
-            "Dado_Sensivel_LGPD": "Nenhum",
-        }],
+        "colunas": [
+            {
+                "Coluna": coluna_maliciosa,
+                "Caracteristica": "⚠️ Coluna 100% Vazia",
+                "Alertas": {},
+                "Qualidade": {},
+                "Otimizacao": {},
+                "Dado_Sensivel_LGPD": "Nenhum",
+            }
+        ],
         "colunas_redundantes": [],
         "regras_negocio": [],
     }

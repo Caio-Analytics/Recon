@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from html import escape
@@ -23,10 +22,12 @@ def exportar_historico_markdown(payload: dict[str, Any], caminho: str) -> None:
         payload["resumo"],
         "",
     ]
-    linhas.extend([
-        "| Extração | Linhas | Colunas | Score | Nulos | Recomendações |",
-        "|---|---:|---:|---:|---:|---:|",
-    ])
+    linhas.extend(
+        [
+            "| Extração | Linhas | Colunas | Score | Nulos | Recomendações |",
+            "|---|---:|---:|---:|---:|---:|",
+        ]
+    )
     for extracao in payload["extracoes"]:
         volume = (
             "não contabilizado"
@@ -36,7 +37,8 @@ def exportar_historico_markdown(payload: dict[str, Any], caminho: str) -> None:
         amostra = (
             f" (amostra: {extracao['linhas_analisadas']:,}; cobertura "
             f"{extracao['cobertura_amostra_pct']:.3f}%)"
-            if extracao.get("amostragem_aplicada") else ""
+            if extracao.get("amostragem_aplicada")
+            else ""
         )
         linhas.append(
             f"| {extracao['arquivo']} | {volume}{amostra} | {extracao['colunas']} | "
@@ -63,13 +65,21 @@ def exportar_historico_html(payload: dict[str, Any], caminho: str) -> None:
         return f"{extracao['linhas']:,}"
 
     corpo = "".join(
-        "<tr>" + "".join(
-            f"<td>{valor if indice == 1 else _e(valor)}</td>" for indice, valor in enumerate((
-                extracao["arquivo"], _volume(extracao), extracao["colunas"],
-                f"{extracao['score']:.1f}", extracao["colunas_com_nulos"],
-                extracao["recomendacoes"],
-            ))
-        ) + "</tr>"
+        "<tr>"
+        + "".join(
+            f"<td>{valor if indice == 1 else _e(valor)}</td>"
+            for indice, valor in enumerate(
+                (
+                    extracao["arquivo"],
+                    _volume(extracao),
+                    extracao["colunas"],
+                    f"{extracao['score']:.1f}",
+                    extracao["colunas_com_nulos"],
+                    extracao["recomendacoes"],
+                )
+            )
+        )
+        + "</tr>"
         for extracao in payload["extracoes"]
     )
     alertas = "".join(f"<li>{_e(alerta)}</li>" for alerta in payload["alertas"])
@@ -83,19 +93,21 @@ def exportar_historico_html(payload: dict[str, Any], caminho: str) -> None:
     )
     primeiro, ultimo = extracoes[0], extracoes[-1]
     volume = "—" if ultimo.get("linhas_total_desconhecido") else f"{ultimo['linhas']:,}"
-    cartoes = "".join([
-        f'<div class="cartao"><div class="rotulo">Última qualidade</div><div class="valor">{ultimo["score"]:.1f}</div></div>',
-        f'<div class="cartao"><div class="rotulo">Variação de score</div><div class="valor">{ultimo["score"] - primeiro["score"]:+.1f}</div></div>',
-        f'<div class="cartao"><div class="rotulo">Último volume</div><div class="valor">{volume}</div></div>',
-        f'<div class="cartao"><div class="rotulo">Alertas</div><div class="valor">{len(payload["alertas"])}</div></div>',
-    ])
+    cartoes = "".join(
+        [
+            f'<div class="cartao"><div class="rotulo">Última qualidade</div><div class="valor">{ultimo["score"]:.1f}</div></div>',
+            f'<div class="cartao"><div class="rotulo">Variação de score</div><div class="valor">{ultimo["score"] - primeiro["score"]:+.1f}</div></div>',
+            f'<div class="cartao"><div class="rotulo">Último volume</div><div class="valor">{volume}</div></div>',
+            f'<div class="cartao"><div class="rotulo">Alertas</div><div class="valor">{len(payload["alertas"])}</div></div>',
+        ]
+    )
     documento = f"""<!doctype html><html lang="pt-BR"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Histórico de qualidade</title><style>{_CSS}
 .tendencia{{margin:1rem 0 1.5rem;padding:1rem;border:1px solid var(--borda);border-radius:10px;background:var(--fundo-alt)}} .tendencia svg{{width:100%;height:110px;overflow:visible}} .tendencia polyline{{fill:none;stroke:var(--acento);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}} small{{color:var(--texto-fraco)}}
-</style><main><header class="cabecalho-relatorio"><div class="marca">Recon · evolução da qualidade</div><h1>Histórico de qualidade</h1><p class="sub">{_e(payload['resumo'])}</p></header>
+</style><main><header class="cabecalho-relatorio"><div class="marca">Recon · evolução da qualidade</div><h1>Histórico de qualidade</h1><p class="sub">{_e(payload["resumo"])}</p></header>
 <section><div class="cartoes">{cartoes}</div><div class="tendencia"><b>Evolução do score</b><br><small>O gráfico mostra a variação relativa da qualidade entre as extrações informadas.</small><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Evolução do score"><polyline points="{pontos}"/></svg></div></section>
 <table><thead><tr><th>Extração</th><th>Linhas</th><th>Colunas</th><th>Score</th><th>Com nulos</th><th>Recomendações</th></tr></thead><tbody>{corpo}</tbody></table>
-{f'<section class="alertas"><h2>Alertas</h2><ul>{alertas}</ul></section>' if alertas else ''}</main></html>"""
+{f'<section class="alertas"><h2>Alertas</h2><ul>{alertas}</ul></section>' if alertas else ""}</main></html>"""
     with open(caminho, "w", encoding="utf-8") as arquivo:
         arquivo.write(documento)
     logger.info(f"✓ Histórico (HTML) exportado: '{caminho}'")

@@ -25,8 +25,6 @@ def eh_numerico_br(valor: str) -> bool:
     return True
 
 
-
-
 def _digitos(valor: str) -> str:
     return _RE_SO_DIGITOS.sub("", str(valor))
 
@@ -73,8 +71,6 @@ def _fracao_valida(valores: list[str], padrao: str) -> float:
     return sum(1 for v in valores if validador(v)) / len(valores)
 
 
-
-
 def detectar_padrao_texto(amostra_str: list[str], eh_chave_sistema: bool = False) -> str:
     if not amostra_str:
         return "Nenhum"
@@ -84,8 +80,10 @@ def detectar_padrao_texto(amostra_str: list[str], eh_chave_sistema: bool = False
         casados = [v for v in amostra_str if re.match(regex, v)]
         if (len(casados) / len(amostra_str)) < config.THRESHOLD_PADRAO_ESTRUTURADO:
             continue
-        if (nome in config.PADROES_COM_VALIDACAO
-                and _fracao_valida(casados, nome) < config.THRESHOLD_PADRAO_ESTRUTURADO):
+        if (
+            nome in config.PADROES_COM_VALIDACAO
+            and _fracao_valida(casados, nome) < config.THRESHOLD_PADRAO_ESTRUTURADO
+        ):
             continue
         return nome
     return "Nenhum"
@@ -125,8 +123,6 @@ def detectar_padrao_numerico(amostra_int_str: list[str]) -> str:
     return "Nenhum"
 
 
-
-
 _RE_EMAIL_MASCARA = re.compile(r"^([\w.+\-]+)@([\w\-]+(?:\.[\w\-]+)+)$")
 
 
@@ -148,9 +144,6 @@ def mascarar_valor_sensivel(valor: str, padrao_estruturado: str) -> str:
     if padrao_estruturado not in config.PADROES_ESTRUTURADOS:
         return "***MASCARADO***"
 
-    
-    
-    
     qtd_visivel = 3 if padrao_estruturado == "CPF" else 2
     resultado = []
     vistos = 0
@@ -172,8 +165,6 @@ def eh_sensivel(padrao_estruturado: str) -> bool:
 
 def mascarar_nome_pessoa(valor: str) -> str:
     return _RE_PALAVRA.sub(lambda m: m.group(0)[0] + "*" * (len(m.group(0)) - 1), valor)
-
-
 
 
 def _normalizar_para_comparacao(valor: str) -> str:
@@ -254,8 +245,6 @@ def detectar_sentinelas_data(serie: pd.Series, n_validos: int) -> dict[str, Any]
     }
 
 
-
-
 def _chave_canonica(valor: str) -> str:
     texto = str(valor)
     if eh_numerico_br(texto):
@@ -288,7 +277,10 @@ def detectar_inconsistencia_normalizacao(
 
     colapsaveis.sort(key=lambda g: -sum(q for _, q in g))
     exemplos = [
-        {"variantes": [v for v, _ in sorted(g, key=lambda x: -x[1])], "qtd_total": sum(q for _, q in g)}
+        {
+            "variantes": [v for v, _ in sorted(g, key=lambda x: -x[1])],
+            "qtd_total": sum(q for _, q in g),
+        }
         for g in colapsaveis[:max_exemplos]
     ]
     unicos_atual = int(len(contagens))
@@ -300,8 +292,6 @@ def detectar_inconsistencia_normalizacao(
         "grupos_afetados": len(colapsaveis),
         "exemplos": exemplos,
     }
-
-
 
 
 def detectar_mojibake(amostra_str: list[str], max_exemplos: int = 3) -> dict[str, Any]:
@@ -317,15 +307,10 @@ def detectar_mojibake(amostra_str: list[str], max_exemplos: int = 3) -> dict[str
     }
 
 
-
-
 _RE_PII_LIVRE: dict[str, re.Pattern] = {
     "CPF": re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b"),
     "CNPJ": re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b"),
     "E-mail": re.compile(r"\b[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+\b"),
-    
-    
-    
     "Telefone": re.compile(r"(?<!\w)\(?\d{2}\)?\s?9?\d{4}[\s\-]?\d{4}(?!\w)"),
 }
 
@@ -334,9 +319,6 @@ def detectar_pii_em_texto_livre(amostra_str: list[str]) -> dict[str, Any]:
     if not amostra_str:
         return {"tem_pii": False}
 
-    
-    
-    
     com_espaco = sum(1 for v in amostra_str if " " in str(v).strip())
     if com_espaco / len(amostra_str) < _FRACAO_MINIMA_TEXTO_LIVRE:
         return {"tem_pii": False}
@@ -345,7 +327,8 @@ def detectar_pii_em_texto_livre(amostra_str: list[str]) -> dict[str, Any]:
     achados: dict[str, dict[str, Any]] = {}
     for nome, regex in _RE_PII_LIVRE.items():
         ocorrencias = [
-            (v, m) for v in amostra_str
+            (v, m)
+            for v in amostra_str
             if (m := regex.search(v)) is not None and m.group(0) != v.strip()
         ]
         if nome in config.PADROES_COM_VALIDACAO:
@@ -366,13 +349,13 @@ def redigir_pii_em_texto(valor: str) -> str:
     return texto
 
 
-
-
-_TRADUCAO_SHAPE = str.maketrans({
-    **{chr(c): "9" for c in range(ord("0"), ord("9") + 1)},
-    **{chr(c): "A" for c in range(ord("A"), ord("Z") + 1)},
-    **{chr(c): "a" for c in range(ord("a"), ord("z") + 1)},
-})
+_TRADUCAO_SHAPE = str.maketrans(
+    {
+        **{chr(c): "9" for c in range(ord("0"), ord("9") + 1)},
+        **{chr(c): "A" for c in range(ord("A"), ord("Z") + 1)},
+        **{chr(c): "a" for c in range(ord("a"), ord("z") + 1)},
+    }
+)
 _MAX_COMPRIMENTO_SHAPE = 40
 
 
@@ -396,14 +379,14 @@ def inferir_formato(amostra_str: list[str], cobertura_minima: float = 0.8) -> di
     total = sum(len(v) for v in formas.values())
     dominante, exemplos_dominante = max(formas.items(), key=lambda kv: len(kv[1]))
     cobertura = len(exemplos_dominante) / total
-    
-    
+
     if cobertura < cobertura_minima:
         return {"tem_formato": False}
 
     fora = [
         {"valor": v, "formato": forma}
-        for forma, valores in formas.items() if forma != dominante
+        for forma, valores in formas.items()
+        if forma != dominante
         for v in valores[:2]
     ]
     return {
@@ -417,10 +400,6 @@ def inferir_formato(amostra_str: list[str], cobertura_minima: float = 0.8) -> di
     }
 
 
-
-
-
-
 _FRACAO_MINIMA_TEXTO_LIVRE = 0.5
 
 _RE_PALAVRA = re.compile(r"\w+", re.UNICODE)
@@ -432,9 +411,7 @@ def distribuicao_benford(serie: pd.Series) -> dict[str, Any] | None:
     positivos = serie[serie > 0]
     if len(positivos) < 100:
         return None
-    primeiros = (
-        positivos.abs().astype(str).str.replace(r"[^1-9]", "", regex=True).str[:1]
-    )
+    primeiros = positivos.abs().astype(str).str.replace(r"[^1-9]", "", regex=True).str[:1]
     primeiros = primeiros[primeiros != ""]
     if len(primeiros) < 100:
         return None

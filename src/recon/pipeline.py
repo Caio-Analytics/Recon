@@ -26,9 +26,6 @@ from . import (
 from . import historico as historico_mod
 from .tipos import IncertezaAmostra, LayoutPayload, MetadadosExecucao
 
-
-
-
 FORMATOS_PADRAO = ("json", "html")
 FORMATOS_VALIDOS = ("json", "markdown", "html", "pdf", "parquet")
 EXTENSOES_EXCEL = (".xlsx", ".xls", ".xlsb")
@@ -54,10 +51,8 @@ def abas_fora_da_analise(caminho: str, aba_excel: str | int | None) -> list[str]
     abas = ingestion.listar_abas(caminho)
     return [str(a) for a in abas[1:]] if len(abas) > 1 else []
 
+
 _SEMANTICAS_BENFORD = frozenset({"Valor Financeiro"})
-
-
-
 
 
 TRABALHO_MINIMO_PARALELO = 2_000_000
@@ -73,8 +68,7 @@ def _processos_disponiveis(trabalho: int, colunas: int) -> int:
 
     if trabalho < TRABALHO_MINIMO_PARALELO or colunas < 8:
         return 0
-    
-    
+
     if multiprocessing.get_start_method() not in ("fork", "forkserver"):
         return 0
     nucleos = os.cpu_count() or 1
@@ -92,7 +86,6 @@ def _mascarar_nomes(stats: dict[str, Any]) -> None:
 
 
 class DataProfiler:
-
     def __init__(
         self,
         limite_amostra: int = 2_000_000,
@@ -103,20 +96,15 @@ class DataProfiler:
         self.regras_kpi = list(regras_kpi) if regras_kpi is not None else config.REGRAS_KPI_PADRAO
         self.vocabularios = vocabularios
 
-    
     def _analisar_colunas(self, df_alvo: pd.DataFrame, nome_tabela: str, linhas: int):
         lista_colunas: list[dict[str, Any]] = []
         recomendacoes: list[dict[str, Any]] = []
         semanticas_presentes: set[str] = set()
 
-        
         nomes: list[str] = []
         stats_por_coluna: list[dict[str, Any]] = []
         entradas_semanticas: list[dict[str, Any]] = []
 
-        
-        
-        
         tarefas = []
         for coluna in df_alvo.columns:
             preliminar = semantics.inferir_semantica(str(coluna))
@@ -130,43 +118,39 @@ class DataProfiler:
         descricao = f"Profilando '{nome_tabela}'"
         stats_por_coluna = []
         if processos:
-            
-            
-            
             from concurrent.futures import ProcessPoolExecutor
 
             logger.info(f"Distribuindo {len(tarefas)} colunas entre {processos} processos...")
             try:
                 with ProcessPoolExecutor(max_workers=processos) as executor:
-                    stats_por_coluna = list(tqdm(
-                        executor.map(_perfilar_coluna, tarefas, chunksize=2),
-                        total=len(tarefas), desc=descricao, unit="col",
-                    ))
+                    stats_por_coluna = list(
+                        tqdm(
+                            executor.map(_perfilar_coluna, tarefas, chunksize=2),
+                            total=len(tarefas),
+                            desc=descricao,
+                            unit="col",
+                        )
+                    )
             except Exception as erro:  # noqa: BLE001
-                
-                
-                
                 logger.warning(
-                    f"Não consegui usar processos ({type(erro).__name__}); "
-                    "seguindo em sequencial."
+                    f"Não consegui usar processos ({type(erro).__name__}); seguindo em sequencial."
                 )
                 stats_por_coluna = []
 
         if not stats_por_coluna:
             stats_por_coluna = [
-                _perfilar_coluna(tarefa)
-                for tarefa in tqdm(tarefas, desc=descricao, unit="col")
+                _perfilar_coluna(tarefa) for tarefa in tqdm(tarefas, desc=descricao, unit="col")
             ]
 
         for nome, stats in zip(nomes, stats_por_coluna, strict=True):
-            entradas_semanticas.append({
-                "nome": nome,
-                "padrao": stats["flags"]["detected_pattern"],
-                "perfil": semantics.perfil_de_registro(stats, stats["amostra_representativa"]),
-            })
+            entradas_semanticas.append(
+                {
+                    "nome": nome,
+                    "padrao": stats["flags"]["detected_pattern"],
+                    "perfil": semantics.perfil_de_registro(stats, stats["amostra_representativa"]),
+                }
+            )
 
-        
-        
         logger.info("Inferindo semântica das colunas (com contexto da tabela)...")
         semanticas = semantics.inferir_semanticas_da_tabela(entradas_semanticas)
 
@@ -174,46 +158,44 @@ class DataProfiler:
             padrao_estruturado = stats["flags"]["detected_pattern"]
             semanticas_presentes.update(semantics.semanticas_para_gap_analysis(sem))
 
-            
-            
-            
-            
             if sem["papel"] == config.SEMANTICA_NOME_PESSOA and not patterns.eh_sensivel(
                 padrao_estruturado
             ):
                 padrao_estruturado = "Nome de pessoa"
                 _mascarar_nomes(stats)
 
-            lista_colunas.append({
-                "Tabela_Origem": str(nome_tabela),
-                "Coluna": str(coluna),
-                "Tipo_Inferred": stats["tipo_dados"],
-                "Semantica_IA": sem["semantica"],
-                "Papel": sem["papel"],
-                "Dominio": sem["dominio"],
-                "Semantica_Score": sem["confianca_score"],
-                "Semantica_Origem": sem["origem"],
-                "Semantica_Conclusiva": sem["conclusiva"],
-                "Semantica_Hipoteses": sem["hipoteses"],
-                "Qtd_Unicos": stats["valores_unicos"],
-                "Ratio_Unicidade": stats["ratio_unicidade"],
-                "Ratio_Unicidade_Preenchidos": stats["ratio_unicidade_preenchidos"],
-                "Qtd_Nulos": stats["nulos_qtd"],
-                "Pct_Nulos": stats["nulos_pct"],
-                "Caracteristica": statistics.ajustar_caracteristica_com_semantica(
-                    stats["caracteristica"], sem["papel"]
-                ),
-                "Dado_Sensivel_LGPD": padrao_estruturado,
-                "Amostra_Valores": ", ".join(stats["amostra_representativa"]),
-                "Alertas": {
-                    "data_como_texto": stats["flags"]["is_date_as_text"],
-                    "mistura_tipos": stats["flags"]["mistura_tipos"],
-                    "stats_suprimidas_lgpd": stats["flags"]["stats_suprimidas_lgpd"],
-                },
-                "Qualidade": stats["qualidade"],
-                "Otimizacao": stats["otimizacao"],
-                "Stats_Extra": stats["estatisticas_adicionais"],
-            })
+            lista_colunas.append(
+                {
+                    "Tabela_Origem": str(nome_tabela),
+                    "Coluna": str(coluna),
+                    "Tipo_Inferred": stats["tipo_dados"],
+                    "Semantica_IA": sem["semantica"],
+                    "Papel": sem["papel"],
+                    "Dominio": sem["dominio"],
+                    "Semantica_Score": sem["confianca_score"],
+                    "Semantica_Origem": sem["origem"],
+                    "Semantica_Conclusiva": sem["conclusiva"],
+                    "Semantica_Hipoteses": sem["hipoteses"],
+                    "Qtd_Unicos": stats["valores_unicos"],
+                    "Ratio_Unicidade": stats["ratio_unicidade"],
+                    "Ratio_Unicidade_Preenchidos": stats["ratio_unicidade_preenchidos"],
+                    "Qtd_Nulos": stats["nulos_qtd"],
+                    "Pct_Nulos": stats["nulos_pct"],
+                    "Caracteristica": statistics.ajustar_caracteristica_com_semantica(
+                        stats["caracteristica"], sem["papel"]
+                    ),
+                    "Dado_Sensivel_LGPD": padrao_estruturado,
+                    "Amostra_Valores": ", ".join(stats["amostra_representativa"]),
+                    "Alertas": {
+                        "data_como_texto": stats["flags"]["is_date_as_text"],
+                        "mistura_tipos": stats["flags"]["mistura_tipos"],
+                        "stats_suprimidas_lgpd": stats["flags"]["stats_suprimidas_lgpd"],
+                    },
+                    "Qualidade": stats["qualidade"],
+                    "Otimizacao": stats["otimizacao"],
+                    "Stats_Extra": stats["estatisticas_adicionais"],
+                }
+            )
             recomendacoes.extend(
                 quality.gerar_recomendacoes_etl(
                     nome_tabela, str(coluna), stats, padrao_estruturado, linhas
@@ -230,9 +212,6 @@ class DataProfiler:
         if df is None or df.empty:
             raise ValueError(f"DataFrame '{nome_tabela}' está vazio ou inválido.")
 
-        
-        
-        
         lay = df.attrs.get("layout")
         layout_info: LayoutPayload = {
             "linha_cabecalho": getattr(lay, "linha_cabecalho", 0),
@@ -243,8 +222,6 @@ class DataProfiler:
             "avisos": getattr(lay, "avisos", []),
         }
 
-        
-        
         total_linhas = int(df.attrs.get("linhas_originais") or len(df))
         total_desconhecido = bool(df.attrs.get("linhas_originais_desconhecidas"))
         motivo_amostragem = df.attrs.get("motivo_amostragem")
@@ -257,11 +234,13 @@ class DataProfiler:
         incerteza_amostra: IncertezaAmostra = {
             "cobertura_pct": round(cobertura_amostra * 100, 3),
             "limiar_evento_raro_pct": round((3 / linhas_analisadas) * 100, 4)
-            if linhas_analisadas else None,
+            if linhas_analisadas
+            else None,
             "mensagem": (
                 "Amostra uniforme: resultados descrevem as linhas sorteadas. Eventos muito raros "
                 "podem não aparecer; confirme chaves, duplicatas e categorias críticas na base completa."
-                if amostrado else "A base inteira foi analisada."
+                if amostrado
+                else "A base inteira foi analisada."
             ),
         }
 
@@ -299,54 +278,68 @@ class DataProfiler:
         logger.info("Rodando análise temporal cross-coluna (se aplicável)...")
         analise_temporal = relationships.analisar_series_temporais(df_alvo, lista_colunas)
 
-        recomendacoes.extend(quality.gerar_recomendacoes_tabela(
-            nome_tabela, duplicatas, redundantes, chaves_compostas, linhas_analisadas,
-            colunas=lista_colunas, duplicatas_aproximadas=duplicatas_aproximadas,
-        ))
+        recomendacoes.extend(
+            quality.gerar_recomendacoes_tabela(
+                nome_tabela,
+                duplicatas,
+                redundantes,
+                chaves_compostas,
+                linhas_analisadas,
+                colunas=lista_colunas,
+                duplicatas_aproximadas=duplicatas_aproximadas,
+            )
+        )
 
         score = quality.calcular_score_qualidade(lista_colunas, duplicatas, redundantes)
         risco_lgpd = quality.calcular_risco_lgpd(lista_colunas)
 
         if not recomendacoes:
-            recomendacoes.append({
-                "Tabela": nome_tabela, "Coluna": "N/A", "Prioridade": quality.PRIORIDADE_INFO,
-                "Camada": "N/A", "Acao": "Nenhuma anomalia crítica estrutural encontrada.",
-                "Linhas_Afetadas": 0, "Pct_Impacto": "0%",
-            })
+            recomendacoes.append(
+                {
+                    "Tabela": nome_tabela,
+                    "Coluna": "N/A",
+                    "Prioridade": quality.PRIORIDADE_INFO,
+                    "Camada": "N/A",
+                    "Acao": "Nenhuma anomalia crítica estrutural encontrada.",
+                    "Linhas_Afetadas": 0,
+                    "Pct_Impacto": "0%",
+                }
+            )
 
         metadados: MetadadosExecucao = {
-                "tabela": nome_tabela,
-                "timestamp_utc": datetime.now(UTC).isoformat(),
-                "versao_profiler": __version__,
-                "schema_version": config.SCHEMA_VERSION,
-                "linhas_originais": total_linhas,
-                "linhas_originais_desconhecidas": total_desconhecido,
-                "linhas_analisadas": linhas_analisadas,
-                "amostragem_aplicada": amostrado,
-                "motivo_amostragem": motivo_amostragem,
-                "incerteza_amostra": incerteza_amostra,
-                "total_colunas": len(lista_colunas),
-                "layout": layout_info,
-                "score_qualidade": score,
-                "risco_lgpd": risco_lgpd,
-                "duplicatas": duplicatas,
-                "resumo_qualidade": {
-                    "colunas_com_nulos": sum(1 for c in lista_colunas if c["Pct_Nulos"] > 0),
-                    "colunas_100pct_nulas": sum(
-                        1 for c in lista_colunas if "Vazia" in c["Caracteristica"]
-                    ),
-                    "colunas_sensiveis_lgpd": sum(
-                        1 for c in lista_colunas if c["Dado_Sensivel_LGPD"] != "Nenhum"
-                    ),
-                    "colunas_com_sentinela": sum(
-                        1 for c in lista_colunas
-                        if c["Qualidade"].get("sentinelas", {}).get("tem_sentinela")
-                    ),
-                    "semanticas_mapeadas": len(semanticas_presentes),
-                    "semanticas_encontradas": sorted(semanticas_presentes),
-                    "kpis_habilitados": sum(1 for g in gaps if "✅" in g["status"]),
-                    "total_recomendacoes": len(recomendacoes),
-                },
+            "tabela": nome_tabela,
+            "timestamp_utc": datetime.now(UTC).isoformat(),
+            "versao_profiler": __version__,
+            "schema_version": config.SCHEMA_VERSION,
+            "linhas_originais": total_linhas,
+            "linhas_originais_desconhecidas": total_desconhecido,
+            "linhas_analisadas": linhas_analisadas,
+            "amostragem_aplicada": amostrado,
+            "motivo_amostragem": motivo_amostragem,
+            "incerteza_amostra": incerteza_amostra,
+            "total_colunas": len(lista_colunas),
+            "layout": layout_info,
+            "score_qualidade": score,
+            "risco_lgpd": risco_lgpd,
+            "duplicatas": duplicatas,
+            "resumo_qualidade": {
+                "colunas_com_nulos": sum(1 for c in lista_colunas if c["Pct_Nulos"] > 0),
+                "colunas_100pct_nulas": sum(
+                    1 for c in lista_colunas if "Vazia" in c["Caracteristica"]
+                ),
+                "colunas_sensiveis_lgpd": sum(
+                    1 for c in lista_colunas if c["Dado_Sensivel_LGPD"] != "Nenhum"
+                ),
+                "colunas_com_sentinela": sum(
+                    1
+                    for c in lista_colunas
+                    if c["Qualidade"].get("sentinelas", {}).get("tem_sentinela")
+                ),
+                "semanticas_mapeadas": len(semanticas_presentes),
+                "semanticas_encontradas": sorted(semanticas_presentes),
+                "kpis_habilitados": sum(1 for g in gaps if "✅" in g["status"]),
+                "total_recomendacoes": len(recomendacoes),
+            },
         }
         resultado = {
             "metadados_execucao": metadados,
@@ -366,7 +359,6 @@ class DataProfiler:
         resultado["insights_textuais"] = insights.gerar_insights_textuais(resultado)
         return resultado
 
-    
     def processar_arquivo(
         self,
         caminho: str,
@@ -398,11 +390,6 @@ class DataProfiler:
                 caminho, detectar_layout, self.limite_amostra
             )
         else:
-            
-            
-            
-            
-            
             abas_ignoradas = abas_fora_da_analise(caminho, aba_excel)
             if abas_ignoradas:
                 logger.warning(
@@ -414,10 +401,15 @@ class DataProfiler:
                     "ou use --todas-abas na linha de comando; `recon modelar` analisa as abas "
                     "juntas e descobre como se ligam."
                 )
-            pares = [ingestion.carregar_arquivo(
-                caminho, aba_excel=aba_excel, detectar_layout=detectar_layout,
-                linha_cabecalho=linha_cabecalho, limite_linhas=self.limite_amostra,
-            )]
+            pares = [
+                ingestion.carregar_arquivo(
+                    caminho,
+                    aba_excel=aba_excel,
+                    detectar_layout=detectar_layout,
+                    linha_cabecalho=linha_cabecalho,
+                    limite_linhas=self.limite_amostra,
+                )
+            ]
 
         nomes_usados: set[str] = set()
         resultados = []
@@ -430,7 +422,9 @@ class DataProfiler:
             if "markdown" in formatos:
                 reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
             _exportar_html_e_pdf(
-                partial(reporting.exportar_html, payload), f"{saida_base}_{nome_safe}.html", formatos
+                partial(reporting.exportar_html, payload),
+                f"{saida_base}_{nome_safe}.html",
+                formatos,
             )
             if "parquet" in formatos:
                 reporting.exportar_parquet(payload, saida_base, nome_safe)
@@ -469,8 +463,6 @@ class DataProfiler:
             reporting.exportar_parquet(payload, saida_base, nome_safe)
         return payload
 
-
-    
     def conferir_versoes(
         self,
         caminho_anterior: str,
@@ -503,12 +495,11 @@ class DataProfiler:
         if "json" in formatos:
             reporting.exportar_json(resultado, f"{saida_base}_conferencia.json", json_compacto)
         if "markdown" in formatos:
-            reporting.exportar_conferencia_markdown(
-                resultado, f"{saida_base}_conferencia.md"
-            )
+            reporting.exportar_conferencia_markdown(resultado, f"{saida_base}_conferencia.md")
         _exportar_html_e_pdf(
             partial(reporting.exportar_conferencia_html, resultado),
-            f"{saida_base}_conferencia.html", formatos,
+            f"{saida_base}_conferencia.html",
+            formatos,
         )
         return resultado
 
@@ -521,7 +512,9 @@ class DataProfiler:
         limites: str | None = None,
     ) -> dict[str, Any]:
         if len(caminhos) < 2:
-            raise ValueError("O histórico precisa de ao menos duas extrações, em ordem cronológica.")
+            raise ValueError(
+                "O histórico precisa de ao menos duas extrações, em ordem cronológica."
+            )
         extracoes: list[dict[str, Any]] = []
         alertas: list[str] = []
         limites_ativos = historico_mod.carregar_limiares(limites)
@@ -563,11 +556,11 @@ class DataProfiler:
             reporting.exportar_historico_markdown(resultado, f"{saida_base}_historico.md")
         _exportar_html_e_pdf(
             partial(reporting.exportar_historico_html, resultado),
-            f"{saida_base}_historico.html", formatos,
+            f"{saida_base}_historico.html",
+            formatos,
         )
         return resultado
 
-    
     def modelar_conjunto(
         self,
         caminhos: Sequence[str],
@@ -589,9 +582,7 @@ class DataProfiler:
                     )
                 ]
             else:
-                df, nome = ingestion.carregar_arquivo(
-                    caminho, limite_linhas=self.limite_amostra
-                )
+                df, nome = ingestion.carregar_arquivo(caminho, limite_linhas=self.limite_amostra)
                 pares = [(df, nome, caminho)]
 
             for df, nome_tabela, origem in pares:
@@ -609,11 +600,14 @@ class DataProfiler:
                         reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
                     _exportar_html_e_pdf(
                         partial(reporting.exportar_html, payload),
-                        f"{saida_base}_{nome_safe}.html", formatos,
+                        f"{saida_base}_{nome_safe}.html",
+                        formatos,
                     )
-                tabelas.append(datamodel.TabelaCarregada(
-                    nome=nome_tabela, df=df, payload=payload, origem=origem
-                ))
+                tabelas.append(
+                    datamodel.TabelaCarregada(
+                        nome=nome_tabela, df=df, payload=payload, origem=origem
+                    )
+                )
 
         if len(tabelas) < 2:
             raise ValueError(
@@ -633,8 +627,6 @@ class DataProfiler:
         )
         return modelo
 
-
-    
     def processar_lote(
         self,
         caminhos: Sequence[str],
@@ -656,10 +648,13 @@ class DataProfiler:
                         caminho, detectar_layout, self.limite_amostra
                     )
                 else:
-                    pares = [ingestion.carregar_arquivo(
-                        caminho, detectar_layout=detectar_layout,
-                        limite_linhas=self.limite_amostra,
-                    )]
+                    pares = [
+                        ingestion.carregar_arquivo(
+                            caminho,
+                            detectar_layout=detectar_layout,
+                            limite_linhas=self.limite_amostra,
+                        )
+                    ]
                 for df, nome_tabela in pares:
                     if df is None or df.empty:
                         falhas.append((f"{caminho} ({nome_tabela})", "tabela vazia"))
@@ -675,7 +670,8 @@ class DataProfiler:
                         reporting.exportar_markdown(payload, f"{saida_base}_{nome_safe}.md")
                     _exportar_html_e_pdf(
                         partial(reporting.exportar_html, payload),
-                        f"{saida_base}_{nome_safe}.html", formatos,
+                        f"{saida_base}_{nome_safe}.html",
+                        formatos,
                     )
                     if "parquet" in formatos:
                         reporting.exportar_parquet(payload, saida_base, nome_safe)
@@ -686,9 +682,11 @@ class DataProfiler:
         if payloads and consolidado:
             _exportar_html_e_pdf(
                 partial(
-                    reporting.exportar_lote_html, payloads,
+                    reporting.exportar_lote_html,
+                    payloads,
                     titulo=os.path.basename(saida_base) or "lote",
                 ),
-                f"{saida_base}_consolidado.html", formatos,
+                f"{saida_base}_consolidado.html",
+                formatos,
             )
         return payloads, falhas

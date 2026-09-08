@@ -29,18 +29,22 @@ _MAX_TAMANHO_DESCOMPACTADO_ZIP = 10 * 1024**3
 _MAX_RAZAO_COMPRESSAO_ZIP = 250
 
 
-
-
-
 _EXTENSOES_TEXTO = frozenset({".csv", ".tsv", ".txt"})
 _COMPACTADAS = (".gz", ".bz2", ".zip", ".xz", ".zst")
 
 EXTENSOES_SUPORTADAS: tuple[str, ...] = (
-    ".csv", ".tsv", ".txt", ".xlsx", ".xls", ".xlsb", ".parquet",
-    ".csv.gz", ".tsv.gz", ".txt.gz", ".csv.zip",
+    ".csv",
+    ".tsv",
+    ".txt",
+    ".xlsx",
+    ".xls",
+    ".xlsb",
+    ".parquet",
+    ".csv.gz",
+    ".tsv.gz",
+    ".txt.gz",
+    ".csv.zip",
 )
-
-
 
 
 EXTENSOES_DESCOBERTAS: tuple[str, ...] = tuple(
@@ -96,7 +100,9 @@ def _carregar_url(url: str, limite_linhas: int | None = None) -> tuple[pd.DataFr
         raise FileFormatError(f"Falha ao ler URL '{url}': {erro}") from erro
     nome = os.path.basename(urlparse(url).path).rsplit(".", 1)[0] or urlparse(url).netloc
     if limite_linhas and len(quadro) >= limite_linhas:
-        quadro.attrs["motivo_amostragem"] = "Leitura de URL limitada pelo teto de amostra configurado."
+        quadro.attrs["motivo_amostragem"] = (
+            "Leitura de URL limitada pelo teto de amostra configurado."
+        )
     return quadro, nome
 
 
@@ -116,7 +122,9 @@ def carregar_consulta(conexao: str, sql: str) -> tuple[pd.DataFrame, str]:
         try:
             import duckdb
         except ImportError as erro:
-            raise FileFormatError("DuckDB não está instalado; reinstale o Recon com as dependências atuais.") from erro
+            raise FileFormatError(
+                "DuckDB não está instalado; reinstale o Recon com as dependências atuais."
+            ) from erro
         caminho = conexao.removeprefix("duckdb:///")
         banco_duck = duckdb.connect(caminho, read_only=True)
         try:
@@ -139,9 +147,7 @@ def _validar_zip(caminho: str) -> zipfile.ZipInfo:
         )
     membro = membros[0]
     if not membro.filename.lower().endswith(tuple(_EXTENSOES_TEXTO)):
-        raise FileFormatError(
-            f"O ZIP deve conter CSV/TSV/TXT; encontrou '{membro.filename}'."
-        )
+        raise FileFormatError(f"O ZIP deve conter CSV/TSV/TXT; encontrou '{membro.filename}'.")
     if membro.file_size > _MAX_TAMANHO_DESCOMPACTADO_ZIP:
         raise FileFormatError(
             f"O conteúdo de '{caminho}' descompactaria para mais de 10 GB; "
@@ -156,14 +162,12 @@ def _validar_zip(caminho: str) -> zipfile.ZipInfo:
     return membro
 
 
-
-
-
-
 _BYTES_AMOSTRA_ENCODING = 256_000
 
 
-def _amostra_bytes(caminho: str, compactacao: str = "", limite: int = _BYTES_AMOSTRA_ENCODING) -> bytes:
+def _amostra_bytes(
+    caminho: str, compactacao: str = "", limite: int = _BYTES_AMOSTRA_ENCODING
+) -> bytes:
     if compactacao == ".gz":
         with gzip.open(caminho, "rb") as f:
             return f.read(limite)
@@ -204,9 +208,7 @@ def detectar_separador(caminho: str, encoding: str, compactacao: str = "") -> st
     except (OSError, LookupError, zipfile.BadZipFile) as e:
         raise FileFormatError(f"Falha ao ler '{caminho}' para detectar o separador: {e}") from e
     amostra = [
-        linha + "\n"
-        for linha in texto.splitlines()[:_LINHAS_AMOSTRA_SNIFF]
-        if linha.strip()
+        linha + "\n" for linha in texto.splitlines()[:_LINHAS_AMOSTRA_SNIFF] if linha.strip()
     ]
 
     if not amostra:
@@ -222,10 +224,7 @@ def detectar_separador(caminho: str, encoding: str, compactacao: str = "") -> st
         if not linhas:
             continue
         contagens = [len(linha) for linha in linhas]
-        
-        
-        
-        
+
         n_campos = max(set(contagens), key=contagens.count)
         if n_campos < 2:
             continue
@@ -235,7 +234,9 @@ def detectar_separador(caminho: str, encoding: str, compactacao: str = "") -> st
             melhor_chave, melhor_sep = chave, sep
 
     if melhor_chave[1] < 2:
-        logger.info("Nenhum separador produz mais de uma coluna — tratando como CSV de coluna única.")
+        logger.info(
+            "Nenhum separador produz mais de uma coluna — tratando como CSV de coluna única."
+        )
         return ","
     return melhor_sep
 
@@ -245,23 +246,13 @@ def _ler_csv(caminho: str, encoding: str, sep: str) -> pd.DataFrame:
         return pd.read_csv(caminho, encoding=encoding, sep=sep, engine="pyarrow")
     except Exception as e:
         logger.debug(f"Engine pyarrow recusou o arquivo ({e}); usando o engine C.")
-        
-        
-        
-        
-        
-        
-        
-        
+
         return pd.read_csv(
             caminho, encoding=encoding, sep=sep, low_memory=False, encoding_errors="replace"
         )
 
 
 _LINHAS_INSPECAO_LAYOUT = 40
-
-
-
 
 
 TAMANHO_LEITURA_EM_BLOCOS = 300 * 1024 * 1024
@@ -278,24 +269,28 @@ def _memoria_sistema_bytes() -> tuple[int | None, int | None]:
         with open("/proc/meminfo", encoding="utf-8") as arquivo:
             campos = {
                 linha.split(":", 1)[0]: int(linha.split()[1]) * 1024
-                for linha in arquivo if ":" in linha
+                for linha in arquivo
+                if ":" in linha
             }
         disponivel = campos.get("MemAvailable", disponivel)
         return total, disponivel
     except (AttributeError, OSError, ValueError):
         pass
-    
-    
+
     if os.name == "nt":
         try:
             import ctypes
 
             class _StatusMemoria(ctypes.Structure):
                 _fields_ = [
-                    ("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
-                    ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
-                    ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
-                    ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("dwLength", ctypes.c_ulong),
+                    ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong),
+                    ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong),
+                    ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong),
+                    ("ullAvailVirtual", ctypes.c_ulonglong),
                     ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
                 ]
 
@@ -313,11 +308,11 @@ def _memoria_sistema_bytes() -> tuple[int | None, int | None]:
             tamanho_pagina = int(re.search(r"page size of (\d+) bytes", vm_stat).group(1))
             paginas = {
                 chave: int(valor.rstrip("."))
-                for chave, valor in re.findall(r"Pages (free|speculative|inactive):\s+(\d+)\.", vm_stat)
+                for chave, valor in re.findall(
+                    r"Pages (free|speculative|inactive):\s+(\d+)\.", vm_stat
+                )
             }
-            
-            
-            
+
             disponivel = sum(paginas.get(chave, 0) for chave in ("free", "speculative", "inactive"))
             return total, disponivel * tamanho_pagina
         except (OSError, ValueError, AttributeError):
@@ -331,21 +326,15 @@ def _amostragem_por_memoria(caminho: str, formato: str) -> str | None:
         return None
     fator = _FATOR_MEMORIA_EXCEL if formato == "excel" else _FATOR_MEMORIA_TEXTO
     tamanho_base = os.path.getsize(caminho)
-    
-    
+
     if formato == "excel" and caminho.lower().endswith(".xlsx"):
         try:
             with zipfile.ZipFile(caminho) as livro:
                 tamanho_base = max(tamanho_base, sum(info.file_size for info in livro.infolist()))
         except zipfile.BadZipFile:
-            
-            
             pass
     estimativa = tamanho_base * fator
-    
-    
-    
-    
+
     orcamento = int(disponivel * _FRACAO_RAM_SEGURA)
     if estimativa <= orcamento:
         return None
@@ -364,8 +353,13 @@ def _ler_csv_amostrado(
     chaves_amostra = np.empty(0, dtype=float)
     gerador = np.random.default_rng(42)
     leitor = pd.read_csv(
-        caminho, encoding=encoding, sep=sep, skiprows=skiprows or None,
-        chunksize=_LINHAS_POR_BLOCO, low_memory=False, encoding_errors="replace",
+        caminho,
+        encoding=encoding,
+        sep=sep,
+        skiprows=skiprows or None,
+        chunksize=_LINHAS_POR_BLOCO,
+        low_memory=False,
+        encoding_errors="replace",
     )
     for bloco in leitor:
         total += len(bloco)
@@ -396,35 +390,33 @@ def _matriz_crua_csv(caminho: str, encoding: str, sep: str, compactacao: str = "
         return pd.DataFrame()
     largura = max(len(linha) for linha in linhas)
     normalizadas = [
-        [(c.strip() or None) for c in linha] + [None] * (largura - len(linha))
-        for linha in linhas
+        [(c.strip() or None) for c in linha] + [None] * (largura - len(linha)) for linha in linhas
     ]
     return pd.DataFrame(normalizadas)
 
 
-def _avisar_se_encoding_teve_substituicao(
-    df: pd.DataFrame, avisos: list, encoding: str
-) -> None:
+def _avisar_se_encoding_teve_substituicao(df: pd.DataFrame, avisos: list, encoding: str) -> None:
     colunas_texto = df.select_dtypes(include=["object", "str"]).columns
     if colunas_texto.empty:
         return
     afetadas = [
-        str(c) for c in colunas_texto
-        if df[c].astype(str).str.contains("�", regex=False).any()
+        str(c) for c in colunas_texto if df[c].astype(str).str.contains("�", regex=False).any()
     ]
     if not afetadas:
         return
-    avisos.append({
-        "tipo": "encoding_substituido",
-        "severidade": "🟡 MÉDIA",
-        "mensagem": (
-            f"Byte que não decodifica em '{encoding}' foi substituído por "
-            f"\"�\" em {len(afetadas)} coluna(s): {', '.join(afetadas[:6])}"
-            f"{'…' if len(afetadas) > 6 else ''}. Provável origem: bytes "
-            "corrompidos no arquivo de origem, não erro de detecção — "
-            "confira o valor original na fonte antes de usar essas colunas."
-        ),
-    })
+    avisos.append(
+        {
+            "tipo": "encoding_substituido",
+            "severidade": "🟡 MÉDIA",
+            "mensagem": (
+                f"Byte que não decodifica em '{encoding}' foi substituído por "
+                f'"�" em {len(afetadas)} coluna(s): {", ".join(afetadas[:6])}'
+                f"{'…' if len(afetadas) > 6 else ''}. Provável origem: bytes "
+                "corrompidos no arquivo de origem, não erro de detecção — "
+                "confira o valor original na fonte antes de usar essas colunas."
+            ),
+        }
+    )
 
 
 def _anexar_layout(df: pd.DataFrame, lay: layout_mod.Layout) -> pd.DataFrame:
@@ -455,17 +447,18 @@ def _carregar_csv_com_layout(
         )
 
     aviso_memoria = _amostragem_por_memoria(caminho, "texto") if limite_linhas is not None else None
-    grande = (
-        limite_linhas is not None
-        and (os.path.getsize(caminho) > TAMANHO_LEITURA_EM_BLOCOS or aviso_memoria is not None)
+    grande = limite_linhas is not None and (
+        os.path.getsize(caminho) > TAMANHO_LEITURA_EM_BLOCOS or aviso_memoria is not None
     )
     if grande and limite_linhas is not None:
         if aviso_memoria:
-            avisos.append({
-                "tipo": "Amostragem por limite de memória",
-                "severidade": "🟡 MÉDIA",
-                "mensagem": aviso_memoria,
-            })
+            avisos.append(
+                {
+                    "tipo": "Amostragem por limite de memória",
+                    "severidade": "🟡 MÉDIA",
+                    "mensagem": aviso_memoria,
+                }
+            )
         df, total_arquivo = _ler_csv_amostrado(caminho, encoding, sep, inicio, limite_linhas)
         df.attrs["linhas_originais"] = total_arquivo
         if aviso_memoria:
@@ -480,18 +473,19 @@ def _carregar_csv_com_layout(
         return df
 
     df = (
-        _ler_csv(caminho, encoding, sep) if inicio == 0
-        
+        _ler_csv(caminho, encoding, sep)
+        if inicio == 0
         else pd.read_csv(
-            caminho, encoding=encoding, sep=sep, skiprows=inicio, low_memory=False,
+            caminho,
+            encoding=encoding,
+            sep=sep,
+            skiprows=inicio,
+            low_memory=False,
             encoding_errors="replace",
         )
     )
     _avisar_se_encoding_teve_substituicao(df, avisos, encoding)
-    
-    
-    
-    
+
     df = layout_mod.converter_datas_iso(df)
     if detectar:
         df, lay = _preparar_corpo(df, avisos)
@@ -504,14 +498,21 @@ def _carregar_csv_com_layout(
 
 
 def _carregar_aba_com_layout(
-    caminho: str, aba: str, engine: ExcelEngine, detectar: bool,
-    linha_cabecalho: int | None, limite_linhas: int | None = None,
+    caminho: str,
+    aba: str,
+    engine: ExcelEngine,
+    detectar: bool,
+    linha_cabecalho: int | None,
+    limite_linhas: int | None = None,
 ) -> pd.DataFrame:
     inicio = linha_cabecalho or 0
     avisos: list = []
     if detectar and linha_cabecalho is None:
         bruto = pd.read_excel(
-            caminho, sheet_name=aba, engine=engine, header=None,
+            caminho,
+            sheet_name=aba,
+            engine=engine,
+            header=None,
             nrows=_LINHAS_INSPECAO_LAYOUT,
         )
         if isinstance(bruto, pd.DataFrame):
@@ -519,11 +520,13 @@ def _carregar_aba_com_layout(
 
     aviso_memoria = _amostragem_por_memoria(caminho, "excel") if limite_linhas else None
     if aviso_memoria:
-        avisos.append({
-            "tipo": "Amostragem por limite de memória",
-            "severidade": "🟡 MÉDIA",
-            "mensagem": aviso_memoria,
-        })
+        avisos.append(
+            {
+                "tipo": "Amostragem por limite de memória",
+                "severidade": "🟡 MÉDIA",
+                "mensagem": aviso_memoria,
+            }
+        )
     if aviso_memoria and engine in {"openpyxl", "xlrd"}:
         leitor = _ler_xlsx_amostrado if engine == "openpyxl" else _ler_xls_amostrado
         df, total_arquivo = leitor(caminho, aba, inicio, limite_linhas or 1)
@@ -531,15 +534,14 @@ def _carregar_aba_com_layout(
         df.attrs["motivo_amostragem"] = aviso_memoria
     else:
         lido = pd.read_excel(
-            caminho, sheet_name=aba, engine=engine, header=inicio,
+            caminho,
+            sheet_name=aba,
+            engine=engine,
+            header=inicio,
             nrows=limite_linhas if aviso_memoria else None,
         )
         df = lido if isinstance(lido, pd.DataFrame) else pd.DataFrame()
     if aviso_memoria and engine == "pyxlsb":
-        
-        
-        
-        
         df.attrs["motivo_amostragem"] = (
             aviso_memoria + " Neste formato legado, foram lidas as primeiras linhas; "
             "a amostra não é uniforme e o total não foi contabilizado."
@@ -662,9 +664,7 @@ def carregar_arquivo(
 
     if formato == "texto":
         try:
-            df = _carregar_csv_com_layout(
-                caminho, detectar_layout, linha_cabecalho, limite_linhas
-            )
+            df = _carregar_csv_com_layout(caminho, detectar_layout, linha_cabecalho, limite_linhas)
         except FileFormatError:
             raise
         except Exception as e:
@@ -714,7 +714,9 @@ def listar_abas(caminho: str) -> list[str]:
 
 
 def carregar_todas_abas_excel(
-    caminho: str, detectar_layout: bool = True, limite_linhas: int | None = None,
+    caminho: str,
+    detectar_layout: bool = True,
+    limite_linhas: int | None = None,
 ) -> list[tuple[pd.DataFrame, str]]:
     if not os.path.exists(caminho):
         raise FileNotFoundError(f"Arquivo não encontrado: '{caminho}'")

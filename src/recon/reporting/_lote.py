@@ -14,7 +14,9 @@ def _e(valor: Any) -> str:
     return escape(str(valor), quote=False)
 
 
-_CSS_LOTE = CSS_GRAFICOS + """
+_CSS_LOTE = (
+    CSS_GRAFICOS
+    + """
 details.tabela { border: 1px solid var(--borda); border-radius: 10px; margin-bottom: .6rem;
                  background: var(--fundo-alt); }
 details.tabela > summary { cursor: pointer; padding: .8rem 1rem; font-weight: 600;
@@ -31,6 +33,7 @@ details.tabela .corpo { padding: 0 1rem 1rem; }
 .mini { font-size: 12.5px; }
 .mini td, .mini th { padding: .3rem .5rem; }
 """
+)
 
 
 def _painel_comparativo(perfis: list[dict[str, Any]]) -> str:
@@ -47,7 +50,7 @@ def _painel_comparativo(perfis: list[dict[str, Any]]) -> str:
         linhas.append(
             f"<tr><td><b>{_e(p['tabela'])}</b></td>"
             f'<td><span class="nota" style="background:{cor}">{p["nota"]}</span> '
-            f'{p["score"]:.0f}</td>'
+            f"{p['score']:.0f}</td>"
             f"<td>{p['linhas']:,}</td><td>{p['colunas']}</td>"
             f"<td>{p['comprometidas']}</td>"
             f"<td>{p['alta']}</td>"
@@ -89,30 +92,34 @@ def _bloco_tabela(payload: dict[str, Any], aberto: bool) -> str:
     layout = meta.get("layout") or {}
     if layout.get("avisos"):
         itens = "".join(
-            f"<li><b>{_e(a['severidade'])}</b> {_e(a['mensagem'])}</li>"
-            for a in layout["avisos"]
+            f"<li><b>{_e(a['severidade'])}</b> {_e(a['mensagem'])}</li>" for a in layout["avisos"]
         )
         avisos_layout = f"<p class='sub'>Como o arquivo foi lido:</p><ul>{itens}</ul>"
 
     amostragem = (
         '<p class="sub"><b class="alerta">⚠️ Amostragem aplicada</b> — unicidade e '
         "duplicata valem para a amostra, não para a tabela inteira.</p>"
-        if meta.get("amostragem_aplicada") else ""
+        if meta.get("amostragem_aplicada")
+        else ""
     )
 
     return (
         f'<details class="tabela"{" open" if aberto else ""}>'
         f'<summary><span class="nota" style="background:{cor}">{score.get("nota", "?")}</span>'
-        f'<span>{_e(meta["tabela"])}</span>'
+        f"<span>{_e(meta['tabela'])}</span>"
         f'<span class="resumo-linha">{meta["linhas_originais"]:,} linhas · '
-        f'{meta["total_colunas"]} colunas · {len(criticas)} achados 🔴</span></summary>'
+        f"{meta['total_colunas']} colunas · {len(criticas)} achados 🔴</span></summary>"
         f'<div class="corpo">{amostragem}{avisos_layout}'
-        + (f"<p class='sub'>Principais problemas:</p><ol>{problemas}</ol>" if problemas else
-           "<p class='vazio'>Nenhum achado de prioridade alta.</p>")
+        + (
+            f"<p class='sub'>Principais problemas:</p><ol>{problemas}</ol>"
+            if problemas
+            else "<p class='vazio'>Nenhum achado de prioridade alta.</p>"
+        )
         + '<div class="tabela-wrap"><table class="mini"><thead><tr><th>Coluna</th>'
-          "<th>Tipo</th><th>Semântica</th><th>% Nulos</th><th>Únicos</th>"
-          "<th>Completude</th><th>Característica</th></tr></thead><tbody>"
-        + colunas + "</tbody></table></div></div></details>"
+        "<th>Tipo</th><th>Semântica</th><th>% Nulos</th><th>Únicos</th>"
+        "<th>Completude</th><th>Característica</th></tr></thead><tbody>"
+        + colunas
+        + "</tbody></table></div></div></details>"
     )
 
 
@@ -121,18 +128,20 @@ def exportar_lote_html(payloads: list[dict[str, Any]], caminho: str, titulo: str
     for payload in payloads:
         meta = payload["metadados_execucao"]
         score = meta.get("score_qualidade", {})
-        perfis.append({
-            "tabela": meta["tabela"],
-            "score": float(score.get("score", 0)),
-            "nota": score.get("nota", "?"),
-            "linhas": meta["linhas_originais"],
-            "colunas": meta["total_colunas"],
-            "comprometidas": score.get("colunas_comprometidas", 0),
-            "alta": sum(1 for r in payload["recomendacoes_etl"] if "ALTA" in r["Prioridade"]),
-            "amostrado": meta.get("amostragem_aplicada", False),
-            "duplicadas": meta.get("duplicatas", {}).get("qtd_linhas_duplicadas", 0),
-            "sensiveis": meta["resumo_qualidade"]["colunas_sensiveis_lgpd"],
-        })
+        perfis.append(
+            {
+                "tabela": meta["tabela"],
+                "score": float(score.get("score", 0)),
+                "nota": score.get("nota", "?"),
+                "linhas": meta["linhas_originais"],
+                "colunas": meta["total_colunas"],
+                "comprometidas": score.get("colunas_comprometidas", 0),
+                "alta": sum(1 for r in payload["recomendacoes_etl"] if "ALTA" in r["Prioridade"]),
+                "amostrado": meta.get("amostragem_aplicada", False),
+                "duplicadas": meta.get("duplicatas", {}).get("qtd_linhas_duplicadas", 0),
+                "sensiveis": meta["resumo_qualidade"]["colunas_sensiveis_lgpd"],
+            }
+        )
 
     total_linhas = sum(p["linhas"] for p in perfis)
     total_alta = sum(p["alta"] for p in perfis)
@@ -173,7 +182,8 @@ def exportar_lote_html(payloads: list[dict[str, Any]], caminho: str, titulo: str
         '<div class="cartoes">'
         + "".join(
             f'<div class="cartao"><div class="rotulo">{_e(r)}</div>'
-            f'<div class="valor">{_e(v)}</div></div>' for r, v in cartoes
+            f'<div class="valor">{_e(v)}</div></div>'
+            for r, v in cartoes
         )
         + "</div>",
         "<section class='resumo-executivo'><h2>Leitura executiva</h2><ul>"

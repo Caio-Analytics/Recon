@@ -18,7 +18,6 @@ def _acao(chave):
     return next(a for a in gui.ACOES if a.chave == chave)
 
 
-
 def test_sem_escolha_salva_ao_lado_do_arquivo_de_entrada(tmp_path):
     entrada = tmp_path / "dados"
     entrada.mkdir()
@@ -40,7 +39,6 @@ def test_caminho_colado_com_aspas_funciona(tmp_path):
 def test_sem_escolha_e_sem_arquivo_e_erro():
     with pytest.raises(ValueError):
         gui.resolver_pasta_saida("   ", [])
-
 
 
 def test_sem_arquivo_pede_para_procurar():
@@ -73,7 +71,6 @@ def test_selecao_valida_nao_impede(tmp_path):
     assert gui.validar_selecao(_acao("lote"), arquivos) is None
 
 
-
 def test_planilha_aberta_no_excel_vira_instrucao():
     mensagem = gui.mensagem_amigavel(PermissionError(13, "Permission denied"))
     assert "Excel" in mensagem and "Feche" in mensagem
@@ -82,7 +79,6 @@ def test_planilha_aberta_no_excel_vira_instrucao():
 def test_erro_desconhecido_preserva_o_detalhe():
     mensagem = gui.mensagem_amigavel(ValueError("coluna 'x' duplicada"))
     assert "coluna 'x' duplicada" in mensagem
-
 
 
 def test_pasta_lista_so_o_que_o_recon_le(tmp_path):
@@ -101,16 +97,17 @@ def test_resumo_da_selecao():
     assert gui.resumir_selecao(["/a.csv", "/b.csv"]) == "2 arquivos escolhidos"
 
 
-
 def _base_rh(tmp_path):
     empregados = _csv(
-        tmp_path, "empregados.csv",
+        tmp_path,
+        "empregados.csv",
         id_empregado=list(range(1, 61)),
         uf=["SP", "RJ", "MG"] * 20,
         salario=[3000 + i * 10 for i in range(60)],
     )
     treinamentos = _csv(
-        tmp_path, "treinamentos.csv",
+        tmp_path,
+        "treinamentos.csv",
         id_treinamento=list(range(1, 61)),
         id_empregado=[(i % 60) + 1 for i in range(60)],
         horas=[8, 16, 24] * 20,
@@ -133,9 +130,7 @@ def test_lote_gera_o_consolidado(tmp_path):
     empregados, treinamentos = _base_rh(tmp_path)
     saida = tmp_path / "out"
 
-    gerados, falhas = gui.executar_analise(
-        _acao("lote"), [empregados, treinamentos], saida
-    )
+    gerados, falhas = gui.executar_analise(_acao("lote"), [empregados, treinamentos], saida)
 
     assert not falhas
     assert (saida / "recon_consolidado.html").exists()
@@ -167,9 +162,7 @@ def test_lote_reporta_falha_sem_abortar_os_outros(tmp_path):
     quebrado.write_bytes(b"\x00\x01\x02")
     saida = tmp_path / "out"
 
-    gerados, falhas = gui.executar_analise(
-        _acao("lote"), [empregados, str(quebrado)], saida
-    )
+    gerados, falhas = gui.executar_analise(_acao("lote"), [empregados, str(quebrado)], saida)
 
     assert gerados
     assert any("quebrado" in caminho for caminho, _ in falhas)
@@ -179,9 +172,7 @@ def test_formatos_escolhidos_chegam_no_pipeline(tmp_path):
     arquivo = _csv(tmp_path, "base.csv", id=list(range(80)), uf=["SP", "RJ"] * 40)
     saida = tmp_path / "out"
 
-    gui.executar_analise(
-        _acao("individual"), [arquivo], saida, formatos=["json", "markdown"]
-    )
+    gui.executar_analise(_acao("individual"), [arquivo], saida, formatos=["json", "markdown"])
 
     assert (saida / "recon_base.json").exists()
     assert (saida / "recon_base.md").exists()
@@ -202,13 +193,10 @@ def test_script_de_limpeza_so_sai_quando_pedido(tmp_path):
     arquivo = _csv(tmp_path, "base.csv", id=list(range(80)), uf=["SP", "RJ"] * 40)
 
     gui.executar_analise(_acao("individual"), [arquivo], tmp_path / "sem")
-    gui.executar_analise(
-        _acao("individual"), [arquivo], tmp_path / "com", gerar_limpeza=True
-    )
+    gui.executar_analise(_acao("individual"), [arquivo], tmp_path / "com", gerar_limpeza=True)
 
     assert not list((tmp_path / "sem").glob("*_limpeza.py"))
     assert list((tmp_path / "com").glob("*_limpeza.py"))
-
 
 
 @pytest.fixture
@@ -220,7 +208,6 @@ def janela(monkeypatch):
         pytest.skip("sem ambiente gráfico")
     raiz.destroy()
 
-    
     for metodo in ("showinfo", "showwarning", "showerror"):
         monkeypatch.setattr(gui.messagebox, metodo, lambda *a, **k: "ok")
 
@@ -274,7 +261,7 @@ def test_botao_so_libera_depois_de_escolher_arquivo(janela, tmp_path):
 
 
 def test_secao_de_ajuda_nao_oferece_botao(janela):
-    janela.selecionar(len(gui.ACOES))  
+    janela.selecionar(len(gui.ACOES))
     janela.raiz.update()
 
     assert str(janela.botao["state"]) == "disabled"
@@ -315,7 +302,7 @@ def test_analise_roda_sem_congelar_a_janela(janela, tmp_path):
     assert devolveu_em < 1.0, "o clique bloqueou a interface"
     assert janela.rodando
     assert str(janela.botao["state"]) == "disabled"
-    janela.raiz.update()  
+    janela.raiz.update()
 
     _esperar_fim(janela)
 
@@ -365,13 +352,14 @@ def test_o_botao_continua_alcancavel_em_tela_baixa(janela, altura):
 
     topo_da_janela = janela.raiz.winfo_rooty()
     for nome, widget in (
-        ("botão", janela.botao), ("barra", janela.barra),
-        ("status", janela.status), ("mensagens", janela.log),
+        ("botão", janela.botao),
+        ("barra", janela.barra),
+        ("status", janela.status),
+        ("mensagens", janela.log),
     ):
         base = widget.winfo_rooty() - topo_da_janela + widget.winfo_height()
         assert widget.winfo_ismapped(), f"{nome} sumiu da janela em {altura}px"
         assert base <= altura, f"{nome} ficou {base - altura}px fora da janela em {altura}px"
-
 
 
 def test_comando_janela_existe():

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Any
@@ -23,17 +22,14 @@ def gerar_insights_textuais(payload: dict[str, Any]) -> list[str]:
     for coluna in colunas:
         por_semantica.setdefault(coluna.get("Semantica_IA", ""), []).append(coluna)
 
-    ids = [
-        coluna for coluna in colunas
-        if coluna.get("Semantica_IA") == config.SEMANTICA_CHAVE_ID
-    ]
+    ids = [coluna for coluna in colunas if coluna.get("Semantica_IA") == config.SEMANTICA_CHAVE_ID]
     chaves_primarias = [
-        coluna for coluna in ids
-        if "Chave Primária Potencial" in coluna.get("Caracteristica", "")
+        coluna for coluna in ids if "Chave Primária Potencial" in coluna.get("Caracteristica", "")
     ]
     valores = por_semantica.get("Valor Financeiro", [])
     atributos = [
-        coluna for coluna in colunas
+        coluna
+        for coluna in colunas
         if "Dimensão" in coluna.get("Caracteristica", "")
         or coluna.get("Semantica_IA") == config.SEMANTICA_CATEGORIA
     ]
@@ -41,10 +37,10 @@ def gerar_insights_textuais(payload: dict[str, Any]) -> list[str]:
     insights: list[str] = []
 
     series_temporais = payload.get("analise_temporal_series") or []
-    coluna_temporal = series_temporais[0]["coluna_temporal_referencia"] if series_temporais else None
-    medidas_temporais = {
-        serie["coluna"] for serie in series_temporais if serie.get("coluna")
-    }
+    coluna_temporal = (
+        series_temporais[0]["coluna_temporal_referencia"] if series_temporais else None
+    )
+    medidas_temporais = {serie["coluna"] for serie in series_temporais if serie.get("coluna")}
     valores_temporais = [coluna for coluna in valores if coluna.get("Coluna") in medidas_temporais]
 
     if "Comercial / CRM" in dominios and valores:
@@ -57,7 +53,9 @@ def gerar_insights_textuais(payload: dict[str, Any]) -> list[str]:
         insights.append(texto + ".")
     elif coluna_temporal and valores_temporais:
         nome_temporal = str(coluna_temporal).lower()
-        if any(token in nome_temporal for token in ("hire", "admission", "admissao", "contratacao")):
+        if any(
+            token in nome_temporal for token in ("hire", "admission", "admissao", "contratacao")
+        ):
             insights.append(
                 f"É possível comparar {_nomes(valores_temporais)} entre coortes de admissão "
                 f"usando `{coluna_temporal}`. Isso descreve associação entre coortes, não "

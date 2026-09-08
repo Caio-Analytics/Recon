@@ -18,8 +18,6 @@ _MAX_COLUNAS_TRINCA = 6
 _PAPEIS_DE_MEDIDA = frozenset({"Valor Financeiro", "Quantidade / Métrica"})
 
 
-
-
 def _codificar(df: pd.DataFrame, colunas: Sequence[str]) -> dict[str, np.ndarray]:
     codigos: dict[str, np.ndarray] = {}
     for coluna in colunas:
@@ -32,8 +30,7 @@ def _determina(codes_a: np.ndarray, codes_b: np.ndarray, n_a: int) -> bool:
     if n_a <= 0:
         return False
     primeiro = np.full(n_a, -1, dtype=np.int64)
-    
-    
+
     primeiro[codes_a[::-1]] = codes_b[::-1]
     return bool(np.all(primeiro[codes_a] == codes_b))
 
@@ -42,7 +39,8 @@ def detectar_dependencias_funcionais(
     df: pd.DataFrame, colunas_meta: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     candidatas = [
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if m.get("Qtd_Unicos", 999_999) < config.FD_MAX_CARDINALIDADE
         and m.get("Caracteristica", "") not in _CARACTERISTICAS_SEM_DADO
         and m["Coluna"] in df.columns
@@ -51,11 +49,11 @@ def detectar_dependencias_funcionais(
         return []
 
     determinantes_validos = {
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if m.get("Ratio_Unicidade", 1.0) < config.THRESHOLD_DETERMINANTE_MAX_UNICIDADE
     }
-    
-    
+
     dependentes_validos = {m["Coluna"] for m in colunas_meta if m.get("Qtd_Unicos", 0) > 1}
 
     codigos = _codificar(df, candidatas)
@@ -68,10 +66,7 @@ def detectar_dependencias_funcionais(
         for col_b in candidatas:
             if col_a == col_b or col_b not in dependentes_validos:
                 continue
-            
-            
-            
-            
+
             if cardinalidades[col_a] < cardinalidades[col_b]:
                 continue
             if _determina(codigos[col_a], codigos[col_b], cardinalidades[col_a]):
@@ -79,46 +74,55 @@ def detectar_dependencias_funcionais(
 
     dependencias: list[dict[str, Any]] = []
     ja_emitidos: set = set()
-    for (col_a, col_b) in achados:
+    for col_a, col_b in achados:
         if (col_a, col_b) in ja_emitidos:
             continue
         if achados.get((col_b, col_a)):
             ja_emitidos.update({(col_a, col_b), (col_b, col_a)})
-            dependencias.append({
-                "determinante": col_a,
-                "dependente": col_b,
-                "tipo": "Equivalência (Bijeção)",
-                "descricao": (
-                    f"'{col_a}' e '{col_b}' são equivalentes (1:1) — duas representações do "
-                    "mesmo atributo. Candidatas a virar uma tabela dimensão própria."
-                ),
-            })
+            dependencias.append(
+                {
+                    "determinante": col_a,
+                    "dependente": col_b,
+                    "tipo": "Equivalência (Bijeção)",
+                    "descricao": (
+                        f"'{col_a}' e '{col_b}' são equivalentes (1:1) — duas representações do "
+                        "mesmo atributo. Candidatas a virar uma tabela dimensão própria."
+                    ),
+                }
+            )
         else:
             ja_emitidos.add((col_a, col_b))
-            dependencias.append({
-                "determinante": col_a,
-                "dependente": col_b,
-                "tipo": "Dependência Funcional Direta",
-                "descricao": (
-                    f"'{col_a}' determina unicamente '{col_b}'. "
-                    "Candidata à desnormalização ou chave composta."
-                ),
-            })
+            dependencias.append(
+                {
+                    "determinante": col_a,
+                    "dependente": col_b,
+                    "tipo": "Dependência Funcional Direta",
+                    "descricao": (
+                        f"'{col_a}' determina unicamente '{col_b}'. "
+                        "Candidata à desnormalização ou chave composta."
+                    ),
+                }
+            )
     return dependencias
-
-
 
 
 def analisar_duplicatas(df: pd.DataFrame) -> dict[str, Any]:
     total = len(df)
     if total == 0:
-        return {"qtd_linhas_duplicadas": 0, "pct_linhas_duplicadas": 0.0, "qtd_grupos_duplicados": 0}
+        return {
+            "qtd_linhas_duplicadas": 0,
+            "pct_linhas_duplicadas": 0.0,
+            "qtd_grupos_duplicados": 0,
+        }
     try:
         marcadas = df.duplicated(keep="first")
     except TypeError:
-        
-        return {"qtd_linhas_duplicadas": 0, "pct_linhas_duplicadas": 0.0,
-                "qtd_grupos_duplicados": 0, "motivo": "Colunas com tipos não comparáveis"}
+        return {
+            "qtd_linhas_duplicadas": 0,
+            "pct_linhas_duplicadas": 0.0,
+            "qtd_grupos_duplicados": 0,
+            "motivo": "Colunas com tipos não comparáveis",
+        }
     qtd = int(marcadas.sum())
     grupos = int(df.duplicated(keep=False).sum() - qtd) if qtd else 0
     return {
@@ -126,8 +130,6 @@ def analisar_duplicatas(df: pd.DataFrame) -> dict[str, Any]:
         "pct_linhas_duplicadas": round(qtd / total, 4),
         "qtd_grupos_duplicados": grupos,
     }
-
-
 
 
 _MAX_VALORES_FUZZY = 20_000
@@ -158,7 +160,8 @@ def detectar_duplicatas_aproximadas(
     df: pd.DataFrame, colunas_meta: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     alvos = [
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if m.get("Papel") == config.SEMANTICA_NOME_PESSOA
         and m["Coluna"] in df.columns
         and 1 < m.get("Qtd_Unicos", 0) <= _MAX_VALORES_FUZZY
@@ -183,9 +186,6 @@ def detectar_duplicatas_aproximadas(
                 grupos.setdefault(chave, []).append(valor)
         colapsaveis = [g for g in grupos.values() if len(g) > 1]
 
-        
-        
-        
         vistos = {v for grupo in colapsaveis for v in grupo}
         blocos: dict[tuple[str, int], list[str]] = {}
         for valor in distintos:
@@ -202,7 +202,8 @@ def detectar_duplicatas_aproximadas(
             pares = process.cdist(bloco, bloco, scorer=fuzz.token_sort_ratio, workers=-1)
             for i in range(len(bloco)):
                 parecidos = [
-                    bloco[j] for j in range(i + 1, len(bloco))
+                    bloco[j]
+                    for j in range(i + 1, len(bloco))
                     if pares[i][j] >= _LIMIAR_SIMILARIDADE
                     and not _difere_so_em_digito(_canonico(bloco[i]), _canonico(bloco[j]))
                 ]
@@ -212,27 +213,24 @@ def detectar_duplicatas_aproximadas(
         if not colapsaveis:
             continue
         colapsaveis.sort(key=lambda g: -sum(int(contagem.get(v, 0)) for v in g))
-        linhas_afetadas = sum(
-            sum(int(contagem.get(v, 0)) for v in grupo) for grupo in colapsaveis
+        linhas_afetadas = sum(sum(int(contagem.get(v, 0)) for v in grupo) for grupo in colapsaveis)
+        achados.append(
+            {
+                "coluna": coluna,
+                "qtd_grupos": len(colapsaveis),
+                "linhas_afetadas": linhas_afetadas,
+                "exemplos": [
+                    {"variantes": grupo[:4], "linhas": sum(int(contagem.get(v, 0)) for v in grupo)}
+                    for grupo in colapsaveis[:_MAX_GRUPOS_REPORTADOS]
+                ],
+                "descricao": (
+                    f"{len(colapsaveis)} grupo(s) de valores diferentes em '{coluna}' apontam "
+                    f"para o mesmo registro ({linhas_afetadas:,} linhas). Comparação exata não "
+                    "acha esses casos: para o sistema são pessoas distintas."
+                ),
+            }
         )
-        achados.append({
-            "coluna": coluna,
-            "qtd_grupos": len(colapsaveis),
-            "linhas_afetadas": linhas_afetadas,
-            "exemplos": [
-                {"variantes": grupo[:4],
-                 "linhas": sum(int(contagem.get(v, 0)) for v in grupo)}
-                for grupo in colapsaveis[:_MAX_GRUPOS_REPORTADOS]
-            ],
-            "descricao": (
-                f"{len(colapsaveis)} grupo(s) de valores diferentes em '{coluna}' apontam "
-                f"para o mesmo registro ({linhas_afetadas:,} linhas). Comparação exata não "
-                "acha esses casos: para o sistema são pessoas distintas."
-            ),
-        })
     return achados
-
-
 
 
 def detectar_colunas_redundantes(df: pd.DataFrame) -> list[dict[str, Any]]:
@@ -255,13 +253,15 @@ def detectar_colunas_redundantes(df: pd.DataFrame) -> list[dict[str, Any]]:
         for outra in colunas[1:]:
             if df[principal].equals(df[outra]):
                 exatas.add(frozenset((principal, outra)))
-                redundantes.append({
-                    "coluna": principal,
-                    "coluna_redundante": outra,
-                    "tipo": "idêntica",
-                    "concordancia": 1.0,
-                    "descricao": f"'{outra}' é idêntica a '{principal}' — candidata a remoção.",
-                })
+                redundantes.append(
+                    {
+                        "coluna": principal,
+                        "coluna_redundante": outra,
+                        "tipo": "idêntica",
+                        "concordancia": 1.0,
+                        "descricao": f"'{outra}' é idêntica a '{principal}' — candidata a remoção.",
+                    }
+                )
 
     return redundantes + _detectar_redundancia_parcial(df, exatas)
 
@@ -269,18 +269,18 @@ def detectar_colunas_redundantes(df: pd.DataFrame) -> list[dict[str, Any]]:
 def _detectar_redundancia_parcial(
     df: pd.DataFrame, exatas: set[frozenset[str]]
 ) -> list[dict[str, Any]]:
-    candidatas = [
-        (str(c), int(df[c].nunique(dropna=True)), str(df[c].dtype))
-        for c in df.columns
-    ]
+    candidatas = [(str(c), int(df[c].nunique(dropna=True)), str(df[c].dtype)) for c in df.columns]
     candidatas = [c for c in candidatas if c[1] > 1]
 
     pares: list[tuple[str, str]] = []
     for i, (nome_a, unicos_a, dtype_a) in enumerate(candidatas):
-        for nome_b, unicos_b, dtype_b in candidatas[i + 1:]:
+        for nome_b, unicos_b, dtype_b in candidatas[i + 1 :]:
             if dtype_a != dtype_b or frozenset((nome_a, nome_b)) in exatas:
                 continue
-            if min(unicos_a, unicos_b) / max(unicos_a, unicos_b) < config.REDUNDANCIA_PARCIAL_MINIMA:
+            if (
+                min(unicos_a, unicos_b) / max(unicos_a, unicos_b)
+                < config.REDUNDANCIA_PARCIAL_MINIMA
+            ):
                 continue
             pares.append((nome_a, nome_b))
 
@@ -298,23 +298,23 @@ def _detectar_redundancia_parcial(
         if concordancia < config.REDUNDANCIA_PARCIAL_MINIMA:
             continue
         divergentes = n_comparaveis - iguais
-        achados.append({
-            "coluna": nome_a,
-            "coluna_redundante": nome_b,
-            "tipo": "quase idêntica",
-            "concordancia": round(concordancia, 4),
-            "linhas_comparadas": n_comparaveis,
-            "linhas_divergentes": divergentes,
-            "descricao": (
-                f"'{nome_b}' concorda com '{nome_a}' em {concordancia:.1%} das "
-                f"{n_comparaveis:,} linhas com ambos preenchidos — provável mesmo dado "
-                f"de origens diferentes. As {divergentes:,} linhas divergentes são o "
-                f"trabalho de reconciliação."
-            ),
-        })
+        achados.append(
+            {
+                "coluna": nome_a,
+                "coluna_redundante": nome_b,
+                "tipo": "quase idêntica",
+                "concordancia": round(concordancia, 4),
+                "linhas_comparadas": n_comparaveis,
+                "linhas_divergentes": divergentes,
+                "descricao": (
+                    f"'{nome_b}' concorda com '{nome_a}' em {concordancia:.1%} das "
+                    f"{n_comparaveis:,} linhas com ambos preenchidos — provável mesmo dado "
+                    f"de origens diferentes. As {divergentes:,} linhas divergentes são o "
+                    f"trabalho de reconciliação."
+                ),
+            }
+        )
     return sorted(achados, key=lambda a: -a["concordancia"])
-
-
 
 
 def detectar_chaves_compostas(
@@ -326,15 +326,15 @@ def detectar_chaves_compostas(
     if total < 2:
         return []
 
-    
-    
-    
     ordenadas = sorted(
-        (m for m in colunas_meta
-         if m["Coluna"] in df.columns
-         and m.get("Caracteristica", "") not in _CARACTERISTICAS_SEM_DADO
-         and m.get("Qtd_Unicos", 0) > 1
-         and m.get("Papel") not in _PAPEIS_DE_MEDIDA),
+        (
+            m
+            for m in colunas_meta
+            if m["Coluna"] in df.columns
+            and m.get("Caracteristica", "") not in _CARACTERISTICAS_SEM_DADO
+            and m.get("Qtd_Unicos", 0) > 1
+            and m.get("Papel") not in _PAPEIS_DE_MEDIDA
+        ),
         key=lambda m: (
             0 if m.get("Papel") == config.SEMANTICA_CHAVE_ID else 1,
             -m.get("Ratio_Unicidade", 0.0),
@@ -346,8 +346,7 @@ def detectar_chaves_compostas(
 
     def testar(combinacao: Sequence[dict[str, Any]]) -> bool:
         colunas = [m["Coluna"] for m in combinacao]
-        
-        
+
         produto = 1
         for meta in combinacao:
             produto *= max(int(meta.get("Qtd_Unicos", 0)), 1)
@@ -355,20 +354,22 @@ def detectar_chaves_compostas(
                 break
         if produto < total:
             return False
-        
+
         if any(anterior <= set(colunas) for anterior in usadas):
             return False
         if df.duplicated(subset=colunas).any():
             return False
         usadas.append(set(colunas))
         rotulo = " + ".join(f"'{c}'" for c in colunas)
-        achados.append({
-            "colunas": colunas,
-            "descricao": (
-                f"{rotulo} identificam unicamente cada linha — candidata a chave "
-                "primária composta."
-            ),
-        })
+        achados.append(
+            {
+                "colunas": colunas,
+                "descricao": (
+                    f"{rotulo} identificam unicamente cada linha — candidata a chave "
+                    "primária composta."
+                ),
+            }
+        )
         return True
 
     for par in combinations(ordenadas, 2):
@@ -376,17 +377,12 @@ def detectar_chaves_compostas(
         if len(achados) >= max_pares:
             return achados
 
-    
-    
-    
     if not achados:
         for trinca in combinations(ordenadas[:_MAX_COLUNAS_TRINCA], 3):
             testar(list(trinca))
             if len(achados) >= max_pares:
                 break
     return achados
-
-
 
 
 def _v_de_cramer(serie_a: pd.Series, serie_b: pd.Series) -> float | None:
@@ -419,18 +415,21 @@ def analisar_correlacoes(
 
     amostra = (
         df.sample(n=_CORRELACAO_MAX_LINHAS, random_state=42)
-        if len(df) > _CORRELACAO_MAX_LINHAS else df
+        if len(df) > _CORRELACAO_MAX_LINHAS
+        else df
     )
 
     numericas = [
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if "Número" in m.get("Tipo_Inferred", "")
         and m.get("Qtd_Unicos", 0) > 1
         and m["Coluna"] in df.columns
         and m.get("Dado_Sensivel_LGPD", "Nenhum") == "Nenhum"
     ]
     categoricas = [
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if 1 < m.get("Qtd_Unicos", 0) <= config.CORRELACAO_MAX_CARDINALIDADE_CAT
         and m["Coluna"] in df.columns
         and m["Coluna"] not in numericas
@@ -443,58 +442,65 @@ def analisar_correlacoes(
         pearson = bloco.corr(method="pearson")
         spearman = bloco.corr(method="spearman")
         for i, col_a in enumerate(numericas):
-            for col_b in numericas[i + 1:]:
+            for col_b in numericas[i + 1 :]:
                 r = pearson.loc[col_a, col_b]
                 rho = spearman.loc[col_a, col_b]
                 if pd.isna(r) or abs(float(r)) < config.CORRELACAO_MIN_ABS:
                     continue
-                resultados.append({
-                    "coluna_a": col_a, "coluna_b": col_b,
-                    "metrica": "Pearson / Spearman",
-                    "valor": round(float(r), 4),
-                    "valor_secundario": None if pd.isna(rho) else round(float(rho), 4),
-                    "forca": "forte" if abs(float(r)) >= 0.9 else "moderada",
-                })
+                resultados.append(
+                    {
+                        "coluna_a": col_a,
+                        "coluna_b": col_b,
+                        "metrica": "Pearson / Spearman",
+                        "valor": round(float(r), 4),
+                        "valor_secundario": None if pd.isna(rho) else round(float(rho), 4),
+                        "forca": "forte" if abs(float(r)) >= 0.9 else "moderada",
+                    }
+                )
 
     for i, col_a in enumerate(categoricas):
-        for col_b in categoricas[i + 1:]:
+        for col_b in categoricas[i + 1 :]:
             try:
                 v = _v_de_cramer(amostra[col_a], amostra[col_b])
             except Exception:
                 continue
             if v is None or v < config.CORRELACAO_MIN_ABS:
                 continue
-            resultados.append({
-                "coluna_a": col_a, "coluna_b": col_b,
-                "metrica": "V de Cramér",
-                "valor": round(v, 4),
-                "valor_secundario": None,
-                "forca": "forte" if v >= 0.9 else "moderada",
-            })
+            resultados.append(
+                {
+                    "coluna_a": col_a,
+                    "coluna_b": col_b,
+                    "metrica": "V de Cramér",
+                    "valor": round(v, 4),
+                    "valor_secundario": None,
+                    "forca": "forte" if v >= 0.9 else "moderada",
+                }
+            )
 
     for col_cat in categoricas:
         for col_num in numericas:
             try:
-                eta = _razao_correlacao(amostra[col_cat], pd.to_numeric(amostra[col_num], errors="coerce").dropna())
+                eta = _razao_correlacao(
+                    amostra[col_cat], pd.to_numeric(amostra[col_num], errors="coerce").dropna()
+                )
             except Exception:
                 continue
             if eta is None or eta < config.CORRELACAO_MIN_ABS:
                 continue
-            
-            
-            
-            resultados.append({
-                "coluna_a": col_cat, "coluna_b": col_num,
-                "metrica": "Razão de correlação (η²)",
-                "valor": round(eta ** 2, 4),
-                "valor_secundario": None,
-                "forca": "forte" if eta >= 0.9 else "moderada",
-            })
+
+            resultados.append(
+                {
+                    "coluna_a": col_cat,
+                    "coluna_b": col_num,
+                    "metrica": "Razão de correlação (η²)",
+                    "valor": round(eta**2, 4),
+                    "valor_secundario": None,
+                    "forca": "forte" if eta >= 0.9 else "moderada",
+                }
+            )
 
     resultados.sort(key=lambda r: -abs(r["valor"]))
     return resultados
-
-
 
 
 _FREQUENCIAS_AGREGACAO = (("D", "diária"), ("W", "semanal"), ("ME", "mensal"))
@@ -506,8 +512,7 @@ def _prioridade_referencia_temporal(meta: dict[str, Any]) -> int | None:
     tokens = set(nome.lower().replace("-", "_").split("_"))
     if tokens & {"birth", "birthday", "dob", "nascimento", "nasc", "idade", "age"}:
         return None
-    
-    
+
     if "hire" in tokens:
         return 0
     if tokens & {"admissao", "admission", "join", "joining", "contratacao", "inicio", "start"}:
@@ -521,12 +526,14 @@ def _escolher_coluna_referencia(
     df: pd.DataFrame, colunas_meta: list[dict[str, Any]]
 ) -> tuple[str, pd.Series] | None:
     candidatas = [
-        m for m in colunas_meta
+        m
+        for m in colunas_meta
         if m.get("Semantica_IA") == config.SEMANTICA_DATA_CALENDARIO
         or m.get("Papel") == config.SEMANTICA_DATA_CALENDARIO
     ]
     candidatas = [
-        m for m in candidatas
+        m
+        for m in candidatas
         if m.get("Tipo_Inferred") == config.TIPO_DATA_HORA
         or m.get("Alertas", {}).get("data_como_texto") is True
     ]
@@ -548,10 +555,6 @@ def _escolher_coluna_referencia(
     if pd.api.types.is_datetime64_any_dtype(serie):
         return col, serie
 
-    
-    
-    
-    
     convertida = pd.to_datetime(serie, errors="coerce", format="mixed")
     validas = convertida.notna().sum()
     if validas < len(serie) * 0.5:
@@ -572,7 +575,8 @@ def analisar_series_temporais(
     col_referencia, datas = referencia
 
     colunas_numericas = [
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if "Número" in m.get("Tipo_Inferred", "")
         and m["Coluna"] != col_referencia
         and m["Coluna"] in df.columns
@@ -594,9 +598,7 @@ def analisar_series_temporais(
 
     def operacao(coluna: str) -> str:
         meta = por_nome[coluna]
-        
-        
-        
+
         if meta.get("Papel") in _PAPEIS_DE_MEDIDA or meta.get("Semantica_IA") in _PAPEIS_DE_MEDIDA:
             return "soma"
         return "média"
@@ -605,11 +607,11 @@ def analisar_series_temporais(
         series: dict[str, pd.Series] = {}
         for coluna in colunas_numericas:
             origem = base[coluna].resample(codigo)
-            series[coluna] = origem.sum(min_count=1) if operacao(coluna) == "soma" else origem.mean()
+            series[coluna] = (
+                origem.sum(min_count=1) if operacao(coluna) == "soma" else origem.mean()
+            )
         return pd.DataFrame(series)
 
-    
-    
     frequencia = None
     agregado = None
     for codigo, rotulo in _FREQUENCIAS_AGREGACAO:
@@ -621,7 +623,7 @@ def analisar_series_temporais(
     if agregado is None:
         return []
     if len(agregado) > config.ANALISE_TEMPORAL_MAX_PONTOS:
-        agregado = agregado.iloc[-config.ANALISE_TEMPORAL_MAX_PONTOS:]
+        agregado = agregado.iloc[-config.ANALISE_TEMPORAL_MAX_PONTOS :]
 
     resultados: list[dict[str, Any]] = []
     for coluna in colunas_numericas:
@@ -630,18 +632,18 @@ def analisar_series_temporais(
         ljung_box = hypothesis.testar_autocorrelacao_ljungbox(serie)
         if not adf.get("aplicavel") and not ljung_box.get("aplicavel"):
             continue
-        resultados.append({
-            "coluna": coluna,
-            "coluna_temporal_referencia": col_referencia,
-            "agregacao": frequencia,
-            "operacao": operacao(coluna),
-            "n_pontos": int(len(serie)),
-            "adf": adf,
-            "ljung_box": ljung_box,
-        })
+        resultados.append(
+            {
+                "coluna": coluna,
+                "coluna_temporal_referencia": col_referencia,
+                "agregacao": frequencia,
+                "operacao": operacao(coluna),
+                "n_pontos": int(len(serie)),
+                "adf": adf,
+                "ljung_box": ljung_box,
+            }
+        )
     return resultados
-
-
 
 
 def detectar_hierarquias(
@@ -651,8 +653,7 @@ def detectar_hierarquias(
     for dep in dependencias:
         if dep["tipo"].startswith("Equivalência"):
             continue
-        
-        
+
         if dep["determinante"] in proximo:
             proximo[dep["determinante"]] = ""
         else:
@@ -663,7 +664,7 @@ def detectar_hierarquias(
     cadeias: list[list[str]] = []
     for inicio in validos:
         if inicio in destinos:
-            continue  
+            continue
         cadeia, atual, visitados = [inicio], inicio, {inicio}
         while atual in validos and validos[atual] not in visitados:
             atual = validos[atual]
@@ -676,14 +677,13 @@ def detectar_hierarquias(
         {
             "niveis": cadeia,
             "descricao": (
-                "Hierarquia detectada: " + " → ".join(f"`{c}`" for c in cadeia)
+                "Hierarquia detectada: "
+                + " → ".join(f"`{c}`" for c in cadeia)
                 + ". Serve de caminho de drill-down numa análise."
             ),
         }
         for cadeia in cadeias
     ]
-
-
 
 
 def explicar_medidas(
@@ -694,10 +694,12 @@ def explicar_medidas(
 
     amostra = (
         df.sample(n=_CORRELACAO_MAX_LINHAS, random_state=42)
-        if len(df) > _CORRELACAO_MAX_LINHAS else df
+        if len(df) > _CORRELACAO_MAX_LINHAS
+        else df
     )
     medidas = [
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if m.get("Papel") in ("Valor Financeiro", "Quantidade / Métrica")
         and "Número" in m.get("Tipo_Inferred", "")
         and "🔑" not in m.get("Caracteristica", "")
@@ -705,9 +707,11 @@ def explicar_medidas(
         and m["Coluna"] in df.columns
     ]
     atributos = [
-        m["Coluna"] for m in colunas_meta
+        m["Coluna"]
+        for m in colunas_meta
         if 1 < m.get("Qtd_Unicos", 0) <= config.CORRELACAO_MAX_CARDINALIDADE_CAT
-        and m["Coluna"] in df.columns and m["Coluna"] not in medidas
+        and m["Coluna"] in df.columns
+        and m["Coluna"] not in medidas
     ]
     if not medidas or not atributos:
         return []
@@ -726,23 +730,29 @@ def explicar_medidas(
                 continue
             if eta is None:
                 continue
-            explicacoes.append({"atributo": atributo, "eta_quadrado": round(eta ** 2, 4)})
+            explicacoes.append({"atributo": atributo, "eta_quadrado": round(eta**2, 4)})
         if not explicacoes:
             continue
         explicacoes.sort(key=lambda e: -e["eta_quadrado"])
         principal = explicacoes[0]
         if principal["eta_quadrado"] < 0.1:
             continue
-        resultados.append({
-            "medida": medida,
-            "explicacoes": explicacoes[:top_n],
-            "descricao": (
-                f"`{medida}` é explicada principalmente por `{principal['atributo']}` "
-                f"(η²={principal['eta_quadrado']:.2f}"
-                + (f", depois por `{explicacoes[1]['atributo']}` "
-                   f"(η²={explicacoes[1]['eta_quadrado']:.2f})" if len(explicacoes) > 1 else "")
-                + ")."
-            ),
-        })
+        resultados.append(
+            {
+                "medida": medida,
+                "explicacoes": explicacoes[:top_n],
+                "descricao": (
+                    f"`{medida}` é explicada principalmente por `{principal['atributo']}` "
+                    f"(η²={principal['eta_quadrado']:.2f}"
+                    + (
+                        f", depois por `{explicacoes[1]['atributo']}` "
+                        f"(η²={explicacoes[1]['eta_quadrado']:.2f})"
+                        if len(explicacoes) > 1
+                        else ""
+                    )
+                    + ")."
+                ),
+            }
+        )
     resultados.sort(key=lambda r: -r["explicacoes"][0]["eta_quadrado"])
     return resultados

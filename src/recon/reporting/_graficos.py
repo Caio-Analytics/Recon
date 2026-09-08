@@ -20,7 +20,7 @@ def _num_curto(valor: float) -> str:
 
 
 def _svg(conteudo: str, altura: int = _ALTURA, titulo: str = "") -> str:
-    rotulo = f'<title>{_e(titulo)}</title>' if titulo else ""
+    rotulo = f"<title>{_e(titulo)}</title>" if titulo else ""
     return (
         f'<svg class="grafico" viewBox="0 0 {_LARGURA} {altura}" role="img" '
         f'preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">{rotulo}{conteudo}</svg>'
@@ -43,15 +43,15 @@ def histograma(dados: dict[str, Any] | None) -> str:
         barras.append(
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{max(largura_barra - 1, 0.5):.1f}" '
             f'height="{altura:.1f}" fill="var(--acento)" opacity="0.75">'
-            f'<title>{_num_curto(faixa["de"])} a {_num_curto(faixa["ate"])}: '
-            f'{faixa["qtd"]:,} registros</title></rect>'
+            f"<title>{_num_curto(faixa['de'])} a {_num_curto(faixa['ate'])}: "
+            f"{faixa['qtd']:,} registros</title></rect>"
         )
 
     eixo = (
         f'<line x1="0" y1="{altura_util}" x2="{_LARGURA}" y2="{altura_util}" '
         f'stroke="var(--borda)" stroke-width="1"/>'
         f'<text x="0" y="{_ALTURA - 3}" font-size="10" fill="var(--texto-fraco)">'
-        f'{_e(_num_curto(dados["min"]))}</text>'
+        f"{_e(_num_curto(dados['min']))}</text>"
         f'<text x="{_LARGURA}" y="{_ALTURA - 3}" font-size="10" fill="var(--texto-fraco)" '
         f'text-anchor="end">{_e(_num_curto(dados["max"]))}</text>'
     )
@@ -77,10 +77,10 @@ def barras_categoricas(distribuicao: list[dict[str, Any]] | None) -> str:
             rotulo = rotulo[:19] + "…"
         linhas.append(
             f'<text x="0" y="{y + 14}" font-size="11" fill="var(--texto-fraco)">'
-            f'{_e(rotulo)}</text>'
+            f"{_e(rotulo)}</text>"
             f'<rect x="{largura_rotulo}" y="{y + 4}" width="{max(largura, 1):.1f}" height="12" '
             f'rx="2" fill="var(--acento)" opacity="0.75"><title>{_e(item["valor"])}: '
-            f'{item["frequencia_pct"]}</title></rect>'
+            f"{item['frequencia_pct']}</title></rect>"
             f'<text x="{largura_rotulo + largura + 6:.1f}" y="{y + 14}" font-size="10" '
             f'fill="var(--texto-fraco)">{_e(item["frequencia_pct"])}</text>'
         )
@@ -112,7 +112,7 @@ def linha_temporal(serie: list[dict[str, Any]] | None) -> str:
         f'<polyline points="{pontos}" fill="none" stroke="var(--acento)" stroke-width="1.5"/>'
         f"{marcadores}"
         f'<text x="0" y="{_ALTURA - 3}" font-size="10" fill="var(--texto-fraco)">'
-        f'{_e(serie[0]["mes"])}</text>'
+        f"{_e(serie[0]['mes'])}</text>"
         f'<text x="{_LARGURA}" y="{_ALTURA - 3}" font-size="10" fill="var(--texto-fraco)" '
         f'text-anchor="end">{_e(serie[-1]["mes"])}</text>',
         titulo="Registros por mês",

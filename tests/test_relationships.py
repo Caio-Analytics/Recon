@@ -7,23 +7,32 @@ import pytest
 from recon import config, relationships
 
 
-def _meta(coluna, qtd_unicos, ratio_unicidade,
-          caracteristica="🏷️ Categórica / Dimensão Curta", tipo="Texto"):
+def _meta(
+    coluna,
+    qtd_unicos,
+    ratio_unicidade,
+    caracteristica="🏷️ Categórica / Dimensão Curta",
+    tipo="Texto",
+):
     return {
-        "Coluna": coluna, "Qtd_Unicos": qtd_unicos, "Ratio_Unicidade": ratio_unicidade,
-        "Caracteristica": caracteristica, "Tipo_Inferred": tipo, "Pct_Nulos": 0.0,
+        "Coluna": coluna,
+        "Qtd_Unicos": qtd_unicos,
+        "Ratio_Unicidade": ratio_unicidade,
+        "Caracteristica": caracteristica,
+        "Tipo_Inferred": tipo,
+        "Pct_Nulos": 0.0,
         "Dado_Sensivel_LGPD": "Nenhum",
     }
 
 
-
-
 def test_fd_real_e_detectada():
-    df = pd.DataFrame({
-        "cod_depto": ["D1"] * 5 + ["D2"] * 5,
-        "nome_depto": ["Operações"] * 5 + ["TI"] * 5,
-        "cidade": ["SP", "RJ"] * 5,
-    })
+    df = pd.DataFrame(
+        {
+            "cod_depto": ["D1"] * 5 + ["D2"] * 5,
+            "nome_depto": ["Operações"] * 5 + ["TI"] * 5,
+            "cidade": ["SP", "RJ"] * 5,
+        }
+    )
     meta = [_meta("cod_depto", 2, 0.2), _meta("nome_depto", 2, 0.2), _meta("cidade", 2, 0.2)]
 
     fds = relationships.detectar_dependencias_funcionais(df, meta)
@@ -32,10 +41,12 @@ def test_fd_real_e_detectada():
 
 
 def test_bijecao_e_reportada_uma_unica_vez_como_equivalencia():
-    df = pd.DataFrame({
-        "cod_depto": ["D1"] * 40 + ["D2"] * 40,
-        "nome_depto": ["TI"] * 40 + ["RH"] * 40,
-    })
+    df = pd.DataFrame(
+        {
+            "cod_depto": ["D1"] * 40 + ["D2"] * 40,
+            "nome_depto": ["TI"] * 40 + ["RH"] * 40,
+        }
+    )
     meta = [_meta("cod_depto", 2, 0.025), _meta("nome_depto", 2, 0.025)]
 
     fds = relationships.detectar_dependencias_funcionais(df, meta)
@@ -45,10 +56,12 @@ def test_bijecao_e_reportada_uma_unica_vez_como_equivalencia():
 
 
 def test_coluna_quase_chave_nao_vira_determinante_trivial():
-    df = pd.DataFrame({
-        "id_quase_unico": [f"ID{i}" for i in range(100)],
-        "outra_coluna": ["X"] * 50 + ["Y"] * 50,
-    })
+    df = pd.DataFrame(
+        {
+            "id_quase_unico": [f"ID{i}" for i in range(100)],
+            "outra_coluna": ["X"] * 50 + ["Y"] * 50,
+        }
+    )
     meta = [_meta("id_quase_unico", 100, 1.0), _meta("outra_coluna", 2, 0.02)]
 
     fds = relationships.detectar_dependencias_funcionais(df, meta)
@@ -57,10 +70,12 @@ def test_coluna_quase_chave_nao_vira_determinante_trivial():
 
 
 def test_coluna_constante_nao_vira_dependente_trivial():
-    df = pd.DataFrame({
-        "cod_depto": ["D1"] * 5 + ["D2"] * 5,
-        "flag_sempre_true": [True] * 10,
-    })
+    df = pd.DataFrame(
+        {
+            "cod_depto": ["D1"] * 5 + ["D2"] * 5,
+            "flag_sempre_true": [True] * 10,
+        }
+    )
     meta = [_meta("cod_depto", 2, 0.2), _meta("flag_sempre_true", 1, 0.1)]
 
     fds = relationships.detectar_dependencias_funcionais(df, meta)
@@ -69,10 +84,12 @@ def test_coluna_constante_nao_vira_dependente_trivial():
 
 
 def test_fd_considera_nulos_no_agrupador():
-    df = pd.DataFrame({
-        "cod_depto": ["D1", "D1", None, None],
-        "nome_depto": ["Operações", "Operações", "TI", "RH"],
-    })
+    df = pd.DataFrame(
+        {
+            "cod_depto": ["D1", "D1", None, None],
+            "nome_depto": ["Operações", "Operações", "TI", "RH"],
+        }
+    )
     meta = [_meta("cod_depto", 2, 0.5), _meta("nome_depto", 3, 0.75)]
 
     fds = relationships.detectar_dependencias_funcionais(df, meta)
@@ -82,19 +99,19 @@ def test_fd_considera_nulos_no_agrupador():
 
 
 def test_poda_por_cardinalidade_nao_perde_fd_valida():
-    df = pd.DataFrame({
-        "cidade": (["SP"] * 20 + ["RJ"] * 20 + ["BH"] * 20 + ["POA"] * 20),
-        "uf": (["SP"] * 20 + ["RJ"] * 20 + ["MG"] * 20 + ["RS"] * 20),
-        "regiao": (["Sudeste"] * 60 + ["Sul"] * 20),
-    })
+    df = pd.DataFrame(
+        {
+            "cidade": (["SP"] * 20 + ["RJ"] * 20 + ["BH"] * 20 + ["POA"] * 20),
+            "uf": (["SP"] * 20 + ["RJ"] * 20 + ["MG"] * 20 + ["RS"] * 20),
+            "regiao": (["Sudeste"] * 60 + ["Sul"] * 20),
+        }
+    )
     meta = [_meta("cidade", 4, 0.05), _meta("uf", 4, 0.05), _meta("regiao", 2, 0.025)]
 
     fds = relationships.detectar_dependencias_funcionais(df, meta)
     pares = {(f["determinante"], f["dependente"]) for f in fds}
 
     assert ("uf", "regiao") in pares or ("cidade", "regiao") in pares
-
-
 
 
 def test_linhas_duplicadas_sao_contadas():
@@ -126,19 +143,20 @@ def test_colunas_diferentes_nao_sao_reportadas_como_redundantes():
     assert relationships.detectar_colunas_redundantes(df) == []
 
 
-
-
 def test_chave_composta_detectada_quando_nenhuma_coluna_e_unica():
-    df = pd.DataFrame({
-        "ano": [2023] * 12 + [2024] * 12,
-        "mes": list(range(1, 13)) * 2,
-        "valor": range(24),
-    })
+    df = pd.DataFrame(
+        {
+            "ano": [2023] * 12 + [2024] * 12,
+            "mes": list(range(1, 13)) * 2,
+            "valor": range(24),
+        }
+    )
     meta = [
-        _meta("ano", 2, 2 / 24), _meta("mes", 12, 12 / 24),
+        _meta("ano", 2, 2 / 24),
+        _meta("mes", 12, 12 / 24),
         _meta("valor", 24, 1.0, tipo="Número Inteiro"),
     ]
-    
+
     meta = [m for m in meta if m["Coluna"] != "valor"]
 
     chaves = relationships.detectar_chaves_compostas(df[["ano", "mes"]], meta)
@@ -151,8 +169,6 @@ def test_chave_composta_nao_e_sugerida_quando_ja_existe_pk():
     meta = [_meta("id", 50, 1.0, tipo="Número Inteiro"), _meta("grupo", 2, 0.04)]
 
     assert relationships.detectar_chaves_compostas(df, meta) == []
-
-
 
 
 def test_correlacao_numerica_forte_detectada():
@@ -169,10 +185,12 @@ def test_correlacao_numerica_forte_detectada():
 
 
 def test_correlacao_categorica_usa_v_de_cramer():
-    df = pd.DataFrame({
-        "uf": ["SP"] * 100 + ["RJ"] * 100,
-        "regional": ["Sudeste-1"] * 100 + ["Sudeste-2"] * 100,
-    })
+    df = pd.DataFrame(
+        {
+            "uf": ["SP"] * 100 + ["RJ"] * 100,
+            "regional": ["Sudeste-1"] * 100 + ["Sudeste-2"] * 100,
+        }
+    )
     meta = [_meta("uf", 2, 0.01), _meta("regional", 2, 0.01)]
 
     correlacoes = relationships.analisar_correlacoes(df, meta)
@@ -182,10 +200,12 @@ def test_correlacao_categorica_usa_v_de_cramer():
 
 def test_correlacao_categorica_numerica_usa_razao_de_correlacao():
     rng = np.random.default_rng(2)
-    df = pd.DataFrame({
-        "cargo": ["Junior"] * 100 + ["Senior"] * 100,
-        "salario": np.concatenate([rng.normal(3000, 50, 100), rng.normal(12000, 50, 100)]),
-    })
+    df = pd.DataFrame(
+        {
+            "cargo": ["Junior"] * 100 + ["Senior"] * 100,
+            "salario": np.concatenate([rng.normal(3000, 50, 100), rng.normal(12000, 50, 100)]),
+        }
+    )
     meta = [_meta("cargo", 2, 0.01), _meta("salario", 200, 1.0, tipo="Número Decimal")]
 
     correlacoes = relationships.analisar_correlacoes(df, meta)
@@ -193,13 +213,17 @@ def test_correlacao_categorica_numerica_usa_razao_de_correlacao():
     assert any(c["metrica"].startswith("Razão de correlação") for c in correlacoes)
 
 
-
-
 def _meta_temporal(coluna, tipo, semantica, caracteristica="📊 Métrica Contínua", unicos=100):
     return {
-        "Coluna": coluna, "Tipo_Inferred": tipo, "Semantica_IA": semantica,
-        "Papel": semantica, "Pct_Nulos": 0.0, "Caracteristica": caracteristica,
-        "Qtd_Unicos": unicos, "Ratio_Unicidade": 0.5, "Dado_Sensivel_LGPD": "Nenhum",
+        "Coluna": coluna,
+        "Tipo_Inferred": tipo,
+        "Semantica_IA": semantica,
+        "Papel": semantica,
+        "Pct_Nulos": 0.0,
+        "Caracteristica": caracteristica,
+        "Qtd_Unicos": unicos,
+        "Ratio_Unicidade": 0.5,
+        "Dado_Sensivel_LGPD": "Nenhum",
         "Alertas": {},
     }
 
@@ -215,13 +239,17 @@ def test_analise_temporal_agrega_por_periodo():
     inicio = date(2022, 1, 1)
     datas, valores = [], []
     for i in range(120):
-        for _ in range(5):  
+        for _ in range(5):
             datas.append(inicio + timedelta(days=i))
             valores.append(100 + i * 0.5)
     df = pd.DataFrame({"dt_evento": pd.to_datetime(datas), "valor": valores})
     meta = [
-        _meta_temporal("dt_evento", config.TIPO_DATA_HORA, config.SEMANTICA_DATA_CALENDARIO,
-                       "📅 Série Temporal"),
+        _meta_temporal(
+            "dt_evento",
+            config.TIPO_DATA_HORA,
+            config.SEMANTICA_DATA_CALENDARIO,
+            "📅 Série Temporal",
+        ),
         _meta_temporal("valor", "Número Decimal", "Valor Financeiro"),
     ]
 
@@ -229,8 +257,7 @@ def test_analise_temporal_agrega_por_periodo():
 
     assert len(resultado) == 1
     assert resultado[0]["agregacao"] == "diária"
-    
-    
+
     assert resultado[0]["n_pontos"] == 120
     assert resultado[0]["operacao"] == "soma"
 
@@ -238,16 +265,27 @@ def test_analise_temporal_agrega_por_periodo():
 def test_analise_temporal_ignora_colunas_de_chave():
     inicio = date(2022, 1, 1)
     n = 200
-    df = pd.DataFrame({
-        "dt_evento": pd.to_datetime([inicio + timedelta(days=i) for i in range(n)]),
-        "id_registro": range(n),
-        "valor": np.random.default_rng(3).normal(100, 5, n),
-    })
+    df = pd.DataFrame(
+        {
+            "dt_evento": pd.to_datetime([inicio + timedelta(days=i) for i in range(n)]),
+            "id_registro": range(n),
+            "valor": np.random.default_rng(3).normal(100, 5, n),
+        }
+    )
     meta = [
-        _meta_temporal("dt_evento", config.TIPO_DATA_HORA, config.SEMANTICA_DATA_CALENDARIO,
-                       "📅 Série Temporal"),
-        _meta_temporal("id_registro", "Número Inteiro", config.SEMANTICA_CHAVE_ID,
-                       "🔑 Chave Primária Potencial", unicos=n),
+        _meta_temporal(
+            "dt_evento",
+            config.TIPO_DATA_HORA,
+            config.SEMANTICA_DATA_CALENDARIO,
+            "📅 Série Temporal",
+        ),
+        _meta_temporal(
+            "id_registro",
+            "Número Inteiro",
+            config.SEMANTICA_CHAVE_ID,
+            "🔑 Chave Primária Potencial",
+            unicos=n,
+        ),
         _meta_temporal("valor", "Número Decimal", "Valor Financeiro"),
     ]
 
@@ -260,16 +298,28 @@ def test_analise_temporal_ignora_colunas_de_chave():
 def test_analise_temporal_nao_usa_nascimento_quando_ha_admissao():
     n = 200
     inicio = date(2020, 1, 1)
-    df = pd.DataFrame({
-        "date_of_birth": pd.to_datetime([date(1970, 1, 1) + timedelta(days=i) for i in range(n)]),
-        "hire_date": pd.to_datetime([inicio + timedelta(days=i) for i in range(n)]),
-        "salary": np.linspace(3_000, 7_000, n),
-    })
+    df = pd.DataFrame(
+        {
+            "date_of_birth": pd.to_datetime(
+                [date(1970, 1, 1) + timedelta(days=i) for i in range(n)]
+            ),
+            "hire_date": pd.to_datetime([inicio + timedelta(days=i) for i in range(n)]),
+            "salary": np.linspace(3_000, 7_000, n),
+        }
+    )
     meta = [
-        _meta_temporal("date_of_birth", config.TIPO_DATA_HORA, config.SEMANTICA_DATA_CALENDARIO,
-                       "📅 Série Temporal"),
-        _meta_temporal("hire_date", config.TIPO_DATA_HORA, config.SEMANTICA_DATA_CALENDARIO,
-                       "📅 Série Temporal"),
+        _meta_temporal(
+            "date_of_birth",
+            config.TIPO_DATA_HORA,
+            config.SEMANTICA_DATA_CALENDARIO,
+            "📅 Série Temporal",
+        ),
+        _meta_temporal(
+            "hire_date",
+            config.TIPO_DATA_HORA,
+            config.SEMANTICA_DATA_CALENDARIO,
+            "📅 Série Temporal",
+        ),
         _meta_temporal("salary", "Número Decimal", "Valor Financeiro"),
     ]
 
@@ -284,8 +334,12 @@ def test_analise_temporal_data_iso_como_texto_nao_emite_warning(recwarn):
     datas = [(date(2022, 1, 1) + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(n)]
     df = pd.DataFrame({"dt_evento": datas, "valor": np.arange(n, dtype=float)})
     meta = [
-        _meta_temporal("dt_evento", "Texto (⚠️ Parece Data)", config.SEMANTICA_DATA_CALENDARIO,
-                       "📅 Série Temporal"),
+        _meta_temporal(
+            "dt_evento",
+            "Texto (⚠️ Parece Data)",
+            config.SEMANTICA_DATA_CALENDARIO,
+            "📅 Série Temporal",
+        ),
         _meta_temporal("valor", "Número Decimal", "Quantidade / Métrica"),
     ]
     meta[0]["Alertas"] = {"data_como_texto": True}
@@ -301,8 +355,12 @@ def test_analise_temporal_data_brasileira_dd_mm_aaaa():
     datas = [(date(2022, 1, 1) + timedelta(days=i)).strftime("%d/%m/%Y") for i in range(n)]
     df = pd.DataFrame({"dt_evento": datas, "valor": np.arange(n, dtype=float)})
     meta = [
-        _meta_temporal("dt_evento", "Texto (⚠️ Parece Data)", config.SEMANTICA_DATA_CALENDARIO,
-                       "📅 Série Temporal"),
+        _meta_temporal(
+            "dt_evento",
+            "Texto (⚠️ Parece Data)",
+            config.SEMANTICA_DATA_CALENDARIO,
+            "📅 Série Temporal",
+        ),
         _meta_temporal("valor", "Número Decimal", "Quantidade / Métrica"),
     ]
     meta[0]["Alertas"] = {"data_como_texto": True}
@@ -316,7 +374,7 @@ def test_analise_temporal_data_brasileira_dd_mm_aaaa():
 def test_redundancia_parcial_encontra_mesmo_dado_de_duas_origens():
     base = [f"USR{i:05d}" for i in range(200)]
     divergente = list(base)
-    for i in range(0, 200, 25):          
+    for i in range(0, 200, 25):
         divergente[i] = f"OUTRO{i}"
     df = pd.DataFrame({"sistema_a": base, "sistema_b": divergente})
 
@@ -328,8 +386,7 @@ def test_redundancia_parcial_encontra_mesmo_dado_de_duas_origens():
 
 
 def test_colunas_sem_relacao_nao_viram_redundancia_parcial():
-    df = pd.DataFrame({"a": [f"x{i}" for i in range(100)],
-                       "b": [f"y{i}" for i in range(100)]})
+    df = pd.DataFrame({"a": [f"x{i}" for i in range(100)], "b": [f"y{i}" for i in range(100)]})
     assert relationships.detectar_colunas_redundantes(df) == []
 
 

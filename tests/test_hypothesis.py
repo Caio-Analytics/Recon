@@ -12,7 +12,6 @@ from recon.hypothesis import (
 )
 
 
-
 def test_shapiro_amostra_insuficiente_retorna_nao_aplicavel():
     assert testar_normalidade_shapiro(pd.Series([1.0, 2.0, 3.0]))["aplicavel"] is False
 
@@ -40,8 +39,6 @@ def test_shapiro_reporta_tamanho_do_desvio_alem_do_p_valor():
 
     assimetrica = testar_normalidade_shapiro(pd.Series(rng.lognormal(0, 1, 3000)))
     assert assimetrica["desvio_relevante"] is True
-
-
 
 
 def test_distribuicao_provavel_amostra_insuficiente():
@@ -75,8 +72,7 @@ def test_distribuicao_cauda_pesada_nao_e_classificada_como_normal():
     shapiro = testar_normalidade_shapiro(dados)
 
     assert shapiro["normal_provavel"] is False
-    
-    
+
     assert resultado["ks_distancia"] > 0.05
 
 
@@ -86,8 +82,6 @@ def test_distribuicao_reporta_ranking_e_empate_tecnico():
     assert len(resultado["ranking"]) >= 2
     assert resultado["ranking"][0]["aic"] <= resultado["ranking"][1]["aic"]
     assert isinstance(resultado["escolha_conclusiva"], bool)
-
-
 
 
 def test_chi2_categorias_demais_retorna_nao_aplicavel():
@@ -110,14 +104,10 @@ def test_chi2_reporta_v_de_cramer_como_tamanho_de_efeito():
     assert resultado["v_cramer"] > 0.9
 
 
-
-
 def test_ic_media_amostra_minima():
     resultado = calcular_intervalo_confianca_media(pd.Series([10.0, 20.0]))
     assert resultado["aplicavel"] is True
     assert resultado["limite_inferior"] <= resultado["media"] <= resultado["limite_superior"]
-
-
 
 
 def test_outliers_iqr_classico_em_serie_simetrica():
@@ -147,8 +137,6 @@ def test_outliers_detecta_anomalia_real_mesmo_com_ajuste():
     serie = pd.Series(np.concatenate([rng.lognormal(8, 0.4, 2000), [1e9, 1.2e9]]))
     resultado = calcular_outliers(serie)
     assert resultado["qtd_outliers_superiores"] >= 2
-
-
 
 
 def test_adf_amostra_insuficiente():

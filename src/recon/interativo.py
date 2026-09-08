@@ -16,8 +16,7 @@ _MAX_LISTADOS = 12
 
 def _achar_arquivos(pasta: Path) -> list[Path]:
     return sorted(
-        p for p in pasta.iterdir()
-        if p.is_file() and str(p).lower().endswith(tuple(_EXTENSOES))
+        p for p in pasta.iterdir() if p.is_file() and str(p).lower().endswith(tuple(_EXTENSOES))
     )
 
 
@@ -35,10 +34,16 @@ def _tabela_de_arquivos(arquivos: list[Path]) -> Table:
 
 def _perguntar_pasta() -> Path:
     while True:
-        resposta = typer.prompt(
-            "\nOnde estão os arquivos? (Enter = pasta atual)",
-            default=".", show_default=False,
-        ).strip().strip('"').strip("'")
+        resposta = (
+            typer.prompt(
+                "\nOnde estão os arquivos? (Enter = pasta atual)",
+                default=".",
+                show_default=False,
+            )
+            .strip()
+            .strip('"')
+            .strip("'")
+        )
         pasta = Path(resposta).expanduser()
         if pasta.is_file():
             return pasta
@@ -46,8 +51,7 @@ def _perguntar_pasta() -> Path:
             if _achar_arquivos(pasta):
                 return pasta
             console.print(
-                f"[yellow]Não achei CSV nem Excel em '{pasta}'. "
-                "Tente outro caminho.[/yellow]"
+                f"[yellow]Não achei CSV nem Excel em '{pasta}'. Tente outro caminho.[/yellow]"
             )
         else:
             console.print(f"[red]'{resposta}' não existe.[/red]")
@@ -71,11 +75,13 @@ def _perguntar_acao(quantidade: int) -> str:
 
 
 def executar() -> None:
-    console.print(Panel.fit(
-        f"[bold]Recon[/bold] [dim]{__version__}[/dim]\n"
-        "Descubra o que tem nos seus arquivos antes de começar a analisar.",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]Recon[/bold] [dim]{__version__}[/dim]\n"
+            "Descubra o que tem nos seus arquivos antes de começar a analisar.",
+            border_style="cyan",
+        )
+    )
 
     alvo = _perguntar_pasta()
     if alvo.is_file():
@@ -91,21 +97,23 @@ def executar() -> None:
     acao = _perguntar_acao(len(arquivos))
 
     padrao_saida = str(pasta_base / "relatorios")
-    saida = typer.prompt(
-        f"\nOnde salvar os relatórios? (Enter = {padrao_saida})",
-        default=padrao_saida, show_default=False,
-    ).strip().strip('"').strip("'")
+    saida = (
+        typer.prompt(
+            f"\nOnde salvar os relatórios? (Enter = {padrao_saida})",
+            default=padrao_saida,
+            show_default=False,
+        )
+        .strip()
+        .strip('"')
+        .strip("'")
+    )
     pasta_saida = Path(saida).expanduser()
     pasta_saida.mkdir(parents=True, exist_ok=True)
 
     limpeza = False
     if acao == "individual":
-        limpeza = typer.confirm(
-            "Gerar também um script de limpeza em Python?", default=False
-        )
+        limpeza = typer.confirm("Gerar também um script de limpeza em Python?", default=False)
 
-    
-    
     from .cli import setup_logging
     from .pipeline import DataProfiler
 
@@ -121,9 +129,7 @@ def executar() -> None:
             profiler.modelar_conjunto(caminhos, saida_base=saida_base)
         elif acao == "individual":
             for caminho in caminhos:
-                profiler.processar_arquivo(
-                    caminho, saida_base=saida_base, gerar_limpeza=limpeza
-                )
+                profiler.processar_arquivo(caminho, saida_base=saida_base, gerar_limpeza=limpeza)
         else:
             _, falhas = profiler.processar_lote(caminhos, saida_base=saida_base)
             for caminho, erro in falhas:
@@ -133,10 +139,12 @@ def executar() -> None:
         raise typer.Exit(code=1) from None
 
     gerados = sorted(pasta_saida.glob("*.html"))
-    console.print(Panel.fit(
-        "[bold green]Pronto.[/bold green]\n\n"
-        f"Relatórios em: [cyan]{pasta_saida.resolve()}[/cyan]\n"
-        + (f"Abra este: [bold]{gerados[0].name}[/bold]" if gerados else "")
-        + "\n\n[dim]Clique duas vezes no arquivo .html — abre no navegador.[/dim]",
-        border_style="green",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold green]Pronto.[/bold green]\n\n"
+            f"Relatórios em: [cyan]{pasta_saida.resolve()}[/cyan]\n"
+            + (f"Abra este: [bold]{gerados[0].name}[/bold]" if gerados else "")
+            + "\n\n[dim]Clique duas vezes no arquivo .html — abre no navegador.[/dim]",
+            border_style="green",
+        )
+    )

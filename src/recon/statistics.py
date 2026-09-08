@@ -9,9 +9,6 @@ import pandas as pd
 from . import config, hypothesis, patterns
 from .semantics import tokenizar
 
-
-
-
 _MAX_CARDINALIDADE_ANALISE_VALOR = 5_000
 
 _RE_DATA_QUALQUER = re.compile("|".join(config.PADROES_DATA))
@@ -28,18 +25,18 @@ def calcular_distribuicao_top(
     resultado = []
     for valor, qtd in contagens.head(top_n).items():
         freq = float(qtd) / n_validos
-        resultado.append({
-            "valor": mascarar_fn(str(valor)) if mascarar_fn else str(valor),
-            "frequencia_relativa": round(freq, 4),
-            "frequencia_pct": f"{freq:.1%}",
-        })
+        resultado.append(
+            {
+                "valor": mascarar_fn(str(valor)) if mascarar_fn else str(valor),
+                "frequencia_relativa": round(freq, 4),
+                "frequencia_pct": f"{freq:.1%}",
+            }
+        )
     return resultado
 
 
 def _casas_decimais_fixas(numericos: pd.Series) -> int | None:
-    amostra = (
-        numericos.sample(n=1_000, random_state=42) if len(numericos) > 1_000 else numericos
-    )
+    amostra = numericos.sample(n=1_000, random_state=42) if len(numericos) > 1_000 else numericos
     valores = amostra.to_numpy()
     for casas in range(4):
         if np.allclose(valores, np.round(valores, casas), rtol=0, atol=1e-9):
@@ -73,8 +70,6 @@ def detectar_mistura_tipos(amostra_str: list[str]) -> dict[str, Any]:
     }
 
 
-
-
 def sugerir_dtype(
     serie: pd.Series, tipo_amigavel: str, n_unicos: int, n_validos: int
 ) -> dict[str, Any]:
@@ -86,11 +81,7 @@ def sugerir_dtype(
         numericos = pd.to_numeric(serie.dropna(), errors="coerce").dropna()
         if not numericos.empty:
             minimo, maximo = float(numericos.min()), float(numericos.max())
-            
-            
-            
-            
-            
+
             tem_nulo = bool(serie.isna().any())
             for nome_tipo in ("int8", "int16", "int32"):
                 info = np.iinfo(nome_tipo)
@@ -101,8 +92,6 @@ def sugerir_dtype(
         if dtype_atual == "float64":
             sugerido = "float32"
     elif tipo_amigavel.startswith("Texto"):
-        
-        
         if n_validos > 0 and n_unicos > 0 and (n_unicos / n_validos) <= 0.5:
             sugerido = "category"
 
@@ -143,15 +132,16 @@ def calcular_histograma(numericos: pd.Series, n_faixas: int = 18) -> dict[str, A
     contagens, bordas = np.histogram(valores, bins=n_faixas)
     return {
         "faixas": [
-            {"de": round(float(bordas[i]), 4), "ate": round(float(bordas[i + 1]), 4),
-             "qtd": int(contagens[i])}
+            {
+                "de": round(float(bordas[i]), 4),
+                "ate": round(float(bordas[i + 1]), 4),
+                "qtd": int(contagens[i]),
+            }
             for i in range(len(contagens))
         ],
         "min": round(minimo, 4),
         "max": round(maximo, 4),
     }
-
-
 
 
 def perfilar_datas(serie: pd.Series) -> dict[str, Any]:
@@ -165,9 +155,6 @@ def perfilar_datas(serie: pd.Series) -> dict[str, Any]:
     primeiro_dia_mes = int((serie.dt.day == 1).sum())
     n = len(serie)
 
-    
-    
-    
     serie_passado = serie[serie <= agora]
     meses = serie_passado.dt.to_period("M")
     meses_presentes = int(meses.nunique())
@@ -181,8 +168,6 @@ def perfilar_datas(serie: pd.Series) -> dict[str, Any]:
             todos = pd.period_range(periodo_min, periodo_max, freq="M").astype(str)
             meses_faltantes = [m for m in todos if m not in presentes]
 
-    
-    
     contagem_mensal = serie_passado.dt.to_period("M").value_counts().sort_index()
     serie_mensal = [
         {"mes": str(periodo), "qtd": int(qtd)}
@@ -205,8 +190,6 @@ def perfilar_datas(serie: pd.Series) -> dict[str, Any]:
     }
 
 
-
-
 _CARACTERISTICA_METRICA = "📊 Métrica Contínua"
 _CARACTERISTICA_TEXTO_LONGO = "📋 Dimensão Longa (Texto Livre)"
 
@@ -227,29 +210,14 @@ def _classificar_caracteristica(
     if top_freq >= config.THRESHOLD_QUASI_CONSTANTE:
         return f"⚠️ Quasi-Constante ({top_freq:.1%} em um único valor)"
 
-    
-    
-    
     elegivel_chave = tipo_amigavel in config.TIPOS_ELEGIVEIS_CHAVE
     if elegivel_chave and total_linhas > 1:
-        
-        
-        
-        
         if n_unicos == n_validos:
             if n_ausentes:
                 pct_ausentes = n_ausentes / total_linhas if total_linhas else 0.0
-                return (
-                    "🔑 Chave Primária Potencial "
-                    f"({pct_ausentes:.1%} ausentes desconsiderados)"
-                )
+                return f"🔑 Chave Primária Potencial ({pct_ausentes:.1%} ausentes desconsiderados)"
             return "🔑 Chave Primária Potencial"
         if ratio_unicidade >= config.THRESHOLD_QUASE_CHAVE:
-            
-            
-            
-            
-            
             return f"🔑 Quase-Chave ({ratio_unicidade:.1%} únicos)"
 
     if config.TIPO_DATA_HORA in tipo_amigavel or "Parece Data" in tipo_amigavel:
@@ -273,8 +241,6 @@ def ajustar_caracteristica_com_semantica(caracteristica: str, papel: str | None)
     return caracteristica
 
 
-
-
 def analisar_estatisticas(
     serie: pd.Series, total_linhas: int, avaliar_benford: bool = False
 ) -> dict[str, Any]:
@@ -286,12 +252,7 @@ def analisar_estatisticas(
     n_unicos = int(serie_limpa.nunique())
     tipo_bruto_lower = str(serie_limpa.dtype).lower()
 
-    
-    
-    
-    contagens: pd.Series = (
-        serie_limpa.value_counts() if n_validos > 0 else pd.Series(dtype="int64")
-    )
+    contagens: pd.Series = serie_limpa.value_counts() if n_validos > 0 else pd.Series(dtype="int64")
 
     n_amostrar = min(config.AMOSTRA_ANALISE, n_validos)
     amostra_serie = (
@@ -309,13 +270,9 @@ def analisar_estatisticas(
     monotonica_crescente = False
     casas_decimais: int | None = None
 
-    
     if "float" in tipo_bruto_lower or "int" in tipo_bruto_lower:
         numericos = serie_limpa.replace([np.inf, -np.inf], np.nan).dropna()
         if pd.api.types.is_extension_array_dtype(numericos):
-            
-            
-            
             numericos = numericos.astype("float64")
 
         if n_validos == 0:
@@ -345,7 +302,8 @@ def analisar_estatisticas(
             sensivel = patterns.eh_sensivel(flag_padrao_estruturado)
             mascarar_fn_num = (
                 (lambda v: patterns.mascarar_valor_sensivel(v, flag_padrao_estruturado))
-                if sensivel else None
+                if sensivel
+                else None
             )
             estatisticas_extra = {
                 "qtd_negativos": int((numericos < 0).sum()),
@@ -357,11 +315,6 @@ def analisar_estatisticas(
             }
 
             if sensivel:
-                
-                
-                
-                
-                
                 stats_suprimidas = True
                 estatisticas_extra["estatisticas_suprimidas"] = {
                     "motivo": (
@@ -372,23 +325,29 @@ def analisar_estatisticas(
             else:
                 std_val = float(numericos.std())
                 media_val = float(numericos.mean())
-                estatisticas_extra.update({
-                    "min": round(float(numericos.min()), 6),
-                    "max": round(float(numericos.max()), 6),
-                    "media": round(media_val, 6),
-                    "mediana": round(float(numericos.median()), 6),
-                    "desvio_padrao": hypothesis.valor_ou_none(std_val),
-                    "coef_variacao": hypothesis.valor_ou_none(std_val / media_val) if media_val != 0 else None,
-                    "assimetria": hypothesis.valor_ou_none(numericos.skew()),
-                    "curtose": hypothesis.valor_ou_none(numericos.kurt()),
-                    "outliers_iqr": hypothesis.calcular_outliers(numericos),
-                })
+                estatisticas_extra.update(
+                    {
+                        "min": round(float(numericos.min()), 6),
+                        "max": round(float(numericos.max()), 6),
+                        "media": round(media_val, 6),
+                        "mediana": round(float(numericos.median()), 6),
+                        "desvio_padrao": hypothesis.valor_ou_none(std_val),
+                        "coef_variacao": hypothesis.valor_ou_none(std_val / media_val)
+                        if media_val != 0
+                        else None,
+                        "assimetria": hypothesis.valor_ou_none(numericos.skew()),
+                        "curtose": hypothesis.valor_ou_none(numericos.kurt()),
+                        "outliers_iqr": hypothesis.calcular_outliers(numericos),
+                    }
+                )
                 histograma = calcular_histograma(numericos)
                 if histograma:
                     estatisticas_extra["histograma"] = histograma
                 estatisticas_extra["testes_hipotese"] = {
                     "shapiro_wilk": hypothesis.testar_normalidade_shapiro(numericos),
-                    "intervalo_confianca_media_95": hypothesis.calcular_intervalo_confianca_media(numericos),
+                    "intervalo_confianca_media_95": hypothesis.calcular_intervalo_confianca_media(
+                        numericos
+                    ),
                     "distribuicao_provavel": hypothesis.detectar_distribuicao_provavel(numericos),
                 }
                 if avaliar_benford:
@@ -396,17 +355,19 @@ def analisar_estatisticas(
                     if benford:
                         estatisticas_extra["benford"] = benford
 
-                qualidade["sentinelas"] = patterns.detectar_sentinelas_numericas(numericos, n_validos)
+                qualidade["sentinelas"] = patterns.detectar_sentinelas_numericas(
+                    numericos, n_validos
+                )
 
-    
     elif "datetime" in tipo_bruto_lower:
         tipo_amigavel = config.TIPO_DATA_HORA
         if n_validos > 0:
             estatisticas_extra = perfilar_datas(serie_limpa)
-            estatisticas_extra["distribuicao_top5"] = calcular_distribuicao_top(contagens, n_validos, 5)
+            estatisticas_extra["distribuicao_top5"] = calcular_distribuicao_top(
+                contagens, n_validos, 5
+            )
             qualidade["sentinelas"] = patterns.detectar_sentinelas_data(serie_limpa, n_validos)
 
-    
     elif "bool" in tipo_bruto_lower:
         tipo_amigavel = "Booleano"
         if n_validos > 0:
@@ -417,7 +378,6 @@ def analisar_estatisticas(
                 "pct_true": round(qtd_true / n_validos, 4),
             }
 
-    
     else:
         tipo_amigavel = config.TIPO_VAZIO if n_validos == 0 else "Texto"
         if amostra_str:
@@ -436,7 +396,8 @@ def analisar_estatisticas(
             sensivel = patterns.eh_sensivel(flag_padrao_estruturado)
             mascarar_fn = (
                 (lambda v: patterns.mascarar_valor_sensivel(v, flag_padrao_estruturado))
-                if sensivel else None
+                if sensivel
+                else None
             )
             lens = serie_limpa.astype(str).str.len()
             estatisticas_extra = {
@@ -463,16 +424,10 @@ def analisar_estatisticas(
                 qualidade["inconsistencia_normalizacao"] = (
                     patterns.detectar_inconsistencia_normalizacao(contagens)
                 )
-            
-            
-            
+
             if not sensivel and not flag_data_como_texto:
                 qualidade["formato"] = patterns.inferir_formato(amostra_str)
 
-    
-    
-    
-    
     sentinela_qtd = int(qualidade.get("sentinelas", {}).get("qtd_total", 0))
     nulos_efetivos = nulos_qtd + sentinela_qtd
     qualidade["nulos_efetivos_qtd"] = nulos_efetivos
@@ -480,21 +435,20 @@ def analisar_estatisticas(
         round(nulos_efetivos / total_linhas * 100, 4) if total_linhas > 0 else 0.0
     )
 
-    
-    
-    
-    
     qtd_valores_sentinela = len(qualidade.get("sentinelas", {}).get("valores", []))
     n_validos_chave = max(0, n_validos - sentinela_qtd)
     n_unicos_chave = max(0, n_unicos - qtd_valores_sentinela)
     ratio_unicidade = n_unicos / total_linhas if total_linhas > 0 else 0.0
-    ratio_unicidade_preenchidos = (
-        n_unicos_chave / n_validos_chave if n_validos_chave > 0 else 0.0
-    )
+    ratio_unicidade_preenchidos = n_unicos_chave / n_validos_chave if n_validos_chave > 0 else 0.0
     top_freq = float(contagens.iloc[0]) / n_validos if (n_validos > 0 and n_unicos > 1) else 0.0
     caracteristica = _classificar_caracteristica(
-        n_validos_chave, n_unicos_chave, total_linhas, ratio_unicidade_preenchidos,
-        top_freq, tipo_amigavel, nulos_efetivos,
+        n_validos_chave,
+        n_unicos_chave,
+        total_linhas,
+        ratio_unicidade_preenchidos,
+        top_freq,
+        tipo_amigavel,
+        nulos_efetivos,
     )
 
     valores_amostra: list[str] = []
@@ -505,11 +459,13 @@ def analisar_estatisticas(
             valores_amostra = (
                 serie_limpa.drop_duplicates()
                 .sample(min(10, n_unicos), random_state=42)
-                .astype(str).tolist()
+                .astype(str)
+                .tolist()
             )
         if patterns.eh_sensivel(flag_padrao_estruturado):
             valores_amostra = [
-                patterns.mascarar_valor_sensivel(v, flag_padrao_estruturado) for v in valores_amostra
+                patterns.mascarar_valor_sensivel(v, flag_padrao_estruturado)
+                for v in valores_amostra
             ]
         elif qualidade.get("pii_texto_livre", {}).get("tem_pii"):
             valores_amostra = [patterns.redigir_pii_em_texto(v) for v in valores_amostra]

@@ -1,4 +1,3 @@
-
 import pandas as pd
 
 from recon.contrato import conferir_contrato, gerar_contrato
@@ -31,7 +30,9 @@ def test_contrato_pode_aceitar_categoria_nova():
     atual = DataProfiler().processar_dataframe(pd.DataFrame({"status": ["A", "C"]}), "nova")
     resultado = conferir_contrato(atual, contrato)
 
-    assert not any(violacao["tipo"] == "Valor fora do domínio" for violacao in resultado["violacoes"])
+    assert not any(
+        violacao["tipo"] == "Valor fora do domínio" for violacao in resultado["violacoes"]
+    )
 
 
 def test_contrato_de_amostra_nao_congela_unicidade_dominio_ou_faixa():

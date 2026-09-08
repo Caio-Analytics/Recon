@@ -10,7 +10,6 @@ from recon.statistics import analisar_estatisticas, detectar_mistura_tipos, suge
 from .conftest import gerar_cnpjs, gerar_cpfs
 
 
-
 def test_coluna_numerica_com_menos_de_3_validos_nao_gera_nan():
     resultado = analisar_estatisticas(pd.Series([5.0, 7.0], name="score"), total_linhas=2)
 
@@ -33,7 +32,7 @@ def test_coluna_quase_vazia_nao_e_marcada_como_100_pct_vazia():
 
     resultado = analisar_estatisticas(serie, total_linhas=n)
 
-    assert resultado["nulos_pct"] == 100.0  
+    assert resultado["nulos_pct"] == 100.0
     assert resultado["caracteristica"] != "⚠️ Coluna 100% Vazia"
     assert resultado["valores_unicos"] == 1
 
@@ -109,8 +108,6 @@ def test_numero_brasileiro_com_milhar_nao_vira_mistura_de_tipos():
     assert resultado["tem_mistura"] is False
 
 
-
-
 def test_cpf_detectado_mesmo_em_coluna_de_chave_sistema():
     resultado = analisar_estatisticas(pd.Series(gerar_cpfs(1) * 20, name="id_cpf"), 20)
     assert resultado["flags"]["detected_pattern"] == "CPF"
@@ -176,8 +173,10 @@ def test_valores_lgpd_sensiveis_sao_mascarados_na_amostra_e_no_top5():
 
 def test_pii_em_texto_livre_e_redigida_na_amostra():
     cpf = gerar_cpfs(1)[0]
-    serie = pd.Series([f"Reclamação do cliente CPF {cpf}"] * 5 + [f"Obs {i}" for i in range(25)],
-                      name="observacao")
+    serie = pd.Series(
+        [f"Reclamação do cliente CPF {cpf}"] * 5 + [f"Obs {i}" for i in range(25)],
+        name="observacao",
+    )
 
     resultado = analisar_estatisticas(serie, 30)
 
@@ -185,11 +184,10 @@ def test_pii_em_texto_livre_e_redigida_na_amostra():
     assert all(cpf not in v for v in resultado["amostra_representativa"])
 
 
-
-
 def test_sentinelas_textuais_entram_em_nulos_efetivos():
-    serie = pd.Series(["SP"] * 300 + ["N/A"] * 80 + ["-"] * 40 + ["#N/D"] * 30 + ["RJ"] * 50,
-                      name="uf")
+    serie = pd.Series(
+        ["SP"] * 300 + ["N/A"] * 80 + ["-"] * 40 + ["#N/D"] * 30 + ["RJ"] * 50, name="uf"
+    )
 
     resultado = analisar_estatisticas(serie, 500)
 
@@ -199,8 +197,9 @@ def test_sentinelas_textuais_entram_em_nulos_efetivos():
 
 
 def test_inconsistencia_de_grafia_e_sinalizada():
-    serie = pd.Series(["SP"] * 200 + ["sp"] * 60 + [" SP"] * 40 + ["S.P."] * 20 + ["RJ"] * 80,
-                      name="uf")
+    serie = pd.Series(
+        ["SP"] * 200 + ["sp"] * 60 + [" SP"] * 40 + ["S.P."] * 20 + ["RJ"] * 80, name="uf"
+    )
 
     inconsistencia = analisar_estatisticas(serie, 400)["qualidade"]["inconsistencia_normalizacao"]
 
@@ -213,8 +212,6 @@ def test_sentinelas_numericas_detectadas():
     assert analisar_estatisticas(serie, 460)["qualidade"]["sentinelas"]["tem_sentinela"] is True
 
 
-
-
 def test_perfil_de_datas_detecta_futuro_e_lacuna_de_calendario():
     datas = (
         pd.date_range("2023-01-01", "2023-03-31", freq="D").tolist()
@@ -225,7 +222,7 @@ def test_perfil_de_datas_detecta_futuro_e_lacuna_de_calendario():
 
     extras = resultado["estatisticas_adicionais"]
     assert extras["qtd_datas_futuras"] == 3
-    assert extras["qtd_meses_sem_registro"] >= 3  
+    assert extras["qtd_meses_sem_registro"] >= 3
     assert "2023-04" in extras["meses_sem_registro"]
 
 
@@ -233,8 +230,6 @@ def test_sentinela_de_data_detectada():
     datas = pd.to_datetime(["1900-01-01"] * 30 + ["2023-05-01"] * 170)
     resultado = analisar_estatisticas(pd.Series(datas, name="dt_admissao"), 200)
     assert resultado["qualidade"]["sentinelas"]["tem_sentinela"] is True
-
-
 
 
 def test_sugere_downcast_de_inteiro():
@@ -253,8 +248,6 @@ def test_sugere_category_para_texto_de_baixa_cardinalidade():
 def test_nao_sugere_category_para_texto_de_alta_cardinalidade():
     serie = pd.Series([f"valor_unico_{i}" for i in range(1000)])
     assert sugerir_dtype(serie, "Texto", 1000, 1000)["dtype_sugerido"] is None
-
-
 
 
 def test_analisar_estatisticas_inclui_testes_hipotese_para_numerica():

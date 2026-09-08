@@ -6,12 +6,11 @@ from recon import patterns
 from .conftest import gerar_cnpjs, gerar_cpfs
 
 
-
 def test_validar_cpf_aceita_valido_e_rejeita_invalido():
     assert patterns.validar_cpf("111.444.777-35") is True
     assert patterns.validar_cpf("11144477735") is True
     assert patterns.validar_cpf("123.456.789-00") is False
-    assert patterns.validar_cpf("111.111.111-11") is False  
+    assert patterns.validar_cpf("111.111.111-11") is False
     assert patterns.validar_cpf("123") is False
 
 
@@ -48,11 +47,11 @@ def test_texto_com_formato_de_cpf_mas_dv_invalido_nao_e_cpf():
     assert patterns.detectar_padrao_texto(falsos) != "CPF"
 
 
-
-
 def test_mascarar_email_preserva_dominio_multinivel():
     assert patterns.mascarar_valor_sensivel("ana@empresa.com.br", "E-mail") == "a***@empresa.com.br"
-    assert patterns.mascarar_valor_sensivel("ana@mail.corp.co.uk", "E-mail") == "a***@mail.corp.co.uk"
+    assert (
+        patterns.mascarar_valor_sensivel("ana@mail.corp.co.uk", "E-mail") == "a***@mail.corp.co.uk"
+    )
     assert patterns.mascarar_valor_sensivel("ana@empresa.com", "E-mail") == "a***@empresa.com"
 
 
@@ -68,8 +67,6 @@ def test_mascarar_uuid_mantem_apenas_o_primeiro_bloco():
     mascarado = patterns.mascarar_valor_sensivel(uuid, "UUID")
     assert mascarado.startswith("550e8400-")
     assert "e29b" not in mascarado
-
-
 
 
 def test_sentinelas_texto_detectadas():
@@ -91,7 +88,6 @@ def test_sentinelas_numericas_so_valem_quando_sao_extremo():
     com_sentinela = pd.Series([100.0] * 400 + [-1.0] * 60)
     assert patterns.detectar_sentinelas_numericas(com_sentinela, 460)["tem_sentinela"] is True
 
-    
     legitimo = pd.Series([-5.0] * 50 + [-1.0] * 60 + [100.0] * 400)
     assert patterns.detectar_sentinelas_numericas(legitimo, 510)["tem_sentinela"] is False
 
@@ -101,8 +97,6 @@ def test_sentinelas_de_data_detectadas():
     resultado = patterns.detectar_sentinelas_data(serie, len(serie))
     assert resultado["tem_sentinela"] is True
     assert resultado["valores"][0]["valor"] == "1900-01-01"
-
-
 
 
 def test_inconsistencia_de_grafia_detectada():
@@ -117,7 +111,10 @@ def test_inconsistencia_de_grafia_detectada():
 
 def test_valores_realmente_distintos_nao_disparam_inconsistencia():
     serie = pd.Series(["SP"] * 100 + ["RJ"] * 100 + ["MG"] * 100)
-    assert patterns.detectar_inconsistencia_normalizacao(serie.value_counts())["tem_inconsistencia"] is False
+    assert (
+        patterns.detectar_inconsistencia_normalizacao(serie.value_counts())["tem_inconsistencia"]
+        is False
+    )
 
 
 def test_inconsistencia_pega_acentuacao_divergente():
@@ -138,12 +135,18 @@ def test_mesmo_numero_com_grafia_diferente_ainda_colapsa():
     assert resultado["tem_inconsistencia"] is True
 
 
-
-
-@pytest.mark.parametrize("valor", [
-    "155024,500000", "4,0000000000000001E-2", "1.234,56", "1.234.567,89",
-    "145", "-3,5", "0,0",
-])
+@pytest.mark.parametrize(
+    "valor",
+    [
+        "155024,500000",
+        "4,0000000000000001E-2",
+        "1.234,56",
+        "1.234.567,89",
+        "145",
+        "-3,5",
+        "0,0",
+    ],
+)
 def test_eh_numerico_br_aceita_formato_brasileiro(valor):
     assert patterns.eh_numerico_br(valor) is True
 
@@ -151,8 +154,6 @@ def test_eh_numerico_br_aceita_formato_brasileiro(valor):
 @pytest.mark.parametrize("valor", ["texto", "", "nan", "-", "abc123"])
 def test_eh_numerico_br_rejeita_nao_numero(valor):
     assert patterns.eh_numerico_br(valor) is False
-
-
 
 
 def test_mojibake_detectado():
@@ -164,8 +165,6 @@ def test_mojibake_detectado():
 
 def test_texto_acentuado_correto_nao_e_mojibake():
     assert patterns.detectar_mojibake(["Observação", "Operações", "José"])["tem_mojibake"] is False
-
-
 
 
 def test_pii_dentro_de_texto_livre_detectada():
@@ -189,10 +188,9 @@ def test_texto_sem_pii_nao_dispara():
     assert patterns.detectar_pii_em_texto_livre(["reclamação genérica", "ok"])["tem_pii"] is False
 
 
-
-
 def test_benford_aderente_para_distribuicao_lognormal():
     import numpy as np
+
     rng = np.random.default_rng(7)
     serie = pd.Series(rng.lognormal(5, 2, 5000))
     resultado = patterns.distribuicao_benford(serie)
@@ -209,8 +207,6 @@ def test_benford_nao_aderente_para_valores_de_faixa_estreita():
 
 def test_benford_exige_amostra_minima():
     assert patterns.distribuicao_benford(pd.Series([1.0, 2.0, 3.0])) is None
-
-
 
 
 def test_documento_com_formato_certo_e_dv_errado_e_sinalizado():

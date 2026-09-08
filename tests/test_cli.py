@@ -35,8 +35,13 @@ def test_historico_compara_extracoes_e_gera_relatorios(tmp_path, monkeypatch):
     resultado = runner.invoke(
         app,
         [
-            "historico", str(primeiro), str(segundo), "--saida-base", "evolucao",
-            "--formatos", "json,markdown,html",
+            "historico",
+            str(primeiro),
+            str(segundo),
+            "--saida-base",
+            "evolucao",
+            "--formatos",
+            "json,markdown,html",
         ],
     )
 
@@ -82,9 +87,7 @@ def test_perfilar_com_formatos_customizados(tmp_path, monkeypatch):
 
 def test_formato_invalido_e_rejeitado(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    resultado = runner.invoke(
-        app, ["perfilar", str(_csv(tmp_path)), "--formatos", "xml"]
-    )
+    resultado = runner.invoke(app, ["perfilar", str(_csv(tmp_path)), "--formatos", "xml"])
     assert resultado.exit_code != 0
 
 
@@ -108,8 +111,9 @@ def test_json_compacto_reduz_o_arquivo(tmp_path, monkeypatch):
     runner.invoke(app, ["perfilar", str(caminho), "--saida-base", "normal"])
     runner.invoke(app, ["perfilar", str(caminho), "--saida-base", "compacto", "--json-compacto"])
 
-    assert (tmp_path / "compacto_dados.json").stat().st_size < \
-           (tmp_path / "normal_dados.json").stat().st_size
+    assert (tmp_path / "compacto_dados.json").stat().st_size < (
+        tmp_path / "normal_dados.json"
+    ).stat().st_size
 
 
 def test_kpis_customizados_via_yaml(tmp_path, monkeypatch):
@@ -156,8 +160,16 @@ def test_lote_processa_varios_arquivos_mesmo_com_um_falhando(tmp_path, monkeypat
     pd.DataFrame({"a": range(10)}).to_csv(tmp_path / "bom.csv", index=False)
     (tmp_path / "vazio.csv").write_text("", encoding="utf-8")
 
-    runner.invoke(app, ["lote", str(tmp_path / "bom.csv"), str(tmp_path / "vazio.csv"),
-                        "--saida-base", "lote_saida"])
+    runner.invoke(
+        app,
+        [
+            "lote",
+            str(tmp_path / "bom.csv"),
+            str(tmp_path / "vazio.csv"),
+            "--saida-base",
+            "lote_saida",
+        ],
+    )
 
     assert (tmp_path / "lote_saida_bom.json").exists()
 
@@ -167,8 +179,16 @@ def test_lote_continua_apos_falha_mesmo_com_arquivo_ruim_primeiro(tmp_path, monk
     (tmp_path / "vazio.csv").write_text("", encoding="utf-8")
     pd.DataFrame({"a": range(10)}).to_csv(tmp_path / "bom.csv", index=False)
 
-    runner.invoke(app, ["lote", str(tmp_path / "vazio.csv"), str(tmp_path / "bom.csv"),
-                        "--saida-base", "lote_saida2"])
+    runner.invoke(
+        app,
+        [
+            "lote",
+            str(tmp_path / "vazio.csv"),
+            str(tmp_path / "bom.csv"),
+            "--saida-base",
+            "lote_saida2",
+        ],
+    )
 
     assert (tmp_path / "lote_saida2_bom.json").exists()
     assert not (tmp_path / "lote_saida2_vazio.json").exists()
@@ -187,13 +207,17 @@ def test_lote_continua_apos_falha_de_encoding(tmp_path, monkeypatch):
     assert not (tmp_path / "lote3_binario.json").exists()
 
 
-
 def _conjunto(tmp_path):
-    dim = pd.DataFrame({"cod_dep": [f"D{i:02d}" for i in range(20)],
-                        "nome_dep": [f"Depto {i}" for i in range(20)]})
-    fato = pd.DataFrame({"id_registro": range(200),
-                         "cod_dep": [f"D{i % 20:02d}" for i in range(200)],
-                         "vl_gasto": range(200)})
+    dim = pd.DataFrame(
+        {"cod_dep": [f"D{i:02d}" for i in range(20)], "nome_dep": [f"Depto {i}" for i in range(20)]}
+    )
+    fato = pd.DataFrame(
+        {
+            "id_registro": range(200),
+            "cod_dep": [f"D{i % 20:02d}" for i in range(200)],
+            "vl_gasto": range(200),
+        }
+    )
     dim.to_csv(tmp_path / "dim.csv", index=False)
     fato.to_csv(tmp_path / "fato.csv", index=False)
     return str(tmp_path / "dim.csv"), str(tmp_path / "fato.csv")
@@ -255,7 +279,9 @@ def test_python_dash_m_recon_funciona_sem_o_script_no_path():
 
     saida = subprocess.run(
         [sys.executable, "-m", "recon", "versao"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     assert saida.returncode == 0
     assert "Recon" in saida.stdout

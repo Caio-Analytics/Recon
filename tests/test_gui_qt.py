@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import os
@@ -110,8 +109,16 @@ def test_trabalho_repassa_resultado_e_logs(monkeypatch: pytest.MonkeyPatch, tmp_
     progresso: list[str] = []
     resultados: list[tuple[list[str], list]] = []
     trabalho = Trabalho(
-        _acao("individual"), ["entrada.csv"], tmp_path, ["html"], "Detalhado", None,
-        None, None, None, None,
+        _acao("individual"),
+        ["entrada.csv"],
+        tmp_path,
+        ["html"],
+        "Detalhado",
+        None,
+        None,
+        None,
+        None,
+        None,
     )
     monkeypatch.setattr(application, "executar_analise", lambda *args, **kwargs: ([saida], []))
     trabalho.progresso.connect(progresso.append)
@@ -126,8 +133,16 @@ def test_trabalho_repassa_resultado_e_logs(monkeypatch: pytest.MonkeyPatch, tmp_
 def test_trabalho_repassa_excecao(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     falhas: list[str] = []
     trabalho = Trabalho(
-        _acao("individual"), ["entrada.csv"], tmp_path, ["html"], "Normal", None,
-        None, None, None, None,
+        _acao("individual"),
+        ["entrada.csv"],
+        tmp_path,
+        ["html"],
+        "Normal",
+        None,
+        None,
+        None,
+        None,
+        None,
     )
 
     def interromper(*args: object, **kwargs: object) -> tuple[list[Path], list[tuple[str, str]]]:
@@ -164,4 +179,6 @@ def test_conclusao_e_erro_restauram_a_janela(
     janela.nivel.setCurrentText("Normal")
     janela.falhou("detalhe técnico")
 
-    assert mensagens == [("Erro na análise", "A análise falhou. Mude Diagnóstico para Técnico para ver detalhes.")]
+    assert mensagens == [
+        ("Erro na análise", "A análise falhou. Mude Diagnóstico para Técnico para ver detalhes.")
+    ]

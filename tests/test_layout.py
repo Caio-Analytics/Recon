@@ -18,14 +18,18 @@ def _planilha_com_preambulo(caminho, com_total=True, n=200):
     ws.append(["Matricula", "Colaborador", "Departamento", "Horas"])
     rng = np.random.default_rng(1)
     for i in range(n):
-        ws.append([50000 + i, f"Colaborador {i}",
-                   str(rng.choice(["TI", "RH", "Operacoes"])), int(rng.integers(4, 41))])
+        ws.append(
+            [
+                50000 + i,
+                f"Colaborador {i}",
+                str(rng.choice(["TI", "RH", "Operacoes"])),
+                int(rng.integers(4, 41)),
+            ]
+        )
     if com_total:
         ws.append(["TOTAL", "", "", 4400])
     wb.save(caminho)
     return caminho
-
-
 
 
 def test_detecta_cabecalho_fora_da_primeira_linha(tmp_path):
@@ -40,8 +44,9 @@ def test_detecta_cabecalho_fora_da_primeira_linha(tmp_path):
 
 def test_cabecalho_na_primeira_linha_nao_e_alterado(tmp_path):
     caminho = tmp_path / "limpo.xlsx"
-    pd.DataFrame({"id": range(50), "nome": [f"N{i}" for i in range(50)],
-                  "valor": range(50)}).to_excel(caminho, index=False)
+    pd.DataFrame(
+        {"id": range(50), "nome": [f"N{i}" for i in range(50)], "valor": range(50)}
+    ).to_excel(caminho, index=False)
 
     df, _ = ingestion.carregar_arquivo(str(caminho))
 
@@ -84,8 +89,6 @@ def test_tabela_sem_dados_abaixo_nao_vira_cabecalho():
     assert indice == 0
 
 
-
-
 def test_detecta_total_por_rotulo(tmp_path):
     caminho = _planilha_com_preambulo(tmp_path / "rel.xlsx")
 
@@ -96,8 +99,7 @@ def test_detecta_total_por_rotulo(tmp_path):
 
 
 def test_detecta_total_por_soma_sem_rotulo():
-    corpo = pd.DataFrame({"item": [f"I{i}" for i in range(10)],
-                          "valor": [10.0] * 10})
+    corpo = pd.DataFrame({"item": [f"I{i}" for i in range(10)], "valor": [10.0] * 10})
     com_total = pd.concat(
         [corpo, pd.DataFrame({"item": [None], "valor": [100.0]})], ignore_index=True
     )
@@ -107,8 +109,7 @@ def test_detecta_total_por_soma_sem_rotulo():
 
 
 def test_ultima_linha_normal_nao_e_confundida_com_total():
-    df = pd.DataFrame({"item": [f"I{i}" for i in range(20)],
-                       "valor": list(range(1, 21))})
+    df = pd.DataFrame({"item": [f"I{i}" for i in range(20)], "valor": list(range(1, 21))})
     assert layout.detectar_linha_de_total(df)[0] == 0
 
 
@@ -120,20 +121,19 @@ def test_total_removido_restaura_o_tipo_numerico(tmp_path):
     assert pd.api.types.is_numeric_dtype(df["Matricula"])
 
 
-
-
-@pytest.mark.parametrize("valores,vira_numero", [
-    (["1", "2", "3"], True),
-    (["1.5", "2.5"], True),
-    (["00123", "00456"], False),          
-    (["a", "1"], False),
-    (["111.444.777-35", "111.444.777-35"], False),
-])
+@pytest.mark.parametrize(
+    "valores,vira_numero",
+    [
+        (["1", "2", "3"], True),
+        (["1.5", "2.5"], True),
+        (["00123", "00456"], False),
+        (["a", "1"], False),
+        (["111.444.777-35", "111.444.777-35"], False),
+    ],
+)
 def test_reinferencia_preserva_codigos(valores, vira_numero):
     resultado = layout.reinferir_numericas(pd.DataFrame({"c": valores}))
     assert pd.api.types.is_numeric_dtype(resultado["c"]) is vira_numero
-
-
 
 
 def test_detecta_celula_mesclada():
@@ -161,8 +161,6 @@ def test_coluna_sem_nulos_nao_e_mesclagem():
     assert layout.detectar_celulas_mescladas(df) == []
 
 
-
-
 def test_detecta_duas_tabelas_na_mesma_aba():
     bloco = pd.DataFrame({"a": range(10), "b": range(10)})
     vazia = pd.DataFrame({"a": [None], "b": [None]})
@@ -179,8 +177,6 @@ def test_tabela_contigua_nao_dispara_aviso_de_blocos():
     assert layout.detectar_blocos_multiplos(df) == []
 
 
-
-
 def test_remove_colunas_sem_nome_e_sem_valor():
     df = pd.DataFrame({"a": range(5), "Unnamed: 3": [None] * 5, "b": range(5)})
     limpo, removidas = layout.remover_colunas_vazias(df)
@@ -195,15 +191,11 @@ def test_coluna_vazia_com_nome_de_verdade_e_preservada():
     assert "observacao" in limpo.columns
 
 
-
-
 def test_avisos_de_layout_chegam_ao_payload_e_ao_relatorio(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     caminho = _planilha_com_preambulo(tmp_path / "rel.xlsx")
 
-    payloads = DataProfiler().processar_arquivo(
-        str(caminho), saida_base="s", formatos=["markdown"]
-    )
+    payloads = DataProfiler().processar_arquivo(str(caminho), saida_base="s", formatos=["markdown"])
 
     layout_info = payloads[0]["metadados_execucao"]["layout"]
     assert layout_info["linha_cabecalho"] == 4
@@ -229,19 +221,19 @@ def test_planilha_bem_formada_nao_ganha_secao_de_layout(tmp_path, monkeypatch):
 def test_script_de_limpeza_nao_desfaz_a_conversao_de_data(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     caminho = tmp_path / "datas.csv"
-    pd.DataFrame({
-        "dt_evento": [f"2023-0{(i % 9) + 1}-15" for i in range(120)],
-        "valor": range(120),
-    }).to_csv(caminho, index=False)
+    pd.DataFrame(
+        {
+            "dt_evento": [f"2023-0{(i % 9) + 1}-15" for i in range(120)],
+            "valor": range(120),
+        }
+    ).to_csv(caminho, index=False)
 
     DataProfiler().processar_arquivo(
         str(caminho), saida_base="s", formatos=["json"], gerar_limpeza=True
     )
 
     script = (tmp_path / "s_datas_limpeza.py").read_text(encoding="utf-8")
-    
-    
-    
+
     assert "parse_dates" in script or "to_datetime" in script
     escopo: dict = {}
     exec(compile(script, "limpeza.py", "exec"), escopo)  # noqa: S102

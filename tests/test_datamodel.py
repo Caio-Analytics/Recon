@@ -8,7 +8,9 @@ from recon.pipeline import DataProfiler
 
 def _tabela(nome: str, df: pd.DataFrame, origem: str = "") -> datamodel.TabelaCarregada:
     payload = DataProfiler().processar_dataframe(df, nome)
-    return datamodel.TabelaCarregada(nome=nome, df=df, payload=payload, origem=origem or f"{nome}.csv")
+    return datamodel.TabelaCarregada(
+        nome=nome, df=df, payload=payload, origem=origem or f"{nome}.csv"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -16,36 +18,40 @@ def conjunto_rh():
     rng = np.random.default_rng(7)
     n_emp, n_tre = 300, 1500
 
-    empregados = pd.DataFrame({
-        "matricula": range(50000, 50000 + n_emp),
-        "nome_colaborador": [f"Colaborador {i}" for i in range(n_emp)],
-        "cd_dpto": rng.choice(["D01", "D02", "D03"], n_emp),
-        "diretoria": None,
-        "cargo": rng.choice(["Analista", "Gerente"], n_emp),
-    })
+    empregados = pd.DataFrame(
+        {
+            "matricula": range(50000, 50000 + n_emp),
+            "nome_colaborador": [f"Colaborador {i}" for i in range(n_emp)],
+            "cd_dpto": rng.choice(["D01", "D02", "D03"], n_emp),
+            "diretoria": None,
+            "cargo": rng.choice(["Analista", "Gerente"], n_emp),
+        }
+    )
     empregados["diretoria"] = empregados["cd_dpto"].map(
         {"D01": "Operacoes", "D02": "Tecnologia", "D03": "RH"}
     )
-    cursos = pd.DataFrame({
-        "cod_curso": [f"C{i:03d}" for i in range(1, 21)],
-        "nome_curso": [f"Curso {i}" for i in range(1, 21)],
-        "carga_horaria": rng.integers(2, 41, 20),
-    })
-    treinamentos = pd.DataFrame({
-        "id_realizacao": range(1, n_tre + 1),
-        "matricula": rng.choice(empregados["matricula"], n_tre),
-        "cod_curso": rng.choice(cursos["cod_curso"], n_tre),
-        "dt_realizacao": pd.to_datetime("2023-01-01")
-        + pd.to_timedelta(rng.integers(0, 500, n_tre), unit="D"),
-        "nota_avaliacao": np.round(rng.uniform(5, 10, n_tre), 1),
-    })
+    cursos = pd.DataFrame(
+        {
+            "cod_curso": [f"C{i:03d}" for i in range(1, 21)],
+            "nome_curso": [f"Curso {i}" for i in range(1, 21)],
+            "carga_horaria": rng.integers(2, 41, 20),
+        }
+    )
+    treinamentos = pd.DataFrame(
+        {
+            "id_realizacao": range(1, n_tre + 1),
+            "matricula": rng.choice(empregados["matricula"], n_tre),
+            "cod_curso": rng.choice(cursos["cod_curso"], n_tre),
+            "dt_realizacao": pd.to_datetime("2023-01-01")
+            + pd.to_timedelta(rng.integers(0, 500, n_tre), unit="D"),
+            "nota_avaliacao": np.round(rng.uniform(5, 10, n_tre), 1),
+        }
+    )
     return [
         _tabela("empregados", empregados),
         _tabela("treinamentos", treinamentos),
         _tabela("cursos", cursos),
     ]
-
-
 
 
 def test_detecta_as_chaves_estrangeiras_reais(conjunto_rh):
@@ -64,10 +70,13 @@ def test_medida_nao_e_confundida_com_chave_estrangeira(conjunto_rh):
 
 
 def test_chave_como_texto_em_um_arquivo_e_numero_no_outro():
-    a = pd.DataFrame({"id_item": [f"{i}" for i in range(100, 140)],
-                      "descricao": [f"Item {i}" for i in range(40)]})
-    b = pd.DataFrame({"cod_item": list(range(100, 140)) * 3,
-                      "qtd_vendida": list(range(120))})
+    a = pd.DataFrame(
+        {
+            "id_item": [f"{i}" for i in range(100, 140)],
+            "descricao": [f"Item {i}" for i in range(40)],
+        }
+    )
+    b = pd.DataFrame({"cod_item": list(range(100, 140)) * 3, "qtd_vendida": list(range(120))})
 
     relacoes = datamodel.detectar_relacionamentos([_tabela("itens", a), _tabela("vendas", b)])
 
@@ -78,25 +87,25 @@ def test_chave_como_texto_em_um_arquivo_e_numero_no_outro():
 
 
 def test_orfaos_sao_medidos_por_linha_e_por_valor_distinto():
-    dim = pd.DataFrame({"matricula": range(1000, 1100),
-                        "nome": [f"P{i}" for i in range(100)]})
-    fato = pd.DataFrame({
-        "id": range(1, 501),
-        "matricula": list(range(1000, 1100)) * 4 + list(range(90000, 90100)),
-        "valor_pago": range(500),
-    })
+    dim = pd.DataFrame({"matricula": range(1000, 1100), "nome": [f"P{i}" for i in range(100)]})
+    fato = pd.DataFrame(
+        {
+            "id": range(1, 501),
+            "matricula": list(range(1000, 1100)) * 4 + list(range(90000, 90100)),
+            "valor_pago": range(500),
+        }
+    )
 
     relacoes = datamodel.detectar_relacionamentos([_tabela("dim", dim), _tabela("fato", fato)])
     relacao = next(r for r in relacoes if r["coluna_origem"] == "matricula")
 
-    assert relacao["pct_orfaos"] == pytest.approx(0.2, abs=0.01)   
-    assert relacao["contencao"] == pytest.approx(0.5, abs=0.01)    
+    assert relacao["pct_orfaos"] == pytest.approx(0.2, abs=0.01)
+    assert relacao["contencao"] == pytest.approx(0.5, abs=0.01)
 
 
 def test_tabelas_sem_relacao_nao_geram_falso_positivo():
     a = pd.DataFrame({"cod_produto": [f"P{i}" for i in range(50)], "preco": range(50)})
-    b = pd.DataFrame({"cpf_cliente": [f"{i:011d}" for i in range(900, 950)],
-                      "cidade": ["SP"] * 50})
+    b = pd.DataFrame({"cpf_cliente": [f"{i:011d}" for i in range(900, 950)], "cidade": ["SP"] * 50})
     assert datamodel.detectar_relacionamentos([_tabela("a", a), _tabela("b", b)]) == []
 
 
@@ -118,8 +127,6 @@ def test_conferencia_usa_volume_original_e_sinaliza_amostragem():
 
 def test_conjunto_de_uma_tabela_nao_tem_relacionamentos(conjunto_rh):
     assert datamodel.detectar_relacionamentos(conjunto_rh[:1]) == []
-
-
 
 
 def test_classifica_fato_e_dimensoes(conjunto_rh):
@@ -146,8 +153,6 @@ def test_tabela_isolada_e_sinalizada():
     avisos = datamodel.gerar_avisos([], perfis)
 
     assert any("não se liga" in a["mensagem"] for a in avisos)
-
-
 
 
 def test_sugere_medida_que_mora_na_dimensao(conjunto_rh):
@@ -201,17 +206,26 @@ def test_codigo_pandas_gerado_realmente_roda(conjunto_rh):
 
 def test_codigo_sugerido_escapa_aspas_em_nomes_externos():
     pandas = datamodel._codigo_pandas(
-        'fato"2026', [], {"tabela": 'fato"2026', "coluna": 'valor"bruto'},
-        {"tabela": 'fato"2026', "coluna": 'grupo"nome'}, "sum",
+        'fato"2026',
+        [],
+        {"tabela": 'fato"2026', "coluna": 'valor"bruto'},
+        {"tabela": 'fato"2026', "coluna": 'grupo"nome'},
+        "sum",
     )
     sql = datamodel._codigo_sql(
-        'fato"2026', [], {"tabela": 'fato"2026', "coluna": 'valor"bruto'},
-        {"tabela": 'fato"2026', "coluna": 'grupo"nome'}, "sum",
+        'fato"2026',
+        [],
+        {"tabela": 'fato"2026', "coluna": 'valor"bruto'},
+        {"tabela": 'fato"2026', "coluna": 'grupo"nome'},
+        "sum",
     )
     escopo = {
-        datamodel._variavel('fato"2026'): pd.DataFrame({
-            'grupo"nome': ["A", "B"], 'valor"bruto': [1, 2],
-        }),
+        datamodel._variavel('fato"2026'): pd.DataFrame(
+            {
+                'grupo"nome': ["A", "B"],
+                'valor"bruto': [1, 2],
+            }
+        ),
     }
 
     exec(pandas, escopo)  # noqa: S102 — valida o código pandas entregue ao usuário
@@ -230,8 +244,6 @@ def test_sql_gerado_menciona_as_tabelas_e_o_join(conjunto_rh):
     assert "LEFT JOIN" in carga["sql"]
     assert "GROUP BY" in carga["sql"]
     assert "treinamentos" in carga["sql"]
-
-
 
 
 def test_analisar_conjunto_monta_payload_completo(conjunto_rh):
@@ -255,17 +267,24 @@ def test_modelar_conjunto_exige_duas_tabelas(tmp_path):
 
 def test_modelar_conjunto_gera_relatorios(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    dim = pd.DataFrame({"cod_dep": [f"D{i:02d}" for i in range(20)],
-                        "nome_dep": [f"Depto {i}" for i in range(20)]})
-    fato = pd.DataFrame({"id_registro": range(200),
-                         "cod_dep": [f"D{i % 20:02d}" for i in range(200)],
-                         "vl_gasto": range(200)})
+    dim = pd.DataFrame(
+        {"cod_dep": [f"D{i:02d}" for i in range(20)], "nome_dep": [f"Depto {i}" for i in range(20)]}
+    )
+    fato = pd.DataFrame(
+        {
+            "id_registro": range(200),
+            "cod_dep": [f"D{i % 20:02d}" for i in range(200)],
+            "vl_gasto": range(200),
+        }
+    )
     dim.to_csv(tmp_path / "dim.csv", index=False)
     fato.to_csv(tmp_path / "fato.csv", index=False)
 
     DataProfiler().modelar_conjunto(
         [str(tmp_path / "dim.csv"), str(tmp_path / "fato.csv")],
-        saida_base="conj", formatos=["json", "markdown", "html"], perfis_individuais=False,
+        saida_base="conj",
+        formatos=["json", "markdown", "html"],
+        perfis_individuais=False,
     )
 
     assert (tmp_path / "conj_modelo.json").exists()
@@ -279,11 +298,16 @@ def test_modelar_conjunto_gera_relatorios(tmp_path, monkeypatch):
 def test_cada_aba_do_excel_vira_uma_tabela(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     caminho = tmp_path / "conjunto.xlsx"
-    dim = pd.DataFrame({"cod_dep": [f"D{i:02d}" for i in range(20)],
-                        "nome_dep": [f"Depto {i}" for i in range(20)]})
-    fato = pd.DataFrame({"id_registro": range(200),
-                         "cod_dep": [f"D{i % 20:02d}" for i in range(200)],
-                         "vl_gasto": range(200)})
+    dim = pd.DataFrame(
+        {"cod_dep": [f"D{i:02d}" for i in range(20)], "nome_dep": [f"Depto {i}" for i in range(20)]}
+    )
+    fato = pd.DataFrame(
+        {
+            "id_registro": range(200),
+            "cod_dep": [f"D{i % 20:02d}" for i in range(200)],
+            "vl_gasto": range(200),
+        }
+    )
     with pd.ExcelWriter(caminho) as writer:
         dim.to_excel(writer, sheet_name="Departamentos", index=False)
         fato.to_excel(writer, sheet_name="Gastos", index=False)
