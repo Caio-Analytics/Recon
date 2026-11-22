@@ -21,23 +21,23 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "pandas==3.0.5",
-    "numpy==2.5.2",
-    "pyarrow==25.0.1",
+    "pandas==3.1.1",
+    "numpy==2.5.5",
+    "pyarrow==26.0.1",
     "openpyxl==3.1.5",
     "xlrd==2.0.2",
     "pyxlsb==1.0.10",
-    "charset-normalizer==3.5.0",
-    "rapidfuzz==3.14.5",
+    "charset-normalizer==3.5.2",
+    "rapidfuzz==3.14.6",
     "unidecode==1.4.0",
-    "scipy==1.18.0",
+    "scipy==1.18.1",
     "statsmodels==0.14.6",
     "pyyaml==6.0.3",
-    "loguru==0.7.3",
-    "typer==0.27.1",
+    "loguru==0.8.0",
+    "typer==0.29.2",
     "rich==15.0.0",
-    "tqdm==4.70.0",
-    "duckdb==1.5.5",
+    "tqdm==4.70.1",
+    "duckdb==2.0.0",
     "weasyprint==70.0",
     "pillow>=13.0.0",   # piso de segurança: versões anteriores têm CVEs (transitiva do weasyprint)
     "brotli>=1.2.1",    # piso de segurança: CVE-2026-111497 (transitiva do fonttools)
@@ -48,13 +48,13 @@ gui = [
     "PySide6==6.10.2",
 ]
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pytest-cov==7.1.0",
-    "pandas-stubs==3.0.5.260730",
-    "types-PyYAML==6.0.12.20250915",
-    "mypy==1.19.1",
+    "pandas-stubs==3.1.0.261029",
+    "types-PyYAML==6.0.12.20261113",
+    "mypy==2.4.1",
     "ruff==0.17.6",
-    "pip-tools==7.6.1",
+    "pip-tools==7.7.0",
     "playwright==1.65.2",
 ]
 
