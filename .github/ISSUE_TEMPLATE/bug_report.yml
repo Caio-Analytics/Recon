@@ -1,0 +1,58 @@
+name: Relatar um bug
+description: Algo não funciona como esperado.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar! **Não anexe planilhas, relatórios ou dados reais.**
+        Se precisar de um exemplo, monte um arquivo pequeno com valores fictícios.
+        Vulnerabilidades de segurança devem seguir o SECURITY.md, nunca uma issue pública.
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu?
+      description: Descreva o problema e o que você esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Como reproduzir
+      description: Comando executado ou passos na interface, e um exemplo mínimo de entrada com dados fictícios.
+      placeholder: |
+        1. recon perfilar exemplo.csv
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Mensagem de erro ou log
+      description: Cole a saída do terminal. Remova caminhos, nomes de colunas ou valores sensíveis.
+      render: shell
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do Recon
+      description: Saída de `pip show recon` ou o commit usado.
+    validations:
+      required: true
+  - type: input
+    id: ambiente
+    attributes:
+      label: Sistema operacional e versão do Python
+      placeholder: "Ubuntu 24.04, Python 3.13"
+    validations:
+      required: true
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Onde o problema aparece?
+      multiple: true
+      options:
+        - Linha de comando (recon ...)
+        - Interface gráfica (recon janela)
+        - Relatório HTML
+        - Relatório PDF / XLSX / Markdown
+        - Outro

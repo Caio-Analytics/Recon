@@ -9,6 +9,7 @@ alterações entre versões, consulte `git log` e as releases do repositório.
 - Interface Qt com fluxos de perfil, lote, relações, conferência de versões e histórico.
 - Histórico visual de qualidade, score com metodologia explícita e agregação temporal coerente com a semântica da métrica.
 - CI em Python 3.12, 3.13 e 3.14, cobertura mínima de 75% e construção do pacote.
+- Licença alterada de CC BY-NC 4.0 para MIT, com guia de contribuição, código de conduta e modelos de issue e pull request.
 
 O [backlog](docs/BACKLOG.md) reúne o que ainda é apenas proposta.
 

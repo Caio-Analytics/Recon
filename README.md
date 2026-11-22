@@ -1,5 +1,9 @@
 # Recon
 
+[![CI](https://github.com/Caio-Analytics/Recon/actions/workflows/ci.yml/badge.svg)](https://github.com/Caio-Analytics/Recon/actions/workflows/ci.yml)
+[![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
+
 Recon é uma ferramenta local para conhecer uma base antes de analisá-la. Ela lê arquivos tabulares, identifica estrutura, qualidade, possíveis dados pessoais, semântica de colunas e relações entre tabelas, e gera relatórios HTML, JSON e Markdown.
 
 Os dados permanecem na sua máquina: o Recon não depende de serviços externos.
@@ -82,12 +86,19 @@ O script de limpeza usa pseudonimização com HMAC para dados pessoais e exige a
 |---|---|
 | [Guia de uso](docs/GUIA.md) | Instalação, GUI e exemplos passo a passo. |
 | [Documentação técnica](docs/TECNICO.md) | Arquitetura, payload, critérios e extensões. |
-| [Guia do código](docs/GUIA_DO_CODIGO.md) | Primeiro contato com a base de código e os testes. |
 | [Backlog](docs/BACKLOG.md) | Melhorias planejadas e limites conhecidos. |
-| [Contribuição](CONTRIBUTING.md) | Como alterar e validar o projeto. |
+| [Contribuição](CONTRIBUTING.md) | Como preparar o ambiente, alterar e validar o projeto. |
+| [Código de conduta](CODE_OF_CONDUCT.md) | Como esperamos que as pessoas interajam no projeto. |
 | [Segurança e privacidade](SECURITY.md) | Como tratar dados e reportar vulnerabilidades. |
 
-## Desenvolvimento
+## Contribuindo
+
+Contribuições são bem-vindas, de correções na documentação a novas análises. O
+[guia de contribuição](CONTRIBUTING.md) explica como preparar o ambiente, rodar as
+verificações e abrir um pull request. Para começar, veja as issues marcadas como
+[`good first issue`](https://github.com/Caio-Analytics/Recon/labels/good%20first%20issue)
+ou o [backlog](docs/BACKLOG.md). Dúvidas de uso vão para as
+[Discussions](https://github.com/Caio-Analytics/Recon/discussions).
 
 ```bash
 python -m pip install -r requirements-dev.lock
@@ -96,3 +107,9 @@ pytest -q
 ```
 
 O projeto verifica estilo com Ruff e tipos com Mypy na CI.
+
+## Licença
+
+Distribuído sob a [licença MIT](LICENSE). Você pode usar, modificar e
+redistribuir o Recon, inclusive para fins comerciais, mantendo o aviso de
+copyright e a licença.

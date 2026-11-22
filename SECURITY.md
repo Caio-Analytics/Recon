@@ -4,7 +4,9 @@ O Recon processa arquivos localmente, mas os relatórios podem conter metadados 
 
 ## Relatar uma vulnerabilidade
 
-Não publique dados reais nem detalhes exploráveis em issue pública. Abra uma comunicação privada com o mantenedor do repositório e informe impacto, versão afetada, ambiente e uma reprodução mínima sem dados sensíveis. Se o repositório disponibilizar um canal de segurança, prefira-o ao contato público.
+Não publique dados reais nem detalhes exploráveis em issue pública. Use o relato privado do GitHub: na aba **Security** do repositório, clique em **Report a vulnerability** ([link direto](https://github.com/Caio-Analytics/Recon/security/advisories/new)). Se a opção não estiver disponível, entre em contato com o mantenedor pelo perfil [@Caio-Analytics](https://github.com/Caio-Analytics) pedindo um canal privado, sem descrever a falha na mensagem inicial.
+
+Informe impacto, versão afetada, ambiente e uma reprodução mínima sem dados sensíveis.
 
 O relato deve permitir reproduzir o problema sem anexar planilhas, credenciais, tokens ou chaves. A confirmação de recebimento e o prazo de correção dependem da gravidade e da possibilidade de reprodução.
 

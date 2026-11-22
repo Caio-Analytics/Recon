@@ -2,6 +2,23 @@
 name = "recon"
 version = "3.0.0"
 description = "Recon — reconhecimento de dados: descubra o que tem num arquivo desconhecido antes de analisar."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Caio" }]
+keywords = ["data-profiling", "data-quality", "data-privacy", "schema-inference", "pandas"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: Portuguese (Brazilian)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
 requires-python = ">=3.12"
 dependencies = [
     "pandas==3.0.5",
@@ -38,6 +55,12 @@ dev = [
     "pip-tools==7.6.1",
     "playwright==1.62.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Caio-Analytics/Recon"
+Documentation = "https://github.com/Caio-Analytics/Recon/blob/main/docs/GUIA.md"
+Issues = "https://github.com/Caio-Analytics/Recon/issues"
+Changelog = "https://github.com/Caio-Analytics/Recon/blob/main/CHANGELOG.md"
 
 [project.scripts]
 recon = "recon.cli:app"

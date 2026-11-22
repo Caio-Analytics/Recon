@@ -1,0 +1,28 @@
+name: Sugerir uma melhoria
+description: Proponha uma funcionalidade ou mudança de comportamento.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema isso resolve?
+      description: Conte a situação real em que você sentiu falta disso.
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Como você imagina a solução?
+      description: Comando, opção, campo no relatório ou comportamento esperado.
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+  - type: checkboxes
+    id: ajuda
+    attributes:
+      label: Contribuição
+      options:
+        - label: Tenho interesse em implementar essa melhoria.
