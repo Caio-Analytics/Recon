@@ -38,7 +38,9 @@ dependencies = [
     "rich==15.0.0",
     "tqdm==4.70.0",
     "duckdb==1.5.5",
-    "weasyprint==69.0",
+    "weasyprint==70.0",
+    "pillow>=13.0.0",   # piso de segurança: versões anteriores têm CVEs (transitiva do weasyprint)
+    "brotli>=1.2.1",    # piso de segurança: CVE-2026-111497 (transitiva do fonttools)
 ]
 
 [project.optional-dependencies]

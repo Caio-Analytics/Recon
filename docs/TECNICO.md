@@ -42,9 +42,9 @@ dados nem de serviço externo.
 |---|---|
 | Python | ≥ 3.12 (piso real de `numpy` 2.5 e `scipy` 1.18) |
 | Validado em | 3.14 (registrado em `.python-version`) |
-| Dependências | pandas, numpy, pyarrow, openpyxl, xlrd, pyxlsb, charset-normalizer, rapidfuzz, unidecode, scipy, statsmodels, pyyaml, loguru, typer, tqdm e WeasyPrint |
+| Dependências | pandas, numpy, pyarrow, openpyxl, xlrd, pyxlsb, charset-normalizer, rapidfuzz, unidecode, scipy, statsmodels, pyyaml, loguru, typer, rich, tqdm, duckdb e WeasyPrint |
 | Extra `gui` | PySide6 (instalado com `.[gui]`) |
-| Extra `dev` | pytest, pytest-cov, pandas-stubs, types-PyYAML, mypy, ruff |
+| Extra `dev` | pytest, pytest-cov, pandas-stubs, types-PyYAML, mypy, ruff, pip-tools, playwright |
 
 ```bash
 pip install -e ".[gui,dev]"      # com venv

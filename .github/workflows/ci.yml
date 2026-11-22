@@ -37,3 +37,15 @@ jobs:
         run: pytest -q --cov=src/recon --cov-report=term-missing --cov-fail-under=75
       - name: Construir pacote
         run: python -m build
+
+  auditoria:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Auditar dependências fixadas
+        run: |
+          python -m pip install pip-audit
+          pip-audit -r requirements-dev.lock --no-deps --disable-pip

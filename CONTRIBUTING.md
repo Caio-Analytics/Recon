@@ -148,7 +148,7 @@ Pontos de entrada comuns:
   atualizar uma, altere o `pyproject.toml` e regenere o lock:
 
   ```bash
-  pip-compile --extra=dev --no-index --output-file=requirements-dev.lock --strip-extras pyproject.toml
+  pip-compile --extra=dev --output-file=requirements-dev.lock --strip-extras pyproject.toml
   ```
 
 - **Commits:** seguimos [Conventional Commits](https://www.conventionalcommits.org/pt-br/),
