@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "Se você usar o Recon em um trabalho, cite-o com os dados abaixo."
+title: "Recon: perfilamento e qualidade de dados local"
+type: software
+authors:
+  - given-names: "Caio"
+    alias: "Caio-Analytics"
+repository-code: "https://github.com/Caio-Analytics/recon-data-profiler"
+url: "https://github.com/Caio-Analytics/recon-data-profiler"
+abstract: >-
+  Ferramenta local em Python para conhecer uma base antes de analisá-la: inferência de
+  esquema e semântica, qualidade de dados, detecção de dado pessoal (LGPD), relações
+  entre tabelas, contratos de dados e relatórios em HTML, JSON, Markdown e PDF.
+keywords:
+  - data profiling
+  - data quality
+  - LGPD
+  - PII detection
+  - schema inference
+  - data contracts
+license: MIT
+version: 3.0.0
+date-released: "2026-11-22"

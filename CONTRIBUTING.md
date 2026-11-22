@@ -23,10 +23,10 @@ abra uma issue.
 
 | Quero... | Como |
 |---|---|
-| Relatar um problema | Abra uma [issue de bug](https://github.com/Caio-Analytics/Recon/issues/new?template=bug_report.yml). |
-| Sugerir uma melhoria | Abra uma [sugestão](https://github.com/Caio-Analytics/Recon/issues/new?template=feature_request.yml) ou comece uma [discussão](https://github.com/Caio-Analytics/Recon/discussions). |
-| Tirar uma dúvida de uso | Use as [Discussions](https://github.com/Caio-Analytics/Recon/discussions), não as issues. |
-| Começar a programar | Procure issues com o rótulo [`good first issue`](https://github.com/Caio-Analytics/Recon/labels/good%20first%20issue) ou um item do [backlog](docs/BACKLOG.md). |
+| Relatar um problema | Abra uma [issue de bug](https://github.com/Caio-Analytics/recon-data-profiler/issues/new?template=bug_report.yml). |
+| Sugerir uma melhoria | Abra uma [sugestão](https://github.com/Caio-Analytics/recon-data-profiler/issues/new?template=feature_request.yml) ou comece uma [discussão](https://github.com/Caio-Analytics/recon-data-profiler/discussions). |
+| Tirar uma dúvida de uso | Use as [Discussions](https://github.com/Caio-Analytics/recon-data-profiler/discussions), não as issues. |
+| Começar a programar | Procure issues com o rótulo [`good first issue`](https://github.com/Caio-Analytics/recon-data-profiler/labels/good%20first%20issue) ou um item do [backlog](docs/BACKLOG.md). |
 | Reportar uma vulnerabilidade | Siga o [SECURITY.md](SECURITY.md). **Não** abra issue pública. |
 
 Para mudanças grandes (novo comando, novo formato de saída, mudança no contrato
@@ -41,8 +41,8 @@ Requer **Python 3.12 ou superior** (o projeto é validado em 3.12, 3.13 e 3.14).
 
    ```bash
    git clone https://github.com/<seu-usuario>/Recon.git
-   cd Recon
-   git remote add upstream https://github.com/Caio-Analytics/Recon.git
+   cd recon-data-profiler
+   git remote add upstream https://github.com/Caio-Analytics/recon-data-profiler.git
    ```
 
 2. Crie um ambiente virtual e instale o projeto com as dependências de
@@ -190,7 +190,7 @@ O Recon lida com dados pessoais e corporativos. Por isso:
 3. Atualize a documentação (`README.md`, `docs/GUIA.md`, `docs/TECNICO.md`) se a
    mudança afetar comandos, saídas ou a interface, e o `CHANGELOG.md` se for uma
    mudança visível para quem usa.
-4. Envie a branch para o seu fork e abra o pull request para `Caio-Analytics/Recon:main`.
+4. Envie a branch para o seu fork e abra o pull request para `Caio-Analytics/recon-data-profiler:main`.
    O modelo de PR traz um checklist; preencha o que se aplicar.
 5. A CI precisa passar. Se ela falhar, abra o log da execução e corrija; se o
    erro não fizer sentido, comente no PR que a gente ajuda.

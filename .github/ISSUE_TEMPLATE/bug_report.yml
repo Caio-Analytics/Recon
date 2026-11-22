@@ -35,7 +35,7 @@ body:
     id: versao
     attributes:
       label: Versão do Recon
-      description: Saída de `pip show recon` ou o commit usado.
+      description: Saída de `pip show recon-data-profiler` ou o commit usado.
     validations:
       required: true
   - type: input

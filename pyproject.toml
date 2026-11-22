@@ -1,12 +1,12 @@
 [project]
-name = "recon"
+name = "recon-data-profiler"
 version = "3.0.0"
-description = "Recon — reconhecimento de dados: descubra o que tem num arquivo desconhecido antes de analisar."
+description = "Recon: perfilamento e qualidade de dados local, com detecção de dado pessoal (LGPD). Descubra o que há em CSV, Excel, JSON e Parquet antes de analisar."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Caio" }]
-keywords = ["data-profiling", "data-quality", "data-privacy", "schema-inference", "pandas"]
+keywords = ["data-profiling", "data-quality", "data-privacy", "lgpd", "pii-detection", "schema-inference", "data-contracts", "pandas", "brazil"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -59,10 +59,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Caio-Analytics/Recon"
-Documentation = "https://github.com/Caio-Analytics/Recon/blob/main/docs/GUIA.md"
-Issues = "https://github.com/Caio-Analytics/Recon/issues"
-Changelog = "https://github.com/Caio-Analytics/Recon/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Caio-Analytics/recon-data-profiler"
+Documentation = "https://github.com/Caio-Analytics/recon-data-profiler/blob/main/docs/GUIA.md"
+Issues = "https://github.com/Caio-Analytics/recon-data-profiler/issues"
+Changelog = "https://github.com/Caio-Analytics/recon-data-profiler/blob/main/CHANGELOG.md"
 
 [project.scripts]
 recon = "recon.cli:app"

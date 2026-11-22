@@ -680,9 +680,10 @@ Pontos de atenção:
 
 ### DEV-2 · Publicar no PyPI 🔴 M `[DevOps]`
 
-Fluxo de release com GitHub Actions e *trusted publishing*, para `pip install`
-funcionar sem clonar o repositório. Antes: verificar se o nome está livre,
-decidir a política de versões (SemVer) e quem publica.
+Fluxo de release com GitHub Actions e *trusted publishing*, para `pip install recon-data-profiler`
+funcionar sem clonar o repositório. O nome `recon` já pertence a outro pacote no PyPI
+(de biologia), por isso o pacote se chama `recon-data-profiler`; o comando e o `import`
+continuam `recon`. Falta decidir a política de versões (SemVer) e quem publica.
 
 ### DEV-3 · Assinatura de código e proveniência do build 🟡 M `[DevOps]` `[Segurança]`
 
@@ -800,38 +801,26 @@ escrever ajuda muito aqui.
 
 ### DOC-3 · Documentação em inglês 🟡 M `[Docs]`
 
-README, CONTRIBUTING e guia em inglês, para atrair contribuições de fora do
-Brasil. Veja também REP-2.
+Existe um `README.en.md` curto. Faltam CONTRIBUTING, guia de uso e documentação técnica
+em inglês, para atrair contribuições de fora do Brasil. Veja também REP-2.
 
-### DOC-4 · Corrigir texto sobre o uso de memória 🟢 P `[Docs]`
-
-O README diz que o Recon "reserva 30% da RAM disponível", mas
-`ingestion._FRACAO_RAM_SEGURA = 0.70` e a mensagem do relatório diz "70% da RAM
-disponível". Provavelmente o texto quer dizer "deixa 30% livres"; deixar claro.
-
-### DOC-5 · Manter o guia do código fora do `.gitignore` 🟢 P `[Docs]`
+### DOC-4 · Manter o guia do código fora do `.gitignore` 🟢 P `[Docs]`
 
 O `.gitignore` lista `docs/GUIA_DO_CODIGO.md` como "anotações pessoais", mas o
 README chegou a linkar o arquivo. Escrever uma versão pública: um passeio de
 uma página pelo caminho de uma coluna no `pipeline`, para quem vai ler o código
 pela primeira vez.
 
-### DOC-6 · Site de documentação 🟡 M `[Docs]` `[DevOps]`
+### DOC-5 · Site de documentação 🟡 M `[Docs]` `[DevOps]`
 
 MkDocs Material ou Sphinx no GitHub Pages, com a documentação técnica, o
 backlog e o histórico de versões.
 
-### DOC-7 · Conjuntos de dados sintéticos de teste 🟢 M `[Qualidade de dados]`
+### DOC-6 · Conjuntos de dados sintéticos de teste 🟢 M `[Qualidade de dados]`
 
 Conjuntos fictícios com problemas conhecidos (nulos em padrão, CPF inválido,
 datas trocadas, chaves órfãs) e o resultado esperado, úteis para testes,
 exemplos e para avaliar BR-6 e REL-1. **Nunca** com dados reais.
-
-### DOC-8 · Atualizar o CHANGELOG por versão 🟢 P `[Docs]`
-
-O CHANGELOG descreve marcos, não versões, e remete a `git log`. Adotar
-[Keep a Changelog](https://keepachangelog.com/pt-BR/) para facilitar quem
-atualiza o pacote.
 
 ---
 

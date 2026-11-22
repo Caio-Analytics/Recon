@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Dúvidas de uso
-    url: https://github.com/Caio-Analytics/Recon/discussions
+    url: https://github.com/Caio-Analytics/recon-data-profiler/discussions
     about: Perguntas sobre como usar o Recon vão para as Discussions.
   - name: Vulnerabilidade de segurança
-    url: https://github.com/Caio-Analytics/Recon/blob/main/SECURITY.md
+    url: https://github.com/Caio-Analytics/recon-data-profiler/blob/main/SECURITY.md
     about: Não abra issue pública. Veja como relatar de forma privada.
