@@ -91,9 +91,13 @@ def sugerir_dtype(
     elif tipo_amigavel == "Número Decimal":
         if dtype_atual == "float64":
             sugerido = "float32"
-    elif tipo_amigavel.startswith("Texto"):
-        if n_validos > 0 and n_unicos > 0 and (n_unicos / n_validos) <= 0.5:
-            sugerido = "category"
+    elif (
+        tipo_amigavel.startswith("Texto")
+        and n_validos > 0
+        and n_unicos > 0
+        and (n_unicos / n_validos) <= 0.5
+    ):
+        sugerido = "category"
 
     if sugerido is None or sugerido == dtype_atual:
         return {
@@ -150,7 +154,7 @@ def perfilar_datas(serie: pd.Series) -> dict[str, Any]:
 
     agora = pd.Timestamp.now()
     futuras = int((serie > agora).sum())
-    dias_semana = serie.dt.dayofweek
+    dias_semana = serie.dt.day_of_week
     fim_de_semana = int(dias_semana.isin([5, 6]).sum())
     primeiro_dia_mes = int((serie.dt.day == 1).sum())
     n = len(serie)

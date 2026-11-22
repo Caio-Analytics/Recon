@@ -708,6 +708,14 @@ A CI roda em Ubuntu com Python 3.12–3.14. Acrescentar Windows e macOS, pelo
 menos para os testes que não dependem de Qt/Chromium, para pegar problemas de
 caminho, codificação e `fork` cedo.
 
+### DEV-7 · Fazer o Dependabot atualizar o lock junto 🟡 P `[DevOps]`
+
+O Dependabot altera só o `pyproject.toml`: ele não reconhece `requirements-dev.lock`
+como arquivo de requisitos. Desde 2026-11-22 a CI falha se os dois divergirem
+(`scripts/verificar_lock.py`), mas o lock ainda é regenerado à mão. Avaliar renomear
+para `requirements-dev.txt` (nome que o Dependabot entende) ou uma ação que rode o
+`pip-compile` no PR do Dependabot.
+
 ---
 
 ## 11. Qualidade do código e testes

@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    # Só propõe versões publicadas há pelo menos 14 dias: ataques de supply chain
+    # costumam ser detectados e removidos nos primeiros dias.
+    cooldown:
+      default-days: 14
     # Um único PR por mês com todas as atualizações de versão.
     groups:
       dependencias-python:
@@ -17,6 +21,8 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 14
     groups:
       github-actions:
         patterns: ["*"]

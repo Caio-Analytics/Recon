@@ -45,6 +45,10 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
+      - name: Conferir se o lock acompanha o pyproject.toml
+        run: |
+          python -m pip install packaging
+          python scripts/verificar_lock.py
       - name: Auditar dependências fixadas
         run: |
           python -m pip install pip-audit
