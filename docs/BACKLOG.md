@@ -58,30 +58,18 @@ contribuição.
 O Recon promete mascarar dado pessoal nos relatórios. Esta seção reúne os
 pontos em que isso não se sustenta hoje, e é por onde eu começaria.
 
-### SEG-1 · Valores pessoais aparecem sem máscara em exemplos do relatório 🟡 M `[Python]` `[Segurança]` `[Qualidade de dados]`
+### SEG-1 · Valores pessoais apareciam sem máscara em exemplos do relatório ✅ resolvido em 2026-11-22
 
-**Prioridade alta.** A máscara é aplicada em `amostra_representativa`,
-`distribuicao_top5` e nas estatísticas, mas vários outros campos copiam valores
-brutos da coluna. Reproduzi com uma tabela sintética (coluna de nomes, coluna de
-CPF e coluna de observações com e-mail e telefone) e encontrei valores reais em:
+A máscara cobria só `amostra_representativa`, as estatísticas e o `distribuicao_top5`.
+Outros campos copiavam valores brutos de colunas de **nome** e de **texto livre**: variantes
+de grafia, exemplos de encoding corrompido, exemplos de formato, duplicatas aproximadas e o
+texto das recomendações de ETL. Agora todos passam por `pipeline._proteger_valores_pessoais`,
+e o teste de regressão `tests/test_privacidade.py` percorre o JSON, o HTML e o Markdown
+procurando valores sintéticos conhecidos.
 
-| Campo do JSON | O que vaza |
-|---|---|
-| `Qualidade.inconsistencia_normalizacao.exemplos[].variantes` | nomes completos |
-| `Qualidade.mojibake.exemplos` | nomes com acento corrompido |
-| `duplicatas_aproximadas[].exemplos[].variantes` | nomes completos |
-| `recomendacoes_etl[].Acao` | nomes, dentro do texto da recomendação |
-| `Qualidade.formato.exemplo_conforme` | e-mail e telefone de texto livre |
-| `Stats_Extra.distribuicao_top5[].valor` | e-mail e telefone em colunas de texto livre |
-
-CPF em coluna própria foi mascarado corretamente: o problema está nas colunas
-de **nome** e de **texto livre**, onde a detecção de dado pessoal acontece
-depois que os exemplos já foram montados.
-
-**Proposta.** Aplicar a máscara em um único ponto, na saída da análise de cada
-coluna (e na de duplicatas aproximadas), em vez de em cada campo. Escrever um
-teste de regressão que percorre o JSON inteiro e falha se qualquer valor
-sintético conhecido aparecer.
+**Regra para quem contribui:** todo campo novo que guarde um valor da coluna como exemplo
+precisa ser mascarado em `_proteger_exemplos_de_qualidade`. O teste falha se algum valor
+pessoal conhecido aparecer na saída.
 
 ### SEG-2 · Abrir bancos SQLite somente para leitura 🟢 P `[Python]` `[Segurança]`
 

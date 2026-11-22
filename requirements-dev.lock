@@ -11,13 +11,13 @@ ast-serialize==0.13.1
 brotli==1.2.1
     # via
     #   fonttools
-    #   recon (pyproject.toml)
+    #   recon-data-profiler (pyproject.toml)
 build==1.6.0
     # via pip-tools
 cffi==2.1.1
     # via weasyprint
 charset-normalizer==3.5.2
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 click==8.5.0
     # via pip-tools
 coverage==7.16.0
@@ -25,7 +25,7 @@ coverage==7.16.0
 cssselect2==0.10.1
     # via weasyprint
 duckdb==2.0.0
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 et-xmlfile==2.0.0
     # via openpyxl
 fonttools==4.64.0
@@ -37,25 +37,25 @@ iniconfig==2.3.0
 librt==0.16.0
     # via mypy
 loguru==0.7.3
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 markdown-it-py==4.2.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
 mypy==2.4.1
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 mypy-extensions==1.1.0
     # via mypy
-numpy==2.5.2
+numpy==2.5.4
     # via
     #   pandas
     #   pandas-stubs
     #   patsy
-    #   recon (pyproject.toml)
+    #   recon-data-profiler (pyproject.toml)
     #   scipy
     #   statsmodels
 openpyxl==3.1.5
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 packaging==26.3
     # via
     #   build
@@ -65,28 +65,28 @@ packaging==26.3
     #   wheel
 pandas==3.1.1
     # via
-    #   recon (pyproject.toml)
+    #   recon-data-profiler (pyproject.toml)
     #   statsmodels
 pandas-stubs==3.1.0.261029
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 pathspec==1.1.1
     # via mypy
 patsy==1.0.3
     # via statsmodels
 pillow==13.0.0
     # via
-    #   recon (pyproject.toml)
+    #   recon-data-profiler (pyproject.toml)
     #   weasyprint
-pip-tools==7.6.1
-    # via recon (pyproject.toml)
+pip-tools==7.6.2
+    # via recon-data-profiler (pyproject.toml)
 playwright==1.65.2
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
 pyarrow==26.0.1
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 pycparser==3.0
     # via cffi
 pydyf==0.12.1
@@ -104,33 +104,33 @@ pyproject-hooks==1.2.0
 pytest==9.2.0
     # via
     #   pytest-cov
-    #   recon (pyproject.toml)
+    #   recon-data-profiler (pyproject.toml)
 pytest-cov==7.1.0
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
 pyxlsb==1.0.10
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 pyyaml==6.0.3
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 rapidfuzz==3.14.6
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 rich==15.0.0
     # via
-    #   recon (pyproject.toml)
+    #   recon-data-profiler (pyproject.toml)
     #   typer
 ruff==0.17.6
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 scipy==1.18.1
     # via
-    #   recon (pyproject.toml)
+    #   recon-data-profiler (pyproject.toml)
     #   statsmodels
 shellingham==1.5.4
     # via typer
 six==1.17.0
     # via python-dateutil
 statsmodels==0.14.6
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 tinycss2==1.5.1
     # via
     #   cssselect2
@@ -138,17 +138,17 @@ tinycss2==1.5.1
 tinyhtml5==2.1.0
     # via weasyprint
 tqdm==4.70.1
-    # via recon (pyproject.toml)
-typer==0.27.1
-    # via recon (pyproject.toml)
-types-pyyaml==6.0.12.20250915
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
+typer==0.28.0
+    # via recon-data-profiler (pyproject.toml)
+types-pyyaml==6.0.12.20261103
+    # via recon-data-profiler (pyproject.toml)
 typing-extensions==4.16.0
     # via mypy
 unidecode==1.4.0
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 weasyprint==70.0
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 webencodings==0.6.1
     # via
     #   cssselect2
@@ -157,7 +157,7 @@ webencodings==0.6.1
 wheel==0.48.0
     # via pip-tools
 xlrd==2.0.2
-    # via recon (pyproject.toml)
+    # via recon-data-profiler (pyproject.toml)
 zopfli==0.4.3
     # via fonttools
 

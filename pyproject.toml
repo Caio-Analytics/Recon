@@ -22,7 +22,7 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "pandas==3.1.1",
-    "numpy==2.5.2",
+    "numpy==2.5.4",
     "pyarrow==26.0.1",
     "openpyxl==3.1.5",
     "xlrd==2.0.2",
@@ -34,7 +34,7 @@ dependencies = [
     "statsmodels==0.14.6",
     "pyyaml==6.0.3",
     "loguru==0.7.3",
-    "typer==0.27.1",
+    "typer==0.28.0",
     "rich==15.0.0",
     "tqdm==4.70.1",
     "duckdb==2.0.0",
@@ -51,10 +51,10 @@ dev = [
     "pytest==9.2.0",
     "pytest-cov==7.1.0",
     "pandas-stubs==3.1.0.261029",
-    "types-PyYAML==6.0.12.20250915",
+    "types-PyYAML==6.0.12.20261103",
     "mypy==2.4.1",
     "ruff==0.17.6",
-    "pip-tools==7.6.1",
+    "pip-tools==7.6.2",
     "playwright==1.65.2",
 ]
 

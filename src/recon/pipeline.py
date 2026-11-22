@@ -83,6 +83,51 @@ def _mascarar_nomes(stats: dict[str, Any]) -> None:
     ]
     for item in stats["estatisticas_adicionais"].get("distribuicao_top5", []):
         item["valor"] = patterns.mascarar_nome_pessoa(item["valor"])
+    _proteger_exemplos_de_qualidade(stats, patterns.mascarar_nome_pessoa)
+
+
+def _proteger_exemplos_de_qualidade(stats: dict[str, Any], mascarar: Callable[[str], str]) -> None:
+    """Aplica a máscara aos campos de qualidade que copiam valores brutos da coluna.
+
+    A máscara das amostras e do top 5 acontece na análise estatística. Estes campos
+    (grafias divergentes, encoding corrompido, formato) são calculados antes de saber
+    se a coluna é pessoal e guardam valores reais como exemplo, então precisam passar
+    por aqui. Todo campo novo que guarde valor da coluna deve ser tratado neste ponto.
+    """
+    qualidade = stats.get("qualidade", {})
+
+    mojibake = qualidade.get("mojibake", {})
+    if mojibake.get("exemplos"):
+        mojibake["exemplos"] = [mascarar(v) for v in mojibake["exemplos"]]
+
+    inconsistencia = qualidade.get("inconsistencia_normalizacao", {})
+    for exemplo in inconsistencia.get("exemplos", []):
+        exemplo["variantes"] = [mascarar(v) for v in exemplo["variantes"]]
+
+    formato = qualidade.get("formato", {})
+    if formato.get("exemplo_conforme") is not None:
+        formato["exemplo_conforme"] = mascarar(formato["exemplo_conforme"])
+    for item in formato.get("exemplos_fora_do_padrao", []):
+        item["valor"] = mascarar(item["valor"])
+
+
+def _proteger_valores_pessoais(stats: dict[str, Any], padrao: str, papel: str) -> str:
+    """Mascara os exemplos de uma coluna pessoal e devolve o padrão a registrar."""
+    if patterns.eh_sensivel(padrao):
+        # A análise estatística já mascarou amostra e top 5 deste padrão.
+        _proteger_exemplos_de_qualidade(
+            stats, lambda valor: patterns.mascarar_valor_sensivel(valor, padrao)
+        )
+        return padrao
+    if papel == config.SEMANTICA_NOME_PESSOA:
+        _mascarar_nomes(stats)
+        return "Nome de pessoa"
+    if stats["qualidade"].get("pii_texto_livre", {}).get("tem_pii"):
+        # A amostra já saiu redigida; o top 5 e os exemplos de qualidade ainda não.
+        for item in stats["estatisticas_adicionais"].get("distribuicao_top5", []):
+            item["valor"] = patterns.redigir_pii_em_texto(item["valor"])
+        _proteger_exemplos_de_qualidade(stats, patterns.redigir_pii_em_texto)
+    return padrao
 
 
 class DataProfiler:
@@ -158,11 +203,7 @@ class DataProfiler:
             padrao_estruturado = stats["flags"]["detected_pattern"]
             semanticas_presentes.update(semantics.semanticas_para_gap_analysis(sem))
 
-            if sem["papel"] == config.SEMANTICA_NOME_PESSOA and not patterns.eh_sensivel(
-                padrao_estruturado
-            ):
-                padrao_estruturado = "Nome de pessoa"
-                _mascarar_nomes(stats)
+            padrao_estruturado = _proteger_valores_pessoais(stats, padrao_estruturado, sem["papel"])
 
             lista_colunas.append(
                 {
@@ -262,6 +303,12 @@ class DataProfiler:
         duplicatas_aproximadas = relationships.detectar_duplicatas_aproximadas(
             df_alvo, lista_colunas
         )
+        for achado in duplicatas_aproximadas:
+            # Só colunas de nome de pessoa chegam aqui: as variantes são nomes reais.
+            for exemplo in achado["exemplos"]:
+                exemplo["variantes"] = [
+                    patterns.mascarar_nome_pessoa(v) for v in exemplo["variantes"]
+                ]
         chaves_compostas = relationships.detectar_chaves_compostas(df_alvo, lista_colunas)
 
         logger.info("Medindo correlações entre colunas...")

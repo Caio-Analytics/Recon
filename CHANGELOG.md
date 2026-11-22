@@ -9,7 +9,16 @@ feito, veja o [backlog](docs/BACKLOG.md).
 
 ## [Não lançado]
 
-Nada ainda.
+### Segurança
+
+- Corrigido o vazamento de valores pessoais em exemplos do relatório: nomes, e-mails e
+  telefones apareciam sem máscara em grafias divergentes, encoding corrompido, formato,
+  duplicatas aproximadas e recomendações de ETL, no JSON, no HTML e no Markdown. Cobertura
+  de regressão em `tests/test_privacidade.py`.
+
+### Alterado
+
+- Atualizados numpy 2.5.4, typer 0.28.0, pip-tools 7.6.2 e types-PyYAML 6.0.12.20261103.
 
 ## [3.0.0] - 2026-11-22
 
