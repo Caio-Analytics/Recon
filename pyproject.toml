@@ -53,7 +53,7 @@ dev = [
     "pandas-stubs==3.0.5.260730",
     "types-PyYAML==6.0.12.20250915",
     "mypy==1.19.1",
-    "ruff==0.15.4",
+    "ruff==0.17.6",
     "pip-tools==7.6.1",
     "playwright==1.65.2",
 ]
