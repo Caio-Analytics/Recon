@@ -3,9 +3,20 @@ updates:
   - package-ecosystem: pip
     directory: "/"
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    # Um único PR por mês com todas as atualizações de versão.
+    groups:
+      dependencias-python:
+        patterns: ["*"]
+    # Estes pacotes mudam resultados ou interface e precisam de conferência
+    # manual antes de subir de versão. Alertas de segurança continuam chegando.
+    ignore:
+      - dependency-name: "statsmodels"
+      - dependency-name: "PySide6"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
