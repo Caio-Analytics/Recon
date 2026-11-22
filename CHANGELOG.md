@@ -9,6 +9,12 @@ feito, veja o [backlog](docs/BACKLOG.md).
 
 ## [Não lançado]
 
+Nada ainda.
+
+## [3.0.1] - 2026-11-22
+
+Correção de privacidade: recomendada para todos que usam a 3.0.0.
+
 ### Segurança
 
 - Corrigido o vazamento de valores pessoais em exemplos do relatório: nomes, e-mails e
@@ -140,5 +146,6 @@ de `data_profiler` para `datascope` e, em 15 de agosto de 2026, para `recon`.
 - Licença CC BY-NC 4.0 (substituída pela MIT na 3.0.0) e remoção de dados reais de
   testes e exemplos.
 
-[Não lançado]: https://github.com/Caio-Analytics/recon-data-profiler/compare/v3.0.0...HEAD
+[Não lançado]: https://github.com/Caio-Analytics/recon-data-profiler/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/Caio-Analytics/recon-data-profiler/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/Caio-Analytics/recon-data-profiler/releases/tag/v3.0.0

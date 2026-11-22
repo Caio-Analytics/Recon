@@ -1,6 +1,6 @@
 [project]
 name = "recon-data-profiler"
-version = "3.0.0"
+version = "3.0.1"
 description = "Recon: perfilamento e qualidade de dados local, com detecção de dado pessoal (LGPD). Descubra o que há em CSV, Excel, JSON e Parquet antes de analisar."
 readme = "README.md"
 license = "MIT"
